@@ -1,0 +1,53 @@
+<div>
+	<span>
+		<input type="checkbox">
+	</span>
+	<span>课程名</span>
+	<span>已上学时</span>
+	<span>总学时</span>
+	<span>操作</span>
+</div>
+<div>
+	<span>
+		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="11">
+	</span>
+	<span>日语</span>
+	<span>8学时</span>
+	<span>120学时</span>
+</div>
+<div>
+	<span>
+		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="22">
+	</span>
+	<span>英语</span>
+	<span>9学时</span>
+	<span>130学时</span>
+</div>
+<div>
+	<span>
+		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="33">
+	</span>
+	<span>法语</span>
+	<span>10学时</span>
+	<span>140学时</span>
+</div>
+
+<div>{{chkedCourse}}</div>
+<div>
+	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="a">
+	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="b">
+	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="c">
+</div>
+<div>{{radioCourse}}</div>
+<br><br><br><br><br><br><br><br><br>
+<select valueVariable="{{chkedCourse}}" multiple='true'>
+	<option value="11">11</option>
+	<option value="22">22</option>
+	<option value="33">33</option>
+</select>
+<select valueVariable="{{radioCourse}}">
+	<option value="a">a</option>
+	<option value="b">b</option>
+	<option value="c">c</option>
+</select>
+<div>{{radioCourse}}</div>

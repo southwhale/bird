@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link rel="stylesheet" href="fonticon/fontello/css/fontello.css" />
+		<link rel="stylesheet" href="js/lib/bird/ui/css/bird.ui.css" />
+	</head>
+	<body>
+		<div id="demolist">
+			<div>
+				<a href="#!/bird.ui.dialog">bird.ui.dialog</a>
+			</div>
+		</div>
+		<div id="Container"></div>
+		
+		<script src="./js/lib/seajs/sea-debug.js" charset="UTF-8"></script>
+		<script>
+			(function(){
+				var alias = {
+					'jquery': 'lib/jquery/jquery-1.11.1',
+				    'moment': 'lib/moment/moment',
+				    'q': 'lib/q/q'
+				};
+
+				var modMap = {
+					bird: {
+						prefix: 'lib/bird/base/',
+						mods: [
+							'bird.browser','bird.dom','bird.lang','bird.array','bird.string','bird.date','bird.object',
+							'bird.uuid','bird.chain','bird.event','bird.observer','bird.request','bird.__observer__',
+							'bird.syspatch','bird.template','bird.animate','bird.css3animate','bird.spirit','bird.util',
+							'bird.class'
+						]
+					},
+
+					mvvm: {
+						prefix : 'lib/bird/mvvm/',
+						mods: ['bird.controller','bird.router','bird.action','bird.databind','bird.applicationcontext']
+					},
+
+					ui: {
+						prefix : 'lib/bird/ui/',
+						mods: [
+							'bird.ui','bird.ui.button','bird.ui.dialog','bird.ui.dialog.confirm','bird.ui.dialog.alert',
+							'bird.ui.mask','bird.ui.panel'
+						]
+					},
+
+					action: {
+						prefix: 'lib/bird/ui/',
+						mods: [
+							'demo/index','demo/ui.dialog'
+						]
+					},
+
+					tool: {
+						prefix: 'lib/bird/tool/',
+						mods: ['mask','errorTrack']
+					}
+				};
+
+				seajs.each(modMap, function(m){
+					seajs.each(m.mods, function(modName){
+						alias[modName] = m.prefix + modName;
+					});
+				});
+
+				seajs.config({
+				  base: './js/',
+				  alias: alias
+				});
+
+				seajs.use('./demo');
+			})();
+		</script>
+	</body>
+</html>

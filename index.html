@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link rel="stylesheet" href="fonticon/fontello/css/fontello.css" />
+		<link rel="stylesheet" href="js/lib/bird/ui/css/bird.ui.css" />
+		<link rel="stylesheet" href="css/index.css" />
+	</head>
+	<body>
+		<div id="Container">
+			
+			<div id="Bg" class="pic_box bgcolor">
+				<img src="img/bg.jpg"/>
+			</div>
+			
+			<div id="Frontface" class="vhcenter">
+				<img src="img/word.png"/>
+				<div class="btnbox">
+					<a href="#!/signin" class="fl asignin">sign in</a>
+					<a href="#!/register" class="fl aregister">register</a>
+				</div>
+			</div>
+			<div id="Copyright">
+				<span>© Copyright 2014 WWW.HUJIANG.COM</span>
+			</div>
+		</div>
+
+
+
+		<div id="viewWrapper" class="viewWrapper"></div>
+		
+		<script src="./js/lib/seajs/sea-debug.js" charset="UTF-8"></script>
+		<script>
+			(function(){
+				var alias = {
+					'jquery': 'lib/jquery/jquery-1.11.1.js',
+				    'moment': 'lib/moment/moment.js',
+				    'q': 'lib/q/q.js'
+				};
+
+				var modMap = {
+					base: {
+						prefix: 'lib/bird/base/',
+						mods: [
+							'bird.browser','bird.dom','bird.lang','bird.array','bird.string','bird.date','bird.object',
+							'bird.uuid','bird.chain','bird.event','bird.observer','bird.request','bird.__observer__',
+							'bird.syspatch','bird.template','bird.animate','bird.css3animate','bird.spirit','bird.util',
+							'bird.class'
+						]
+					},
+
+					mvvm: {
+						prefix : 'lib/bird/mvvm/',
+						mods: ['bird.controller','bird.router','bird.action','bird.databind','bird.applicationcontext','bird.validator']
+					},
+
+					ui: {
+						prefix : 'lib/bird/ui/',
+						mods: [
+							'bird.ui','bird.ui.button','bird.ui.dialog','bird.ui.dialog.confirm','bird.ui.dialog.alert',
+							'bird.ui.mask','bird.ui.panel'
+						]
+					},
+
+					action: {
+						prefix: 'module/biz/',
+						mods: [
+							'index/index','register/register','signin/signin','course/course','common/404'
+						]
+					},
+
+					tool: {
+						prefix: 'lib/bird/tool/',
+						mods: ['mask','errorTrack']
+					}
+				};
+
+				seajs.each(modMap, function(m){
+					seajs.each(m.mods, function(modName){
+						alias[modName] = m.prefix + modName;
+					});
+				});
+
+				seajs.config({
+				  base: './js/',
+				  alias: alias
+				});
+
+				seajs.use('./app');
+			})();
+		</script>
+	</body>
+</html>
