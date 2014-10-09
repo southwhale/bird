@@ -72,5 +72,14 @@ bird做了两件事：路由控制 和 双向绑定
   		};
   		this.bindEvent = function(){};
   	}).call(Signin.prototype);
+  	
+  	
+----
+###说明
+如何运行示例？
+
+pull代码到本地，部署在任意web server，打开浏览器输入：http://yourhost/bird
+
+点击按钮'signin'、'register'，在输入框输入，尝试各种可能的操作
 
 参考：http://sailinglee.iteye.com/blog/2126795
