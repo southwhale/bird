@@ -83,7 +83,7 @@ define(function(require) {
 		 * return {Boolean}
 		 */
 		this.isObject = function(p) {
-			return typeof p === 'object';
+			return typeof p === 'object' && p !== null;
 		};
 
 		this.isPlainObject = function(p) {
