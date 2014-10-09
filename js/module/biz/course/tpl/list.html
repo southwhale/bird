@@ -17,7 +17,7 @@
 </div>
 <div>
 	<span>
-		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="22">
+		<input type="checkbox" name="courseChkBox" disabled valueVariable="{{chkedCourse}}" value="22">
 	</span>
 	<span>英语</span>
 	<span>9学时</span>
@@ -51,3 +51,9 @@
 	<option value="c">c</option>
 </select>
 <div>{{radioCourse}}</div>
+
+<div id="mycontainer" style="border:solid 1px red;"></div>
+<div style="margin-top:100px">
+	<input type="button" value="插入新模板1" onclick="{{insertTpl1}}">
+	<input type="button" value="插入新模板2" onclick="{{insertTpl2}}">
+</div>

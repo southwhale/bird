@@ -273,6 +273,13 @@ define(function(require) {
 			return ret;
 		};
 
+		this.destroy = function(){
+			object.forEach(this.parsedInfoCache, function(v, k, cache){
+				delete cache[k];
+			});
+			this.parsedTpl = '';
+		};
+
 
 	}).call(TplParser.prototype);
 

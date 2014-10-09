@@ -148,7 +148,7 @@ define(function(require) {
 
 			if(isChkboxOrRadio || isSelect){
 				//IE用click模拟change
-				eventType = browser.isIE() ? 'click' : 'change';
+				eventType = 'onchange' in node.ownerDocument ? 'change' : 'click';
 				this.delegateEventOnSelector(selector, eventType, checkedInputChangeHandle, container);
 				return;
 			}
@@ -192,7 +192,7 @@ define(function(require) {
 					return;
 				}
 
-				model.set(attrVariable, value, target);
+				model.set(attrVariable, value, me, target);
 			}
 
 			function checkedInputChangeHandle(e){
@@ -212,7 +212,7 @@ define(function(require) {
 					value = value.length ? value.join(',') : '';
 				}
 
-				model.set(attrVariable, value, target);
+				model.set(attrVariable, value, me, target);
 			}
 		};
 
@@ -280,8 +280,8 @@ define(function(require) {
 		};
 
 
-		this.destroy = function (container) {
-			validator.clearMessageStack();
+		this.destroy = function (container, deepDestroy) {
+			deepDestroy && this.tplParser.destroy();
 			object.forEach(this.handleMap, function(v, k, map){
 				v.length = 0;
 				delete map[k];

@@ -105,17 +105,29 @@ define(function(require) {
 				lang.isFunction(this.browser) && (this.browser = this.browser(ua));
 			};
 
+			var isFirefox = this.browser === 'firefox';
+			var isIE = /ie/.test(this.browser);
+			var isIE8 = this.browser === 'ie 8';
+			if(isIE){
+				var arr = this.browser.split(/\s+/);
+				var ieVersion = arr && (+arr[1]);
+			}
+
 			this.isFirefox = function() {
-				return this.browser === 'firefox';
+				return isFirefox;
 			};
 
 			this.isIE = function() {
-				return /ie/.test(this.browser);
+				return isIE;
+			};
+
+			this.getIEVersion = function(){
+				return ieVersion;
 			};
 
 			//奇葩的IE,各版本总会有各种奇葩问题
 			this.isIE8 = function(){
-				return this.browser === 'ie 8';
+				return isIE8;
 			};
 		}
 	}).call(Browser.prototype);

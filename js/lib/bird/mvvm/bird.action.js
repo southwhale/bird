@@ -15,12 +15,14 @@ define(function(require) {
 	var Model = require('./bird.model');
 	var DataBind = require('./bird.databind');
 	var globalContext = require('./bird.globalcontext');
+	var validator = require('./bird.validator');
 
 
 	function Action() {
 		this.id = util.uuid('action_');
 		this.model = new Model();
 		this.dataBind = new DataBind();
+		this.insertedDataBinds = [];
 		this.args = {};
 		this.actionUrlMap = {};
 		this.urlActionMap = {};
@@ -57,13 +59,16 @@ define(function(require) {
 			 * 为了保证model的纯粹性,这里重新定义set接口
 			 * 这里说的纯粹性是指model里的属性除了几个暴露在外的接口,其他的都是action业务上的数据（即要和后台交互或与页面展现相关的数据）
 			 */
-			this.model.set = function(key, value) {
+			this.model.set = function(key, value, dataBind) {
 				var oldValue = this[key];
 				if (oldValue === value) {
 					return;
 				}
 				this[key] = value;
-				me.dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
+				if(!dataBind || !dataBind instanceof DataBind){
+					dataBind = me.dataBind;
+				}
+				dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
 			};
 
 			this.lifePhase = this.LifeCycle.INITED;
@@ -149,8 +154,11 @@ define(function(require) {
 			return ret;
 		};
 
-		//应用双向绑定
-		this.applyBiBind = function() {
+		/*
+		 * 初始模板应用双向绑定
+		 * @private
+		 */
+		this._applyBind = function() {
 			if (!this.tpl) {
 				dom.empty(this.container);
 				return;
@@ -158,6 +166,26 @@ define(function(require) {
 			this.dataBind.parseTpl(this.tpl);
 			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
 			this.dataBind.bind(this.model, this.container);
+		};
+
+		/*
+		 * 为动态插入的模板应用双向绑定
+		 * @public
+		 */
+		this.applyBind = function(tpl, container){
+			if(!tpl || !container){
+				return;
+			}
+			var dataBind = new DataBind();
+			//缓存起来,离开action时清空内存和解绑事件
+			this.insertedDataBinds.push({
+				dataBind: dataBind,
+				container: container
+			});
+
+			dataBind.parseTpl(tpl);
+			container.innerHTML = dataBind.fillTpl(this.model, this.id);
+			dataBind.bind(this.model, container);
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑
@@ -217,7 +245,7 @@ define(function(require) {
 				//根据Action的变化更新浏览器标题栏
 				document.title = me.title || '';
 
-				me.applyBiBind();
+				me._applyBind();
 
 				if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
 					me._bindEvent();
@@ -238,6 +266,11 @@ define(function(require) {
 
 		this.leave = function(nextAction) {
 			globalContext.remove(this.id);
+			validator.clearMessageStack();
+			array.forEach(this.insertedDataBinds, function(obj){
+				obj.dataBind.destroy(obj.container, true);
+			});
+			this.insertedDataBinds.length = 0;
 			this.dataBind.destroy(this.container);
 			this.model.destroy();
 			this.beforeLeave();
