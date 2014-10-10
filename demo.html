@@ -5,13 +5,9 @@
 		<title></title>
 		<link rel="stylesheet" href="fonticon/fontello/css/fontello.css" />
 		<link rel="stylesheet" href="js/lib/bird/ui/css/bird.ui.css" />
+		<link rel="stylesheet" href="demo/css/demo.css" />
 	</head>
 	<body>
-		<div id="demolist">
-			<div>
-				<a href="#!/bird.ui.dialog">bird.ui.dialog</a>
-			</div>
-		</div>
 		<div id="Container"></div>
 		
 		<script src="./js/lib/seajs/sea-debug.js" charset="UTF-8"></script>
@@ -36,7 +32,7 @@
 
 					mvvm: {
 						prefix : 'lib/bird/mvvm/',
-						mods: ['bird.controller','bird.router','bird.action','bird.databind','bird.applicationcontext']
+						mods: ['bird.controller','bird.router','bird.action','bird.databind','bird.applicationcontext','bird.validator']
 					},
 
 					ui: {
@@ -48,9 +44,16 @@
 					},
 
 					action: {
-						prefix: 'lib/bird/ui/',
+						prefix: '/bird/demo/',
 						mods: [
-							'demo/index','demo/ui.dialog'
+							'index/index','todos/todos'
+						]
+					},
+
+					404: {
+						prefix: 'module/biz/',
+						mods: [
+							'common/404'
 						]
 					},
 

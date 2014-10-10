@@ -187,6 +187,25 @@ define(function(require) {
 			return element;
 		};
 
+		this.appendTo = function(nodes, container){
+			if(lang.isString(nodes)){
+				var div = document.createElement('div');
+				div.innerHTML = nodes;
+				nodes = div.childNodes;
+				div = null;
+			}
+
+			if(lang.isArrayLike(nodes)){
+				array.forEach(nodes, function(node){
+					container.appendChild(node);
+				});
+			}else{
+				container.appendChild(nodes);
+			}
+		};
+
+
+
 		this.getChildren = function(element) {
 			return array.filter(element.children, function(child) {
 				return child.nodeType === 1;

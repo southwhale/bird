@@ -65,10 +65,15 @@ define(function(require) {
 					return;
 				}
 				this[key] = value;
-				if(!dataBind || !dataBind instanceof DataBind){
-					dataBind = me.dataBind;
+				if(dataBind && dataBind instanceof DataBind){
+					dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
+				}else{
+					me.dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
+					var _arguments = arguments;
+					array.forEach(me.insertedDataBinds, function(dbind){
+						dbind.dataBind.callVariableHandle(key, value, oldValue, _arguments[_arguments.length - 1]);
+					});
 				}
-				dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
 			};
 
 			this.lifePhase = this.LifeCycle.INITED;
@@ -172,7 +177,7 @@ define(function(require) {
 		 * 为动态插入的模板应用双向绑定
 		 * @public
 		 */
-		this.applyBind = function(tpl, container){
+		this.applyBind = function(tpl, container, append){
 			if(!tpl || !container){
 				return;
 			}
@@ -184,7 +189,15 @@ define(function(require) {
 			});
 
 			dataBind.parseTpl(tpl);
-			container.innerHTML = dataBind.fillTpl(this.model, this.id);
+			var html = dataBind.fillTpl(this.model, this.id);
+			if(lang.isFunction(append)){
+				append(html, container);
+			} else if(append){
+				dom.appendTo(html, container);
+			} else {
+				container.innerHTML = html;
+			}
+			
 			dataBind.bind(this.model, container);
 		};
 
