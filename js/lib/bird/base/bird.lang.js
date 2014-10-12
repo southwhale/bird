@@ -227,9 +227,22 @@ define(function(require) {
 					console.warn('Variable: `' + segments.slice(0,i).join('.') + '` has no value.');
 					return;
 				}
-				namespace && (ctx = namespace);
+				ctx = namespace;
 			}
 			return ctx;
+		};
+
+		this.setVariableInContext = function(s, value, ctx){
+			if(!this.isObject(ctx)){
+				console.warn('Parameter `ctx` of `lang.setVariableInContext(s, value, ctx)` is not an object.');
+				return null;
+			}
+			var lastDotIndex = s.lastIndexOf('.');
+			if(lastDotIndex === -1){
+				return ctx[s] = value;
+			}
+			var obj = this.getObjectInContext(s.substring(0, lastDotIndex), ctx);
+			return obj[s.substring(lastDotIndex + 1, s.length)] = value;
 		};
 
 

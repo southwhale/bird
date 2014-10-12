@@ -5,14 +5,14 @@
 	</div>
 	<div class="main">
 		<div>
-			<input id="emailId" class="email" type="email" placeholder="email address" value="{{email}}"/>
+			<input id="emailId" class="email" type="email" placeholder="email address" value="{{user.email}}"/>
 		</div>
 		<div>
-			<input class="password" type="password" placeholder="password" value="{{pwd|required number}}"/>
+			<input class="password" type="password" placeholder="password" value="{{user.pwd|required number}}"/>
 			<span class="errorTip" style="color:red;"></span>
 		</div>
 		<div class="submit">
-			<a class="signin" onclick="{{submitSignin}}">sign in</a>
+			<a class="signin" onclick="{{user.submitSignin}}">sign in</a>
 		</div>
 		<div class="note">
 			<span>

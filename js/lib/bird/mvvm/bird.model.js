@@ -14,47 +14,67 @@ define(function(require) {
 			'get': 1,
 			'destroy': 1,
 			'toJSON': 1,
-			'toQuery': 1
+			'toQuery': 1,
+			'filterJSON': 1
 		};
 
-		this.set = function(key, value, dataBind) {
-			var oldValue = this[key];
+		this.set = function(key, value/*, dataBind*/) {
+			var lastDotIndex = key.lastIndexOf('.');
+			var obj;
+			if(lastDotIndex === -1){
+				obj = this;
+			}else{
+				obj = lang.getObjectInContext(key.substring(0, lastDotIndex), this);
+				key = key.substring(lastDotIndex + 1, key.length);
+			}
+			
+			var oldValue = obj[key];
 			if (oldValue === value) {
 				return;
 			}
-			this[key] = value;
-			dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
+			obj[key] = value;
+			obj = null;
+			//dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
 		};
 
 		this.get = function(key) {
-			return this[key];
+			return lang.getVariableInContext(key, this);
 		};
 
 
 		this.toJSON = function(keyArr) {
-			var ret = {},
-				me = this;
-			if (lang.isArray(keyArr)) {
-				array.forEach(keyArr, function(key) {
-					var value = me[key];
-					if (lang.isFunction(value)) {
+			return this.filterJSON.apply(this, arguments);
+		};
+		/**
+		 * 过滤参数只支持不超过两级变量引用的形式：'a' or 'a.b'
+		 * 点的数量超过1个的变量引用形式不被支持，如：'a.b.c',
+		 * 若过滤参数超过一个，那么变量的第一个引用单词必须相同，即需类似：['a.b','a.c']
+		 * 这样的变量引用将不被支持：['a.b','b.c']
+		 */
+		this.filterJSON = function(json){
+			var filterKeys;
+			if(lang.isArray(json)){
+				filterKeys = json;
+				json = this;
+			}else if(lang.isString(json)){
+				filterKeys = Array.prototype.slice.call(arguments);
+				json = this;
+			}else{
+				filterKeys = Array.prototype.slice.call(arguments, 1);
+			}
+			var ret = {};
+			array.forEach(filterKeys, function(v){
+				var lastDotIndex = v.lastIndexOf('.');
+				if(lastDotIndex !== -1){
+					if(lastDotIndex !== v.indexOf('.')){
+						console.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!')
 						return;
 					}
-					ret[key] = value;
-				});
-				return ret;
-			}
-
-			if (arguments.length) {
-				keyArr = Array.prototype.slice.call(arguments);
-				return arguments.callee(keyArr);
-			}
-
-			object.forEach(this, function(v, k) {
-				if (lang.isFunction(v)) {
-					return;
+					var arr = v.split('.');
+					var k = arr[1];
+					ret[k] = json[arr[0]][k];
 				}
-				ret[k] = v;
+				ret[v] = json[v];
 			});
 			return ret;
 		};

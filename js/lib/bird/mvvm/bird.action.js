@@ -60,11 +60,21 @@ define(function(require) {
 			 * 这里说的纯粹性是指model里的属性除了几个暴露在外的接口,其他的都是action业务上的数据（即要和后台交互或与页面展现相关的数据）
 			 */
 			this.model.set = function(key, value, dataBind) {
-				var oldValue = this[key];
+				var _key = key;
+				var lastDotIndex = _key.lastIndexOf('.');
+				var obj;
+				if(lastDotIndex === -1){
+					obj = this;
+				}else{
+					obj = lang.getObjectInContext(_key.substring(0, lastDotIndex), this);
+					_key = _key.substring(lastDotIndex + 1, _key.length);
+				}
+				var oldValue = obj[_key];
 				if (oldValue === value) {
 					return;
 				}
-				this[key] = value;
+				obj[_key] = value;
+				obj = null;
 				if(dataBind && dataBind instanceof DataBind){
 					dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
 				}else{

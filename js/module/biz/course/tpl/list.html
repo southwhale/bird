@@ -9,7 +9,7 @@
 </div>
 <div>
 	<span>
-		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="11">
+		<input type="checkbox" name="courseChkBox" valueVariable="{{course.chkedCourse}}" value="11">
 	</span>
 	<span>日语</span>
 	<span>8学时</span>
@@ -17,7 +17,7 @@
 </div>
 <div>
 	<span>
-		<input type="checkbox" name="courseChkBox" disabled valueVariable="{{chkedCourse}}" value="22">
+		<input type="checkbox" name="courseChkBox" disabled valueVariable="{{course.chkedCourse}}" value="22">
 	</span>
 	<span>英语</span>
 	<span>9学时</span>
@@ -25,22 +25,21 @@
 </div>
 <div>
 	<span>
-		<input type="checkbox" name="courseChkBox" valueVariable="{{chkedCourse}}" value="33">
+		<input type="checkbox" name="courseChkBox" valueVariable="{{course.chkedCourse}}" value="33">
 	</span>
 	<span>法语</span>
 	<span>10学时</span>
 	<span>140学时</span>
 </div>
 
-<div>{{chkedCourse}}</div>
+<div>{{course.chkedCourse}}</div>
 <div>
 	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="a">
 	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="b">
 	<input type="radio" name="courseRadio" valueVariable="{{radioCourse}}" value="c">
 </div>
-<div>{{radioCourse}}</div>
 <br><br><br><br><br><br><br><br><br>
-<select valueVariable="{{chkedCourse}}" multiple='true'>
+<select valueVariable="{{course.chkedCourse}}" multiple='true'>
 	<option value="11">11</option>
 	<option value="22">22</option>
 	<option value="33">33</option>
@@ -54,6 +53,6 @@
 
 <div id="mycontainer" style="border:solid 1px red;"></div>
 <div style="margin-top:100px">
-	<input type="button" value="插入新模板1" onclick="{{insertTpl1}}">
-	<input type="button" value="插入新模板2" onclick="{{insertTpl2}}">
+	<input type="button" value="插入新模板1" onclick="{{course.insertTpl1}}">
+	<input type="button" value="插入新模板2" onclick="{{course.insertTpl2}}">
 </div>

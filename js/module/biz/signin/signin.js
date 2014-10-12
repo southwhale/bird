@@ -44,14 +44,15 @@ define(function(require) {
 		 * $.pwd = '123456'
 		 */
 		this.initModel = function($){
-			$.email = "383523223@qq.com";
-			$.pwd = '123456';
-			$.submitSignin = function(){
+			var user = $.user = {};
+			user.email = "383523223@qq.com";
+			user.pwd = '123456';
+			user.submitSignin = function(){
 				if(validator.getMessageStack().length){
 					return;
 				}
-				console.log(JSON.stringify($.toJSON(['email','pwd'])));
-				//request.post('./signin.action', $.toJSON(['email','pwd']));
+				console.log(JSON.stringify($.toJSON($.user,['email'])));
+				request.post('./signin.action', $.user);
 				controller.redirect('!/course'); 
 			};
 		};

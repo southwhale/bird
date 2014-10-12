@@ -5,19 +5,19 @@
 	</div>
 	<div class="main">
 		<div>
-			<input class="email" type="text" placeholder="email address" value="{{email}}"/>
+			<input class="email" type="text" disabled="{{user.emailDisabled}}" placeholder="email address" value="{{user.email}}"/>
 		</div>
 		<div>
-			<input class="password" type="password" placeholder="password" value="{{pwd}}"/>
+			<input class="password" type="password" placeholder="password" value="{{user.pwd}}"/>
 		</div>
 		<div>
-			<input class="confirmpassword" type="password" placeholder="confirm password" value="{{pwd2}}"/>
+			<input class="confirmpassword" type="password" placeholder="confirm password" value="{{user.pwd2}}"/>
 		</div>
 		<div>
-			<input class="phonenumber" type="text" placeholder="phone number (optional)" value="{{phonenum}}"/>
+			<input class="phonenumber" type="text" placeholder="phone number (optional)" value="{{user.phonenum}}"/>
 		</div>
 		<div class="submit">
-			<a class="register" onclick="{{submitRegister}}">register</a>
+			<a class="register" onclick="{{user.submitRegister}}">register</a>
 		</div>
 		<div class="note">
 			<span>Already have an account?</span>

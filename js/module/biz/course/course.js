@@ -30,7 +30,7 @@ define(function(require){
 		 * $.set('pwd' ,"123456");
 		 */
 		this.afterRender = function($){
-			$.set('chkedCourse', '22,33');
+			$.set('course.chkedCourse', '22,33');
 			//mask.show();
 		};
 		/*
@@ -51,12 +51,13 @@ define(function(require){
 				request.post('./signin.action', $.toJSON(['email','pwd']));
 			};*/
 			var me = this;
-			$.insertTpl1 = function(){
+			$.course = {};
+			$.course.insertTpl1 = function(){
 				var tplStr = '<input type="text" value="{{testInputValue1}}"/>'
 					   + '<span>{{testInputValue1}}</span>';
 				me.applyBind(tplStr, dom.gById('mycontainer'));
 			};
-			$.insertTpl2 = function(){
+			$.course.insertTpl2 = function(){
 				var tplStr = '<input type="text" value="{{testInputValue2}}"/>'
 					   + '<span>{{testInputValue2}}</span>';
 				me.applyBind(tplStr, dom.gById('mycontainer'));

@@ -36,14 +36,22 @@ define(function(require) {
 		};
 
 		this.initModel = function($){
-			$.set('email', 'iamweilee11@gmail.com');
-			$.set('pwd', 'weiwei-120222');
-			$.set('emailDisabled', 'disabled');
-			$.set('phonenum', '18816611150');
+			/*var user = $.user = {};
+			user.set('email', 'iamweilee11@gmail.com');
+			user.set('pwd', 'weiwei-120222');
+			user.set('emailDisabled', 'disabled');
+			user.set('phonenum', '18816611150');*/
+			$.set('user', {
+				email: 'iamweilee11@gmail.com',
+				pwd: 'weiwei-120222',
+				emailDisabled: 'disabled',
+				phonenum: '18816611150',
+				submitRegister: function(){
+					request.post('./register.action', $.toJSON(['user.email', 'user.pwd']));
+				}
+			});
 
-			$.submitRegister = function(){
-				request.post('./register.action', $.toJSON(['email','pwd','phonenum']));
-			};
+			
 		};
 
 		this.beforeLeave = function(){

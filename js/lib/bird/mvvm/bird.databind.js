@@ -63,14 +63,21 @@ define(function(require) {
 				object.forEach(parsedInfo, function (val, key) {
 					if(lang.isPlainObject(val) && val.variable){
 						var regStr = '\\{\\{\\s*' + val.variable + '\\s*(?:\\|[^{}]+)?' + '\\}\\}';
-						var value = model[val.variable];
+						var value = model.get(val.variable);
 						if(lang.isUndefinedOrNull(value)){
-							model[val.variable] = value = '';
+							value = '';
+							var lastDotIndex = val.variable.lastIndexOf('.');
+							if(lastDotIndex === -1){
+								model[val.variable] = value;
+							}else{
+								var obj = lang.getObjectInContext(val.variable.substring(0, lastDotIndex), model);
+								obj[val.variable.substring(lastDotIndex + 1, val.variable.length)] = value;
+							}
 						}
 
 						if(/^event$/i.test(key)){
 							var obj = globalContext.getObject(actionId);
-							obj[val.variable] = lang.isFunction(value) ? (function(value){
+							var eventHandle = lang.isFunction(value) ? (function(value){
 								return function(originalEvent){
 									var wsevent = window.event;
 									originalEvent = originalEvent || wsevent;
@@ -78,6 +85,7 @@ define(function(require) {
 									value.call(e.target, e);
 								};
 							})(value) : lang.noop;
+							lang.setVariableInContext(val.variable, eventHandle, obj);
 							value = globalContext.getObjectLiteral(actionId) + '.' + val.variable + '()';
 						}
 
