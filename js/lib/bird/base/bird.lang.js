@@ -223,7 +223,7 @@ define(function(require) {
 			
 			for(var i=0,len=segments.length;i < len;i++){
 				var namespace = ctx[segments[i]];
-				if(this.isNullOrUndefined(namespace) && i !== len-1){
+				if(namespace == null && i !== len-1){
 					console.warn('Variable: `' + segments.slice(0,i).join('.') + '` has no value.');
 					return;
 				}
@@ -261,11 +261,8 @@ define(function(require) {
 			var segments = s.split('.');
 			
 			for(var i=0,len=segments.length;i < len;i++){
-				var namespace = ctx[segments[i]];
-				if(this.isNullOrUndefined(namespace)){
-					namespace = {};
-					ctx[segments[i]] = namespace;
-				}
+				var key = segments[i];
+				var namespace = ctx[key] || (ctx[key] = {});
 				ctx = namespace;
 			}
 			return ctx;
