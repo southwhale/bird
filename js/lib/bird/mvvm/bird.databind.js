@@ -72,11 +72,12 @@ define(function(require) {
 							}else{
 								var obj = lang.getObjectInContext(val.variable.substring(0, lastDotIndex), model);
 								obj[val.variable.substring(lastDotIndex + 1, val.variable.length)] = value;
+								obj = null;
 							}
 						}
 
 						if(/^event$/i.test(key)){
-							var obj = globalContext.getObject(actionId);
+							var actionCtx = globalContext.getObject(actionId);
 							var eventHandle = lang.isFunction(value) ? (function(value){
 								return function(originalEvent){
 									var wsevent = window.event;
@@ -85,8 +86,8 @@ define(function(require) {
 									value.call(e.target, e);
 								};
 							})(value) : lang.noop;
-							lang.setVariableInContext(val.variable, eventHandle, obj);
-							eventHandle = null;
+							lang.setVariableInContext(val.variable, eventHandle, actionCtx);
+							actionCtx = eventHandle = null;
 							value = globalContext.getObjectLiteral(actionId) + '.' + val.variable + '()';
 						}
 
