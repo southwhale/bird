@@ -86,6 +86,7 @@ define(function(require) {
 								};
 							})(value) : lang.noop;
 							lang.setVariableInContext(val.variable, eventHandle, obj);
+							eventHandle = null;
 							value = globalContext.getObjectLiteral(actionId) + '.' + val.variable + '()';
 						}
 
