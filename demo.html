@@ -3,8 +3,9 @@
 	<head>
 		<meta charset="utf-8">
 		<title></title>
-		<link rel="stylesheet" href="fonticon/fontello/css/fontello.css" />
-		<link rel="stylesheet" href="js/lib/bird/ui/css/bird.ui.css" />
+		<!--link rel="stylesheet" href="./src/fonticon/fontello/css/fontello.css">
+		<link rel="stylesheet" href="./src/js/lib/bird/ui/css/bird.ui.css"-->
+		<link rel="stylesheet" href="./bootstrap/css/bootstrap.css">
 		<link rel="stylesheet" href="demo/css/demo.css" />
 	</head>
 	<body>
@@ -15,6 +16,7 @@
 			(function(){
 				var alias = {
 					'jquery': 'lib/jquery/jquery-1.11.1',
+					'bootstrap': '/bird/bootstrap/js/bootstrap.amd',
 				    'moment': 'lib/moment/moment',
 				    'q': 'lib/q/q'
 				};
@@ -43,14 +45,14 @@
 						]
 					},
 
-					action: {
+					demo: {
 						prefix: '/bird/demo/',
 						mods: [
-							'index/index','todos/todos'
+							'index/index','todos/todos','bootstrap/bs'
 						]
 					},
 
-					404: {
+					module: {
 						prefix: 'module/biz/',
 						mods: [
 							'common/404'
