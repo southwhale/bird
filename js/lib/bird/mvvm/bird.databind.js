@@ -36,14 +36,10 @@ define(function(require) {
 		this.tplParser = new TplParser();
 		this.handleMap = {};
 		this.eventNodes = [];
+		this.typeHandleMap = require('./bird.handlemap');
 	}
 
 	(function() {
-
-		var GLOBAL_EVENT_PREFIX = 'globalObj.event.handleCache';
-
-		var typeHandleMap = require('./bird.handlemap');
-
 
 
 		//第一步：解析原始模板中的变量信息,并生成处理后的模板
@@ -55,9 +51,10 @@ define(function(require) {
 		};
 
 		//第二步：将action的model填充进模板,并做首次渲染
-		this.fillTpl = function (model, actionId) {
+		this.fillTpl = function (model, actionId, container) {
 			var parsedInfoCache = this.tplParser.parsedInfoCache;
 			var str = this.tplParser.parsedTpl;
+			var me = this;
 			//var regMap = {};
 			object.forEach(parsedInfoCache, function (parsedInfo) {
 				object.forEach(parsedInfo, function (val, key) {
@@ -77,18 +74,17 @@ define(function(require) {
 						}
 
 						if(/^event$/i.test(key)){
-							var actionCtx = globalContext.getObject(actionId);
-							var eventHandle = lang.isFunction(value) ? (function(value){
-								return function(originalEvent){
-									var wsevent = window.event;
-									originalEvent = originalEvent || wsevent;
-									var e = event.wrapEvent(originalEvent);
-									value.call(e.target, e);
-								};
-							})(value) : lang.noop;
-							lang.setVariableInContext(val.variable, eventHandle, actionCtx);
-							actionCtx = eventHandle = null;
-							value = globalContext.getObjectLiteral(actionId) + '.' + val.variable + '()';
+							var selector = parsedInfo.id ? '#' + parsedInfo.id : parsedInfo.tagName + '[bindid=' + parsedInfo.bindId + ']';
+							var eventHandle = function(e){
+								var handle = me.typeHandleMap.eventMap[selector] || lang.noop;
+								handle.call(e.target, e);
+							};
+							if(!me.typeHandleMap.eventMap[selector]){
+								me.typeHandleMap.eventMap[selector] = lang.isFunction(value) ? value : lang.noop;
+							}
+							me.delegateEventOnSelector(selector, val.key, eventHandle, container);
+							regStr = 'on' + val.key + '\=(["\'])\\s*' + regStr + '\\s*\\1';
+							value = '';
 						}
 
 						if(value === ''){
@@ -116,6 +112,7 @@ define(function(require) {
 					}
 				});
 			});
+			
 			return str;
 		};
 		
@@ -229,6 +226,7 @@ define(function(require) {
 
 		this._bindHandleByType = function (variableInfo, type, node, selector) {
 			var handleMap = this.handleMap;
+			var typeHandleMap = this.typeHandleMap;
 			if(lang.isArray(variableInfo)){
 				array.forEach(variableInfo, function(info){
 					var variable = info.variable;
@@ -294,6 +292,9 @@ define(function(require) {
 			deepDestroy && this.tplParser.destroy();
 			object.forEach(this.handleMap, function(v, k, map){
 				v.length = 0;
+				delete map[k];
+			});
+			object.forEach(this.typeHandleMap.eventMap, function(v, k, map){
 				delete map[k];
 			});
 			event.destroy(container);

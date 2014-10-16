@@ -179,7 +179,7 @@ define(function(require) {
 				return;
 			}
 			this.dataBind.parseTpl(this.tpl);
-			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
+			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id, this.container);
 			this.dataBind.bind(this.model, this.container);
 		};
 
@@ -199,7 +199,7 @@ define(function(require) {
 			});
 
 			dataBind.parseTpl(tpl);
-			var html = dataBind.fillTpl(this.model, this.id);
+			var html = dataBind.fillTpl(this.model, this.id, container);
 			if(lang.isFunction(append)){
 				append(html, container);
 			} else if(append){

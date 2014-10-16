@@ -3,11 +3,15 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var event = require('bird.event');
-	var globalContext = require('./bird.globalcontext');
 	var filterHelper = require('./bird.filter');
 
-	var handleMap = {
-		htmlText: function(node, selector, variable, filter) {
+	function HandleMap() {
+		this.eventMap = {};
+	}
+
+	(function() {
+
+		this.htmlText = function(node, selector, variable, filter) {
 			return filter === 'text' ? function(value) {
 				value = filter && !/^(?:html|text)$/i.test(filter) ? filterHelper.filter(value, filter) : value;
 				dom.setText(node, value);
@@ -15,8 +19,8 @@ define(function(require) {
 				value = filter && !/^(?:html|text)$/i.test(filter) ? filterHelper.filter(value, filter) : value;
 				dom.setHtml(node, value);
 			};
-		},
-		value: function(node, selector, variable, filter) {
+		};
+		this.value = function(node, selector, variable, filter) {
 			return function(value) {
 				//input控件不应有过滤功能,会引起较大的副作用
 				//value = filter ? filterHelper.filter(value, filter) : value;
@@ -28,8 +32,8 @@ define(function(require) {
 
 				dom.setValue(node, value);
 			}
-		},
-		valueVariable: function(node, selector, variable, filter) {
+		};
+		this.valueVariable = function(node, selector, variable, filter) {
 			return function(value) {
 				if (this === node) {
 					return;
@@ -54,87 +58,77 @@ define(function(require) {
 					});
 				}
 			}
-		},
-		disabled: function(node, selector, variable, filter) {
+		};
+		this.disabled = function(node, selector, variable, filter) {
 			return function(value) {
 				node.disabled = !!value;
 			};
-		},
-		readonly: function(node, selector, variable, filter) {
+		};
+		this.readonly = function(node, selector, variable, filter) {
 			return function(value) {
 				node.readonly = !!value;
 			};
-		},
-		checked: function(node, selector, variable, filter) {
+		};
+		this.checked = function(node, selector, variable, filter) {
 			return function(value) {
 				node.checked = !!value;
 			};
-		},
-		selected: function(node, selector, variable, filter) {
+		};
+		this.selected = function(node, selector, variable, filter) {
 			return function(value) {
 				node.selected = !!value;
 			};
-		},
-		placeholder: function(node, selector, variable, filter) {
+		};
+		this.placeholder = function(node, selector, variable, filter) {
 			return function(value) {
 				dom.setAttr(node, 'placeholder', value);
 			};
-		},
-		'for': function(node, selector, variable, filter) {
+		};
+		this.for = function(node, selector, variable, filter) {
 			return function(value) {
 				dom.setAttr(node, 'for', value);
 			};
-		},
-		alt: function(node, selector, variable, filter) {
+		};
+		this.alt = function(node, selector, variable, filter) {
 			return function(value) {
 				dom.setAttr(node, 'alt', value);
 			};
-		},
-		style: function(node, selector, variable, filter, key) {
+		};
+		this.style = function(node, selector, variable, filter, key) {
 			return key ? function(value) {
 				value = filter ? filterHelper.filter(value, filter) : value;
 				node.style[key] = value;
 			} : function(value) {
 				dom.setCssText(node, value);
 			};
-		},
-		'class': function(node, selector, variable, filter) {
+		};
+		this.class = function(node, selector, variable, filter) {
 			return function(value, oldValue) {
 				oldValue && dom.removeClass(node, oldValue);
 				dom.addClass(node, value);
 			};
-		},
-		event: function(node, selector, variable, filter, key) {
-			var eventType = 'on' + key;
-			var eventHandleStr = node.getAttribute(eventType);
-			/*if(!lang.isNotEmpty(eventHandleStr)){
-					eventHandleStr = globalContext.getObjectLiteral(actionId) + '.' + variable + (variable.indexOf('(') === -1 ? '()' : '');
-					node.setAttribute(eventType, eventHandleStr);
-				}*/
-			var lastDotIndex = eventHandleStr.lastIndexOf('.');
-			var obj = globalContext.getObject(lastDotIndex === -1 ? eventHandleStr : eventHandleStr.slice(0, lastDotIndex));
+		};
+		this.event = function(node, selector, variable, filter, key) {
+			eventMap = this.eventMap;
 			return function(value) {
-				obj[variable] = lang.isFunction(value) ? function(originalEvent) {
-					var wsevent = window.event;
-					originalEvent = originalEvent || wsevent;
-					var e = event.wrapEvent(originalEvent);
-					value.call(e.target, e);
-				} : lang.noop;
+				eventMap[selector] = value;
 			};
-		},
-		customAttr: function(node, selector, variable, filter, key) {
+		};
+		this.customAttr = function(node, selector, variable, filter, key) {
 			return function(value) {
 				value = filter ? filterHelper.filter(value, filter) : value;
 				dom.setAttr(node, key, value);
 			};
-		},
+		};
 		//默认的处理函数
-		'default': function(node, selector, variable, filter, type) {
+		this.default = function(node, selector, variable, filter, type) {
 			return function(value) {
 				dom.setAttr(node, type, value);
 			};
-		}
-	};
+		};
+	}).call(HandleMap.prototype);
 
-	return handleMap;
+
+
+	return new HandleMap();
 })
