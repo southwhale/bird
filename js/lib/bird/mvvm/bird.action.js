@@ -291,6 +291,7 @@ define(function(require) {
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
 			array.forEach(this.insertedDataBinds, function(obj){
+				event.destroy(obj.container);
 				obj.dataBind.destroy(obj.container, true);
 			});
 			this.insertedDataBinds.length = 0;
