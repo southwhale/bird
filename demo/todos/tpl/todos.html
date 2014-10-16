@@ -10,7 +10,7 @@
         <label for="toggle-all">
             Mark all as complete
         </label>
-        <ul id="todo-list">
+        <ul id="todo-list" ondblclick="{{editItem}}" onclick="{{removeItem}}" onblur="{{showLabel}}">
         </ul>
     </section>
     <footer>

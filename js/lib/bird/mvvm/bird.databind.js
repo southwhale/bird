@@ -75,12 +75,13 @@ define(function(require) {
 
 						if(/^event$/i.test(key)){
 							var selector = parsedInfo.id ? '#' + parsedInfo.id : parsedInfo.tagName + '[bindid=' + parsedInfo.bindId + ']';
+							var eventHandleKey = selector + '-' + val.key;
 							var eventHandle = function(e){
-								var handle = me.typeHandleMap.eventMap[selector] || lang.noop;
+								var handle = me.typeHandleMap.eventMap[eventHandleKey] || lang.noop;
 								handle.call(e.target, e);
 							};
-							if(!me.typeHandleMap.eventMap[selector]){
-								me.typeHandleMap.eventMap[selector] = lang.isFunction(value) ? value : lang.noop;
+							if(!me.typeHandleMap.eventMap[eventHandleKey]){
+								me.typeHandleMap.eventMap[eventHandleKey] = lang.isFunction(value) ? value : lang.noop;
 							}
 							me.delegateEventOnSelector(selector, val.key, eventHandle, container);
 							regStr = 'on' + val.key + '\=(["\'])\\s*' + regStr + '\\s*\\1';

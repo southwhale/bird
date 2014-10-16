@@ -37,8 +37,8 @@ define(function(require) {
 
 		this.initModel = function($){
 			var itemTpl = '<li><div class="view"><input class="toggle" type="checkbox" name="chkItems" valueVariable="{{checkedItemsValue}}"/>'
-			 			+ '<label ondblclick="{{editItem}}">{{title}}</label><a class="destroy" onclick="{{removeItem}}"></a>'
-			 			+ '</div><input class="edit" type="text" value="{{title}}" onblur="{{showLabel}}"/></li>';
+			 			+ '<label>{{title}}</label><a class="destroy"></a>'
+			 			+ '</div><input class="edit" type="text" value="{{title}}"/></li>';
 
 			
 			var me = this;
@@ -63,11 +63,17 @@ define(function(require) {
 			};
 
 			$.showLabel = function(e){
+				if(this.type !== 'text'){
+					return;
+				}
 				dom.addClass(this, 'edit');
 				dom.removeClass(this.parentNode, 'editing');
 			};
 
 			$.removeItem = function(e){
+				if(!/^a$/i.test(this.tagName)){
+					return;
+				}
 				dom.removeNode(this.parentNode.parentNode);
 				updateItemCount();
 				updateCheckedCount();

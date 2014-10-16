@@ -161,20 +161,20 @@ define(function(require) {
 			return new Event(originalEvent);
 		};
 
-		this.addListener = function(el, eventType, handle) {
+		this.addListener = function(el, eventType, handle, capture) {
 			var me = this;
 			array.forEach(eventType.split(/\s+/), function(etype) {
-				me._addListener(el, etype, handle);
+				me._addListener(el, etype, handle, capture);
 			});
 		};
 
-		this.removeListener = function(el, eventType, handle) {
+		this.removeListener = function(el, eventType, handle, capture) {
 			var me = this;
 			if (!eventType) {
 				return this._removeListener(el);
 			}
 			array.forEach(eventType.split(/\s+/), function(etype) {
-				me._removeListener(el, etype, handle);
+				me._removeListener(el, etype, handle, capture);
 			});
 		};
 
@@ -190,7 +190,7 @@ define(function(require) {
 			this.addListener(el, eventType, wrappedHandle);
 		};
 
-		this._addListener = function(el, eventType, handle) {
+		this._addListener = function(el, eventType, handle, capture) {
 			if (!el.__uid__) {
 				el.__uid__ = util.uuid('el_');
 			}
@@ -214,13 +214,13 @@ define(function(require) {
 					var e = new Event(originalEvent);
 					me.trigger(el, eventType, e);
 				};
-				el.addEventListener ? el.addEventListener(eventType, callback, false) : el.attachEvent("on" + eventType, callback);
+				el.addEventListener ? el.addEventListener(eventType, callback, capture || false) : el.attachEvent("on" + eventType, callback);
 				this.htmlEventCallbackCache[el.__uid__][eventType] = callback;
 				callback = null;
 			}
 		};
 
-		this._removeListener = function(el, eventType, handle) {
+		this._removeListener = function(el, eventType, handle, capture) {
 			if (!el.__uid__) {
 				return;
 			}
@@ -241,14 +241,14 @@ define(function(require) {
 				});
 
 				if (!eventHandles.length) {
-					removeHtmlEventListener.call(this, el, eventType);
+					removeHtmlEventListener.call(this, el, eventType, capture);
 				}
 
 				return;
 			}
 
 			eventHandles.length = 0;
-			removeHtmlEventListener.call(this, el, eventType);
+			removeHtmlEventListener.call(this, el, eventType, capture);
 		};
 
 		this.trigger = function(el, eventType, data) {
@@ -291,6 +291,11 @@ define(function(require) {
 
 			if (!hasHandleOnEventType.call(this, context, eventType)) {
 				var me = this;
+				var isBlurFocus = /^(?:focus|blur)$/i.test(eventType);
+				isBlurFocus && !context.addEventListener && (eventType = ({
+					focus: 'focusin',
+					blur: 'focusout'
+				})[eventType]);
 				this.addListener(context, eventType, function(e) {
 					var target = e.target;
 					var _context = this;
@@ -305,7 +310,7 @@ define(function(require) {
 							}
 						});
 					});
-				});
+				}, isBlurFocus);
 			}
 
 			this.delegateElCache[context.__uid__] = this.delegateElCache[context.__uid__] || {};
@@ -392,7 +397,7 @@ define(function(require) {
 		}
 
 
-		function removeHtmlEventListener(el, eventType) {
+		function removeHtmlEventListener(el, eventType, capture) {
 			if ((lang.isHtmlNode(el) || lang.isWindow(el) || lang.isHtmlDocument(el)) && this.isHtmlEventType(eventType)) {
 				if (!this.htmlEventCallbackCache[el.__uid__]) {
 					return;
@@ -401,7 +406,7 @@ define(function(require) {
 				if (!callback) {
 					return;
 				}
-				el.removeEventListener ? el.removeEventListener(eventType, callback, false) : el.detachEvent("on" + eventType, callback);
+				el.removeEventListener ? el.removeEventListener(eventType, callback, capture || false) : el.detachEvent("on" + eventType, callback);
 				delete this.htmlEventCallbackCache[el.__uid__][eventType];
 				callback = null;
 			}
