@@ -1,8 +1,8 @@
 (function() {
 	var alias = {
 		'jquery': 'lib/jquery/jquery-1.11.1',
-		'bootstrap': '/microbird/component/bootstrap/js/bootstrap.amd',
-		'icheck': '/microbird/component/icheck/icheck.amd',
+		'bootstrap': '/bird/component/bootstrap/js/bootstrap.amd',
+		'icheck': '/bird/component/icheck/icheck.amd',
 		'moment': 'lib/moment/moment',
 		'q': 'lib/q/q'
 	};
@@ -32,7 +32,7 @@
 		},
 
 		demo: {
-			prefix: '/microbird/demo/',
+			prefix: '/bird/demo/',
 			mods: [
 				'index/index', 'todos/todos', 'bootstrap/bs', 'icheck/icheck'
 			]
