@@ -57,11 +57,11 @@ define(function(require) {
 		this.init = function() {
 			var me = this;
 			/* model的set接口逻辑本不该放在这里定义（覆盖原set接口）
-			 * 但这里需要用到dataBind去更新dom元素
+			 * 但这里需要用到watcher去通知更新dom元素
 			 * 为了保证model的纯粹性,这里重新定义set接口
 			 * 这里说的纯粹性是指model里的属性除了几个暴露在外的接口,其他的都是action业务上的数据（即要和后台交互或与页面展现相关的数据）
 			 */
-			this.model.set = function(key, value, dataBind) {
+			this.model.set = function(key, value) {
 				var _key = key;
 				var lastDotIndex = _key.lastIndexOf('.');
 				var obj;

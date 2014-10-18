@@ -18,7 +18,7 @@ define(function(require) {
 			'filterJSON': 1
 		};
 
-		this.set = function(key, value/*, dataBind*/) {
+		this.set = function(key, value) {
 			var lastDotIndex = key.lastIndexOf('.');
 			var obj;
 			if(lastDotIndex === -1){
@@ -34,7 +34,6 @@ define(function(require) {
 			}
 			obj[key] = value;
 			obj = null;
-			//dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
 		};
 
 		this.get = function(key) {
