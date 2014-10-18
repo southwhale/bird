@@ -26,6 +26,7 @@ define(function(require) {
 	var string = require('bird.string');
 	var util = require('bird.util');
 	var browser = require('bird.browser');
+	
 
 	var globalContext = require('./bird.globalcontext');
 	var TplParser = require('./bird.tplparser');
@@ -34,8 +35,6 @@ define(function(require) {
 
 	function DataBind() {
 		this.tplParser = new TplParser();
-		this.handleMap = {};
-		this.eventNodes = [];
 		this.typeHandleMap = require('./bird.handlemap');
 	}
 
@@ -51,7 +50,7 @@ define(function(require) {
 		};
 
 		//第二步：将action的model填充进模板,并做首次渲染
-		this.fillTpl = function (model, actionId, container) {
+		this.fillTpl = function (model, actionId) {
 			var parsedInfoCache = this.tplParser.parsedInfoCache;
 			var str = this.tplParser.parsedTpl;
 			var me = this;
@@ -74,16 +73,6 @@ define(function(require) {
 						}
 
 						if(/^event$/i.test(key)){
-							var selector = parsedInfo.id ? '#' + parsedInfo.id : parsedInfo.tagName + '[bindid=' + parsedInfo.bindId + ']';
-							var eventHandleKey = selector + '-' + val.key;
-							var eventHandle = function(e){
-								var handle = me.typeHandleMap.eventMap[eventHandleKey] || lang.noop;
-								handle.call(e.target, e);
-							};
-							if(!me.typeHandleMap.eventMap[eventHandleKey]){
-								me.typeHandleMap.eventMap[eventHandleKey] = lang.isFunction(value) ? value : lang.noop;
-							}
-							me.delegateEventOnSelector(selector, val.key, eventHandle, container);
 							regStr = 'on' + val.key + '\=(["\'])\\s*' + regStr + '\\s*\\1';
 							value = '';
 						}
@@ -93,9 +82,7 @@ define(function(require) {
 								regStr = key + '\=(["\'])\\s*' + regStr + '\\s*\\1';
 							}else if(/^style$/i.test(key) && val.key){
 								regStr = val.key + '\:\\s*' + regStr + '\\s*;?';
-							}/*else if(/^event$/i.test(key) && val.key){
-								regStr = 'on' + val.key + '\=(["\'])\\s*' + regStr + '\\s*\\1';
-							}*/
+							}
 						}
 						
 						var reg = new RegExp(regStr, 'g');
@@ -113,12 +100,12 @@ define(function(require) {
 					}
 				});
 			});
-			
+
 			return str;
 		};
 		
 		//第三步：绑定模板变量到对应的处理函数
-		this.bind = function(model, container){
+		this.bind = function(model, watcher, container){
 			var me = this;
 			container = container || document;
 			object.forEach(this.tplParser.parsedInfoCache, function (info) {
@@ -129,11 +116,37 @@ define(function(require) {
 					if(/id|bindId|tagName/.test(key)){
 						return;
 					}
-					me._bindHandleByType(val, key, node, selector);
+					if(lang.isPlainObject(val) && val.variable){
+						var value = model.get(val.variable);
+						if(/^event$/i.test(key)){
+							var eventHandleKey = selector + '-' + val.key;
+							var eventHandle = function(e){
+								var handle = me.typeHandleMap.eventMap[eventHandleKey] || lang.noop;
+								handle.call(this, e);
+							};
+							if(!me.typeHandleMap.eventMap[eventHandleKey]){
+								me.typeHandleMap.eventMap[eventHandleKey] = lang.isFunction(value) ? value : lang.noop;
+							}
+							me.bindEventOnNode(node, val.key, eventHandle);
+						}
+						me._bindHandleByType(watcher, val, key, node, selector);
+						
+					}else if(lang.isArray(val)){
+						var _arguments = arguments;
+						array.forEach(val, function(_val){
+							_arguments.callee(_val, key);
+						});
+					}
 				});
 
-				if(/^(?:input|select)$/i.test(info.tagName) && lang.isPlainObject(info.value || info.valueVariable)){
-					me._addEventOnInput(node, selector, info.value || info.valueVariable, model, container);
+				if(/^select$/i.test(info.tagName) && lang.isPlainObject(info.valueVariable)){
+					me._addEventOnInput(node, selector, info.valueVariable, model, container);
+				} else if(/^input$/i.test(info.tagName)){
+					if(/^(?:checkbox|radio)$/i.test(node.type) && lang.isPlainObject(info.valueVariable)){
+						me._addEventOnInput(node, selector, info.valueVariable, model, container);
+					}else if(lang.isPlainObject(info.value)){
+						me._addEventOnInput(node, selector, info.value, model, container);
+					}
 				} else if(/^textarea$/i.test(info.tagName) && lang.isPlainObject(info.value || info.htmlText)){
 					me._addEventOnInput(node, selector, info.value || info.htmlText, model, container);
 				}
@@ -148,16 +161,13 @@ define(function(require) {
 			var attrVariable = value.variable,
 				filter = value.filter,
 				me = this,
-				validators = [],
-				eventType;
+				validators = [];
 
 			var isChkboxOrRadio = /^(?:checkbox|radio)$/i.test(node.type);
 			var isSelect = /^select$/i.test(node.tagName);
 
 			if(isChkboxOrRadio || isSelect){
-				//IE用click模拟change
-				eventType = 'onchange' in node.ownerDocument ? 'change' : 'click';
-				this.delegateEventOnSelector(selector, eventType, checkedInputChangeHandle, container);
+				this.delegateEventOnSelector(selector, 'change', checkedInputChangeHandle, container);
 				return;
 			}
 			//input类型控件(包括textarea)的过滤器字段实际是验证器字段
@@ -181,18 +191,11 @@ define(function(require) {
 				});
 			}
 
-			eventType = 'onpropertychange' in node 
-				? this.bindEventOnNode(node, 'propertychange', textInputChangeHandle)
-				: this.delegateEventOnSelector(selector, 'input', textInputChangeHandle, container);
-
-			this.eventNodes.push(node);
+			this.delegateEventOnSelector(selector, 'change', textInputChangeHandle, container);
 
 
 			function textInputChangeHandle(e) {
 				e.stopPropagation();
-				if(e.propertyName && e.propertyName !== 'value'){
-					return;
-				}
 				
 				var target = e.target;
 				var value = target.value;
@@ -225,28 +228,14 @@ define(function(require) {
 		};
 
 
-		this._bindHandleByType = function (variableInfo, type, node, selector) {
-			var handleMap = this.handleMap;
-			var typeHandleMap = this.typeHandleMap;
-			if(lang.isArray(variableInfo)){
-				array.forEach(variableInfo, function(info){
-					var variable = info.variable;
-					var arr = handleMap[variable] = handleMap[variable] || [];
-					arr.push(typeHandleMap[type](node, selector , variable, info.filter, info.key));
-				});
-			}else if(lang.isPlainObject(variableInfo)){
+		this._bindHandleByType = function (watcher, variableInfo, type, node, selector) {
+			var typeHandleMap = this.typeHandleMap; if(lang.isPlainObject(variableInfo)){
 				var variable = variableInfo.variable;
-				var arr = handleMap[variable] = handleMap[variable] || [];
 				//textarea控件较特殊,即使<textarea>{{variable}}</textarea>定义变量,也采用类型为'value'的处理函数
 				if(/^textarea$/i.test(node.tagName)){
 					type = 'value';
-					//奇葩的IE8,textarea监听输入事件,奇数位的字符总是监听不到,偶数位的字符则可以监听到
-					//解决该bug的方法同样也很奇葩
-					if(browser.isIE8()){
-						node.style.padding = '0';
-					}
 				}
-				arr.push((typeHandleMap[type] || typeHandleMap['default'])(node, selector, variable, variableInfo.filter, type));
+				watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap['default']).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === 'event' ? variableInfo.key : type));
 			}
 		};
 
@@ -258,21 +247,6 @@ define(function(require) {
 			event.on(node, type, handle);
 		};
 
-
-		//第一个参数为双向绑定的变量,最后一个参数为context,其余参数为传给handle的数据
-		this.callVariableHandle = function(variable) {
-			var handles = this.handleMap[variable];
-			if (!handles || !handles.length) {
-				return;
-			}
-			var _arguments = arguments;
-			var argslen = _arguments.length;
-			var context = _arguments[argslen - 1];
-			var data = Array.prototype.slice.call(_arguments, 1, argslen - 2);
-			array.forEach(handles, function(handle) {
-				handle.apply(context, data);
-			});
-		};
 
 		this.validate = function(validators, target, value){
 			var errorTipNode = target.id ? dom.g('[for=' + target.id + ']', target.parentNode) : dom.g('.errorTip', target.parentNode);
@@ -291,17 +265,10 @@ define(function(require) {
 
 		this.destroy = function (container, deepDestroy) {
 			deepDestroy && this.tplParser.destroy();
-			object.forEach(this.handleMap, function(v, k, map){
-				v.length = 0;
-				delete map[k];
-			});
 			object.forEach(this.typeHandleMap.eventMap, function(v, k, map){
 				delete map[k];
 			});
 			event.destroy(container);
-			array.forEach(this.eventNodes, function(node){
-				event.destroy(node);
-			});
 		};
 
 

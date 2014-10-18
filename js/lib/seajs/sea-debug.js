@@ -1122,23 +1122,4 @@
     return seajs
   }
 
-  seajs.each = function(p, handle) {
-    var i, len;
-    var isFunc = typeof handle === 'function';
-
-    if (Array.isArray && Array.isArray(p) || p instanceof Array) {
-      for (i = 0, len = p.length; i < len; i++) {
-        if (isFunc) {
-          handle(p[i], i, p);
-        }
-      }
-    } else {
-      for (i in p) {
-        if (p.hasOwnProperty(i) && isFunc) {
-          handle(p[i], i, p);
-        }
-      }
-    }
-  }
-
 })(this);

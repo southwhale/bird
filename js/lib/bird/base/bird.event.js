@@ -17,13 +17,14 @@ define(function(require) {
 		this.init = function() {
 			var originalEvent = this.originalEvent;
 			var me = this;
-			
-			var properties = ['type','altKey','ctrlKey','shiftKey','metaKey','fromElement','toElement',
-				'charCode','keyCode','clientX','clientY','offsetX','offsetY','screenX','screenY','defaultPrevented',
-				'bubbles','cancelBubble','cancelable','path','clipboardData','eventPhase','returnValue',
-				'changedTouches','targetTouches','touches','propertyName',
-				'srcElement','currentTarget','timeStamp','target','relatedTarget','pageX','pageY','which','button'];
-			array.forEach(properties, function(property){
+
+			var properties = ['type', 'altKey', 'ctrlKey', 'shiftKey', 'metaKey', 'fromElement', 'toElement',
+				'charCode', 'keyCode', 'clientX', 'clientY', 'offsetX', 'offsetY', 'screenX', 'screenY', 'defaultPrevented',
+				'bubbles', 'cancelBubble', 'cancelable', 'path', 'clipboardData', 'eventPhase', 'returnValue',
+				'changedTouches', 'targetTouches', 'touches', 'propertyName',
+				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button'
+			];
+			array.forEach(properties, function(property) {
 				me[property] = originalEvent[property];
 			});
 
@@ -58,24 +59,24 @@ define(function(require) {
 				fromElement = originalEvent.fromElement;
 
 			// Calculate pageX/Y if missing and clientX/Y available
-			if ( this.pageX == null && originalEvent.clientX != null ) {
+			if (this.pageX == null && originalEvent.clientX != null) {
 				eventDoc = this.target.ownerDocument || document;
 				doc = eventDoc.documentElement;
 				body = eventDoc.body;
 
-				this.pageX = originalEvent.clientX + ( doc && doc.scrollLeft || body && body.scrollLeft || 0 ) - ( doc && doc.clientLeft || body && body.clientLeft || 0 );
-				this.pageY = originalEvent.clientY + ( doc && doc.scrollTop  || body && body.scrollTop  || 0 ) - ( doc && doc.clientTop  || body && body.clientTop  || 0 );
+				this.pageX = originalEvent.clientX + (doc && doc.scrollLeft || body && body.scrollLeft || 0) - (doc && doc.clientLeft || body && body.clientLeft || 0);
+				this.pageY = originalEvent.clientY + (doc && doc.scrollTop || body && body.scrollTop || 0) - (doc && doc.clientTop || body && body.clientTop || 0);
 			}
 
 			// Add relatedTarget, if necessary
-			if ( !this.relatedTarget && fromElement ) {
+			if (!this.relatedTarget && fromElement) {
 				this.relatedTarget = fromElement === this.target ? originalEvent.toElement : fromElement;
 			}
 
 			// Add which for click: 1 === left; 2 === middle; 3 === right
 			// Note: button is not normalized, so don't use it
-			if ( !this.which && button !== undefined ) {
-				this.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
+			if (!this.which && button !== undefined) {
+				this.which = (button & 1 ? 1 : (button & 2 ? 3 : (button & 4 ? 2 : 0)));
 			}
 
 			this.isMouseLeft = this.which === 1;
@@ -91,16 +92,16 @@ define(function(require) {
 			var e = this.originalEvent;
 
 			this.isDefaultPrevented = returnTrue;
-			if ( !e ) {
+			if (!e) {
 				return;
 			}
 
 			// If preventDefault exists, run it on the original event
-			if ( e.preventDefault ) {
+			if (e.preventDefault) {
 				e.preventDefault();
 
-			// Support: IE
-			// Otherwise set the returnValue property of the original event to false
+				// Support: IE
+				// Otherwise set the returnValue property of the original event to false
 			} else {
 				e.returnValue = false;
 			}
@@ -110,11 +111,11 @@ define(function(require) {
 			var e = this.originalEvent;
 
 			this.isPropagationStopped = returnTrue;
-			if ( !e ) {
+			if (!e) {
 				return;
 			}
 			// If stopPropagation exists, run it on the original event
-			if ( e.stopPropagation ) {
+			if (e.stopPropagation) {
 				e.stopPropagation();
 			}
 
@@ -128,7 +129,7 @@ define(function(require) {
 
 			this.isImmediatePropagationStopped = returnTrue;
 
-			if ( e && e.stopImmediatePropagation ) {
+			if (e && e.stopImmediatePropagation) {
 				e.stopImmediatePropagation();
 			}
 
@@ -136,11 +137,11 @@ define(function(require) {
 		};
 
 
-		function returnTrue(){
+		function returnTrue() {
 			return true;
 		}
 
-		function returnFalse(){
+		function returnFalse() {
 			return false;
 		}
 	}).call(Event.prototype);
@@ -148,33 +149,27 @@ define(function(require) {
 
 	function EventListner() {
 		this.eventCache = {};
-		this.htmlEventCallbackCache = {};
-		this.delegateElCache = {};
+		this.delegatedPropertyChangeNodes = [];
 	}
 
 	(function() {
 
 		var doc = document;
 
-
-		this.wrapEvent = function(originalEvent){
-			return new Event(originalEvent);
-		};
-
-		this.addListener = function(el, eventType, handle, capture) {
+		this.addListener = function(el, eventType, handle) {
 			var me = this;
 			array.forEach(eventType.split(/\s+/), function(etype) {
-				me._addListener(el, etype, handle, capture);
+				me._addListener(el, etype, handle);
 			});
 		};
 
-		this.removeListener = function(el, eventType, handle, capture) {
+		this.removeListener = function(el, eventType, handle) {
 			var me = this;
 			if (!eventType) {
 				return this._removeListener(el);
 			}
 			array.forEach(eventType.split(/\s+/), function(etype) {
-				me._removeListener(el, etype, handle, capture);
+				me._removeListener(el, etype, handle);
 			});
 		};
 
@@ -184,28 +179,21 @@ define(function(require) {
 		this.once = function(el, eventType, handle) {
 			var me = this;
 			var wrappedHandle = function(e) {
-				me.removeListener(el, eventType, wrappedHandle);
+				me.removeListener(el, e.type, wrappedHandle);
 				handle.call(this, e);
 			};
 			this.addListener(el, eventType, wrappedHandle);
 		};
 
-		this._addListener = function(el, eventType, handle, capture) {
+		this._addListener = function(el, eventType, handle) {
 			if (!el.__uid__) {
 				el.__uid__ = util.uuid('el_');
 			}
 			var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
-			var eventHandles = eventTypeCache[eventType] = eventTypeCache[eventType] || [];
-			eventHandles.push(handle);
-
-			if ((lang.isHtmlNode(el) || lang.isWindow(el) || lang.isHtmlDocument(el)) && this.isHtmlEventType(eventType)) {
-				if (!this.htmlEventCallbackCache[el.__uid__]) {
-					this.htmlEventCallbackCache[el.__uid__] = {};
-				}
-
-				if (this.htmlEventCallbackCache[el.__uid__][eventType]) {
-					return;
-				}
+			var eventHandleCache = eventTypeCache[eventType] = eventTypeCache[eventType] || {};
+			var eventHandleQueue = eventHandleCache['queue'] = eventHandleCache['queue'] || [];
+			eventHandleQueue.push(handle);
+			if (!eventHandleCache['callback'] && (el.addEventListener || el.attachEvent)) {
 				var me = this;
 				var callback = function(originalEvent) {
 					var wsevent = window.event;
@@ -214,13 +202,14 @@ define(function(require) {
 					var e = new Event(originalEvent);
 					me.trigger(el, eventType, e);
 				};
-				el.addEventListener ? el.addEventListener(eventType, callback, capture || false) : el.attachEvent("on" + eventType, callback);
-				this.htmlEventCallbackCache[el.__uid__][eventType] = callback;
+				var capture = /^(?:focus|blur)$/i.test(eventType);
+				eventHandleCache['callback'] = callback;
+				el.addEventListener ? el.addEventListener(eventType, callback, capture) : el.attachEvent("on" + eventType, callback);
 				callback = null;
 			}
 		};
 
-		this._removeListener = function(el, eventType, handle, capture) {
+		this._removeListener = function(el, eventType, handle) {
 			if (!el.__uid__) {
 				return;
 			}
@@ -228,28 +217,36 @@ define(function(require) {
 			if (!eventTypeCache) {
 				return;
 			}
-			var eventHandles = eventTypeCache[eventType];
-			if (!eventHandles || !eventHandles.length) {
+			var eventHandleCache = eventTypeCache[eventType];
+			if (!eventHandleCache) {
+				return;
+			}
+			var eventHandleQueue = eventHandleCache['queue'];
+			if (!eventHandleQueue || !eventHandleQueue.length) {
 				return;
 			}
 
 			if (handle) {
-				array.descArrayEach(eventHandles, function(fn, index, handles) {
+				array.descArrayEach(eventHandleQueue, function(fn, index, handles) {
 					if (fn === handle) {
 						handles.splice(index, 1);
 					}
 				});
-
-				if (!eventHandles.length) {
-					removeHtmlEventListener.call(this, el, eventType, capture);
+				if (!eventHandleQueue.length) {
+					removeEventCallback(el, eventType, eventHandleCache);
 				}
 
 				return;
 			}
 
-			eventHandles.length = 0;
-			removeHtmlEventListener.call(this, el, eventType, capture);
+			removeEventCallback(el, eventType, eventHandleCache);
 		};
+
+		function removeEventCallback(el, eventType, eventHandleCache){
+			var capture = /^(?:focus|blur)$/i.test(eventType);
+			el.removeEventListener ? el.removeEventListener(eventType, eventHandleCache['callback'], capture) : el.detachEvent("on" + eventType, eventHandleCache['callback']);
+			delete eventHandleCache['callback'];
+		}
 
 		this.trigger = function(el, eventType, data) {
 			if (!el.__uid__) {
@@ -260,18 +257,22 @@ define(function(require) {
 				return;
 			}
 			if (eventType) {
-				var eventHandles = eventTypeCache[eventType];
-				if (!eventHandles || !eventHandles.length) {
+				var eventHandleCache = eventTypeCache[eventType];
+				if (!eventHandleCache) {
 					return;
 				}
-				util.each(eventHandles, function(handle) {
+				var eventHandleQueue = eventHandleCache['queue'];
+				if (!eventHandleQueue || !eventHandleQueue.length) {
+					return;
+				}
+				util.each(eventHandleQueue, function(handle) {
 					handle.call(el, data);
 				});
 				return;
 			}
 
-			util.each(eventTypeCache, function(handles) {
-				util.each(handles, function(handle) {
+			util.each(eventTypeCache, function(handleCache) {
+				util.each(handleCache && handleCache['queue'] || [], function(handle) {
 					handle.call(el, data);
 				});
 			});
@@ -287,42 +288,60 @@ define(function(require) {
 
 			context = context || doc.body;
 
-			var eventThis = this;
-
-			if (!hasHandleOnEventType.call(this, context, eventType)) {
-				var me = this;
-				var isBlurFocus = /^(?:focus|blur)$/i.test(eventType);
-				isBlurFocus && !context.addEventListener && (eventType = ({
-					focus: 'focusin',
-					blur: 'focusout'
-				})[eventType]);
-				this.addListener(context, eventType, function(e) {
-					var target = e.target;
-					var _context = this;
-
-					util.each(me.delegateElCache[context.__uid__], function(el, selector) {
-						return util.each(dom.getElements(selector, _context), function(node) {
-							if (dom.hasParent(target, node)) {
-								//e.stopPropagation();
-								object.extend(target, el);
-								eventThis.trigger(target, e.type, e);
-								return false;
+			var oldHandle = handle;
+			handle = function(e) {
+				var elements = dom.getElements(selector, context);
+				var target = e.target;
+				array.each(elements, function(element) {
+					if (target === element) {
+						e.stopImmediatePropagation();
+						oldHandle.call(target, e);
+						return false;
+					}
+				});
+			};
+			if (context.addEventListener) {
+				if ('change' === eventType) {
+					var firstElement = dom.getElement(selector, context);
+					if (!/^(?:checkbox|radio|hidden|button)$/i.test(firstElement.type) && !/^select$/i.test(firstElement.tagName)) {
+						eventType = 'input';
+					}
+				}
+			} else {
+				if ('change' === eventType) {
+					var elements = dom.getElements(selector, context);
+					var firstElement = elements[0];
+					if (/^(?:checkbox|radio)$/i.test(firstElement.type) || /^select$/i.test(firstElement.tagName)) {
+						eventType = 'click';
+					}else if('onpropertychange' in firstElement){
+						//IE的onpropertychange不冒泡
+						eventType = 'propertychange';
+						handle = function(e) {
+							if (e.propertyName && e.propertyName !== 'value') {
+								return;
 							}
+							oldHandle.call(this, e);
+						};
+
+						var me = this;
+
+						array.forEach(elements, function(element){
+							me.delegatedPropertyChangeNodes.push(element);
+							me._addListener(element, eventType, handle);
 						});
-					});
-				}, isBlurFocus);
+						handle = elements = firstElement = null;
+						return;
+					}
+				} else if (/^(?:focus|blur)$/i.test(eventType)) {
+					eventType = ({
+						focus: 'focusin',
+						blur: 'focusout'
+					})[eventType];
+				}
 			}
 
-			this.delegateElCache[context.__uid__] = this.delegateElCache[context.__uid__] || {};
-
-			var selectorCache = this.delegateElCache[context.__uid__];
-
-			var el = selectorCache[selector] = selectorCache[selector] || {
-				selector: selector
-			};
-
-			this.addListener(el, eventType, handle);
-
+			this.addListener(context, eventType, handle);
+			handle = elements = firstElement = null;
 		};
 
 		//只是删除事件绑定时加入的属性
@@ -331,43 +350,32 @@ define(function(require) {
 				return;
 			}
 			var eventTypeCache = this.eventCache[el.__uid__];
-			var callbackCache = this.htmlEventCallbackCache[el.__uid__];
-			var selectorCache = this.delegateElCache[el.__uid__];
-
-			if (selectorCache) {
-				var me = this;
-				object.forEach(selectorCache, function(delegateEl) {
-					me.destroy(delegateEl);
-				});
-				delete this.delegateElCache[el.__uid__]; //删除代理对象
-			}
-			try{
+			try {
 				//IE7及以下浏览器delete一个HtmlNode的属性时会抛异常,而这里的el可能为HtmlNode
 				delete el.__uid__;
-			}catch(e){
+			} catch (e) {
 				el.__uid__ = null;
 			}
-			
+
 
 			if (!eventTypeCache) {
 				return;
 			}
 
-			util.each(eventTypeCache, function(handles, eventType) {
-				util.each(handles, function(handle, index) {
-					delete handles[index];
-				});
-				delete eventTypeCache[eventType];
-			});
 
-			if (callbackCache) {
-				util.each(callbackCache, function(callback, eventType) {
-					el.removeEventListener ? el.removeEventListener(eventType, callback, false) : el.detachEvent("on" + eventType, callback);
-					delete callbackCache[eventType];
-				});
-			}
+			util.each(eventTypeCache, function(handleCache, eventType) {
+				handleCache['queue'].length = 0;
+				removeEventCallback(el, eventType, handleCache);
+			});
 		};
 
+		this.destroyPropertyChangeEvents = function(){
+			var me = this;
+			array.forEach(this.delegatedPropertyChangeNodes, function(node){
+				me._removeListener(node, 'propertychange');
+			});
+			this.delegatedPropertyChangeNodes.length = 0;
+		};
 
 
 		function hasHandleOnEventType(el, eventType) {
@@ -378,39 +386,19 @@ define(function(require) {
 			if (!eventTypeCache) {
 				return false;
 			}
-			var eventHandles = eventTypeCache[eventType];
-			if (!eventHandles || !eventHandles.length) {
+			var eventHandleCache = eventTypeCache[eventType];
+			if (!eventHandleCache) {
+				return false;
+			}
+
+			var eventHandleQueue = eventHandleCache['queue'];
+			if (!eventHandleQueue || !eventHandleQueue.length) {
 				return false;
 			}
 			return true;
 		}
 
 
-		function getTreePath(el, context) {
-			context = context || doc.body;
-			var paths = [];
-			while (el && el.tagName && el !== context) {
-				paths.unshift(el.tagName + (el.id ? "[id=" + el.id + "]" : ""));
-				el = el.parentNode;
-			}
-			return paths.length ? paths.join('->') : '';
-		}
-
-
-		function removeHtmlEventListener(el, eventType, capture) {
-			if ((lang.isHtmlNode(el) || lang.isWindow(el) || lang.isHtmlDocument(el)) && this.isHtmlEventType(eventType)) {
-				if (!this.htmlEventCallbackCache[el.__uid__]) {
-					return;
-				}
-				var callback = this.htmlEventCallbackCache[el.__uid__][eventType];
-				if (!callback) {
-					return;
-				}
-				el.removeEventListener ? el.removeEventListener(eventType, callback, capture || false) : el.detachEvent("on" + eventType, callback);
-				delete this.htmlEventCallbackCache[el.__uid__][eventType];
-				callback = null;
-			}
-		}
 
 		this.isHtmlEventType = (function() {
 

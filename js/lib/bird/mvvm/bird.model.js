@@ -2,10 +2,10 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var object = require('bird.object');
-
+	
 
 	function Model() {
-
+		
 	}
 
 	(function() {

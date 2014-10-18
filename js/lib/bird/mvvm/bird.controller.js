@@ -60,7 +60,7 @@ define(function(require) {
 			});
 		};
 
-		this.configModules = function(options) {
+		this.configApp = function(options) {
 			this.actionMaps = lang.isArray(options) ? options : options.actionMaps;
 		};
 

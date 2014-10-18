@@ -1,3 +1,4 @@
 define(function(require){
-	require('/bird/js/entry').init();
+	require('./js/module/moduleConfig');
+	require('./js/module/entry').init();
 });

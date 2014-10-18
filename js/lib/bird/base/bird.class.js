@@ -16,8 +16,15 @@ define(function(require){
 				}
 			};
 			subClass.originalSubClass = originalSubClass;*/
-			var F = new Function();
-        	F.prototype = superClass.prototype;
+			var cleanSuperClassPrototype;
+			if(Object.create){
+				cleanSuperClassPrototype = Object.create(superClass.prototype);
+			}else{
+				var F = new Function();
+        		F.prototype = superClass.prototype;
+        		cleanSuperClassPrototype = new F();
+			}
+			
 			subClass.superClass = superClass;
 			//缓存原来的原型函数,后面再恢复
 			var originalSubClassProto = subClass.prototype;
@@ -26,7 +33,8 @@ define(function(require){
 			 * 是为了减少不必要的内存消耗,因为不确定superClass的构造函数做了多少操作,
 			 * 也许某个操作是相当耗时耗内存的
 			 */
-			subClass.prototype = new F();
+			subClass.prototype = cleanSuperClassPrototype;
+			cleanSuperClassPrototype = null;
 			//恢复原来的原型函数
 			object.forEach(originalSubClassProto, function(fn, property){
 				if(!subClass.prototype[property]){

@@ -30,16 +30,27 @@ define(function(require) {
 
 		this.afterRender = function($model){
 			//$(".dropdown-toggle").dropdown('toggle');
+			setTimeout(function(){
+				$model.set('tclick', function(e){
+					alert(e.target.getAttribute('value') + ' -aaaa')
+				});
+
+				$model.set('danger', '你猜猜');
+			},5000)
 		};
 
-		this.initModel = function($model){
+		this.initModel = function($model,$watcher){
 			$model.success = '成功！很好地完成了提交。';
 			$model.info = '信息！请注意这个信息。';
 			$model.warning = '警告！请不要提交。1111';
 			$model.danger = '错误！请进行一些更改。';
 
+			$watcher.watch('danger', function(value){
+				alert(value)
+			})
+
 			$model.tclick = function(e){
-				alert(this.getAttribute('value'))
+				alert(e.target.getAttribute('value'))
 			}
 		};
 

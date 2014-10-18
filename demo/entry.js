@@ -25,9 +25,9 @@ define(function(require) {
 
 			Action.setContainer('Container');
 			
-			require('errorTrack').init({
+			/*require('errorTrack').init({
 				url : "/errortrack.action"
-			});
+			});*/
 
 
 			Q.longStackSupport = true;
@@ -37,7 +37,7 @@ define(function(require) {
 				throw e;
 			};
 
-			controller.configModules(require('./moduleConfig'));
+			controller.configApp(require('./appConfig'));
 
 			//这里要求在启动controller之前先加载可能用到的路径对业务模块映射
 

@@ -10,19 +10,21 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var dom = require('bird.dom');
 	var array = require('bird.array');
+	var event = require('bird.event');
 	var util = require('bird.util');
 	var request = require('bird.request');
 	var Model = require('./bird.model');
 	var DataBind = require('./bird.databind');
 	var globalContext = require('./bird.globalcontext');
 	var validator = require('./bird.validator');
+	var Observer = require('bird.__observer__');
 
 
 	function Action() {
 		this.id = util.uuid('action_');
 		this.model = new Model();
+		this.watcher = new Observer();
 		this.dataBind = new DataBind();
-		this.insertedDataBinds = [];
 		this.args = {};
 		this.actionUrlMap = {};
 		this.urlActionMap = {};
@@ -75,15 +77,9 @@ define(function(require) {
 				}
 				obj[_key] = value;
 				obj = null;
-				if(dataBind && dataBind instanceof DataBind){
-					dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
-				}else{
-					me.dataBind.callVariableHandle(key, value, oldValue, arguments[arguments.length - 1]);
-					var _arguments = arguments;
-					array.forEach(me.insertedDataBinds, function(dbind){
-						dbind.dataBind.callVariableHandle(key, value, oldValue, _arguments[_arguments.length - 1]);
-					});
-				}
+				var argArr = [key, value, oldValue, arguments[arguments.length - 1]];
+				me.watcher.publish.apply(me.watcher, argArr);
+				argArr = null;
 			};
 
 			this.lifePhase = this.LifeCycle.INITED;
@@ -130,7 +126,7 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口
-		this.initModel = function(modelReference) {
+		this.initModel = function(modelReference, watcherReference) {
 			/**
 			 * 通过往modelReference上挂载属性的方式修改action.model,如：
 			 * modelReference.name = 'liwei';
@@ -142,7 +138,7 @@ define(function(require) {
 
 		this._initModel = function(args) {
 
-			this.initModel(this.model);
+			this.initModel(this.model, this.watcher);
 			this.lifePhase = this.LifeCycle.MODEL_BOUND;
 		};
 
@@ -179,12 +175,13 @@ define(function(require) {
 				return;
 			}
 			this.dataBind.parseTpl(this.tpl);
-			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id, this.container);
-			this.dataBind.bind(this.model, this.container);
+			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
+			this.dataBind.bind(this.model, this.watcher, this.container);
 		};
 
 		/*
 		 * 为动态插入的模板应用双向绑定
+		 * 一个Action对应一个根容器,即使这里的container非根容器,它也必须是根容器的子节点,所以这里可以把事件绑定在根容器上
 		 * @public
 		 */
 		this.applyBind = function(tpl, container, append){
@@ -192,14 +189,9 @@ define(function(require) {
 				return;
 			}
 			var dataBind = new DataBind();
-			//缓存起来,离开action时清空内存和解绑事件
-			this.insertedDataBinds.push({
-				dataBind: dataBind,
-				container: container
-			});
 
 			dataBind.parseTpl(tpl);
-			var html = dataBind.fillTpl(this.model, this.id, container);
+			var html = dataBind.fillTpl(this.model, this.id);
 			if(lang.isFunction(append)){
 				append(html, container);
 			} else if(append){
@@ -207,8 +199,8 @@ define(function(require) {
 			} else {
 				container.innerHTML = html;
 			}
-			
-			dataBind.bind(this.model, container);
+			//绑定事件处理逻辑到该Action的根容器上
+			dataBind.bind(this.model, this.watcher, this.container);
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑
@@ -237,7 +229,7 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
-		this.afterRender = function(modelReference) {
+		this.afterRender = function(modelReference, watcherReference) {
 
 		};
 
@@ -277,7 +269,7 @@ define(function(require) {
 				me.dataRequestPromise.spread(function() {
 					me.beforeRender(me.model);
 					me.render();
-					me.afterRender(me.model);
+					me.afterRender(me.model, me.watcher);
 				}).done();
 			}).done();
 		};
@@ -290,11 +282,9 @@ define(function(require) {
 		this.leave = function(nextAction) {
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
-			array.forEach(this.insertedDataBinds, function(obj){
-				event.destroy(obj.container);
-				obj.dataBind.destroy(obj.container, true);
-			});
-			this.insertedDataBinds.length = 0;
+			this.watcher.unsubscribe();
+			event.destroyPropertyChangeEvents();
+
 			this.dataBind.destroy(this.container);
 			this.model.destroy();
 			this.beforeLeave();

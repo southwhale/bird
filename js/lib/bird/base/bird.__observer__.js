@@ -21,13 +21,15 @@ define(function(require){
 
 		this.unsubscribe = function(channel, update) {
 			if (arguments.length === 1) {
-				this.channelMap[channel] = null;
+				this.channelMap[channel].length = 0;
+				delete this.channelMap[channel];
 				return;
 			}
 			if (!arguments.length) {
 				var me = this;
 				util.forEach(this.channelMap, function(updates, channel) {
-					me.channelMap[channel] = null;
+					updates.length = 0;
+					delete me.channelMap[channel];
 				});
 
 				return;
@@ -42,6 +44,9 @@ define(function(require){
 					fnArray.splice(index, 1);
 				}
 			});
+			if(!fnArray.length){
+				delete this.channelMap[channel];
+			}
 		};
 
 		this.publish = function(channel) {
@@ -52,6 +57,9 @@ define(function(require){
 			});
 			args = me = null;
 		};
+
+		this.watch = this.subscribe;
+		this.notify = this.publish;
 
 		this.getUpdates = function(channel){
 			return this.channelMap[channel];

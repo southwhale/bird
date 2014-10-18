@@ -3,81 +3,14 @@
 	<head>
 		<meta charset="utf-8">
 		<title></title>
-		<!--link rel="stylesheet" href="./src/fonticon/fontello/css/fontello.css">
-		<link rel="stylesheet" href="./src/js/lib/bird/ui/css/bird.ui.css"-->
-		<link rel="stylesheet" href="./bootstrap/css/bootstrap.css">
-		<link rel="stylesheet" href="demo/css/demo.css" />
+		<link rel="stylesheet" href="./css/all.css">
 	</head>
 	<body>
 		<div id="Container"></div>
 		
 		<script src="./js/lib/seajs/sea-debug.js" charset="UTF-8"></script>
 		<script>
-			(function(){
-				var alias = {
-					'jquery': 'lib/jquery/jquery-1.11.1',
-					'bootstrap': '/bird/bootstrap/js/bootstrap.amd',
-				    'moment': 'lib/moment/moment',
-				    'q': 'lib/q/q'
-				};
-
-				var modMap = {
-					bird: {
-						prefix: 'lib/bird/base/',
-						mods: [
-							'bird.browser','bird.dom','bird.lang','bird.array','bird.string','bird.date','bird.object',
-							'bird.uuid','bird.chain','bird.event','bird.observer','bird.request','bird.__observer__',
-							'bird.syspatch','bird.template','bird.animate','bird.css3animate','bird.spirit','bird.util',
-							'bird.class'
-						]
-					},
-
-					mvvm: {
-						prefix : 'lib/bird/mvvm/',
-						mods: ['bird.controller','bird.router','bird.action','bird.databind','bird.applicationcontext','bird.validator']
-					},
-
-					ui: {
-						prefix : 'lib/bird/ui/',
-						mods: [
-							'bird.ui','bird.ui.button','bird.ui.dialog','bird.ui.dialog.confirm','bird.ui.dialog.alert',
-							'bird.ui.mask','bird.ui.panel'
-						]
-					},
-
-					demo: {
-						prefix: '/bird/demo/',
-						mods: [
-							'index/index','todos/todos','bootstrap/bs'
-						]
-					},
-
-					module: {
-						prefix: 'module/biz/',
-						mods: [
-							'common/404'
-						]
-					},
-
-					tool: {
-						prefix: 'lib/bird/tool/',
-						mods: ['mask','errorTrack']
-					}
-				};
-
-				seajs.each(modMap, function(m){
-					seajs.each(m.mods, function(modName){
-						alias[modName] = m.prefix + modName;
-					});
-				});
-
-				seajs.config({
-				  base: './js/',
-				  alias: alias
-				});
-
-				seajs.use('./demo');
-			})();
+			seajs.use('./demo');
 		</script>
 	</body>
 </html>

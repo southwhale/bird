@@ -21,12 +21,12 @@ define(function(require) {
 			};
 		};
 		this.value = function(node, selector, variable, filter) {
-			return function(value) {
+			return function(value, oldValue, ctx) {
 				//input控件不应有过滤功能,会引起较大的副作用
 				//value = filter ? filterHelper.filter(value, filter) : value;
 
 				//这么做是避免重复赋值引起多触发一次onpropertychange事件
-				if (this === node) {
+				if (ctx === node) {
 					return;
 				}
 
@@ -34,8 +34,8 @@ define(function(require) {
 			}
 		};
 		this.valueVariable = function(node, selector, variable, filter) {
-			return function(value) {
-				if (this === node) {
+			return function(value, oldValue, ctx) {
+				if (ctx === node) {
 					return;
 				}
 
@@ -84,7 +84,7 @@ define(function(require) {
 				dom.setAttr(node, 'placeholder', value);
 			};
 		};
-		this.for = function(node, selector, variable, filter) {
+		this['for'] = function(node, selector, variable, filter) {
 			return function(value) {
 				dom.setAttr(node, 'for', value);
 			};
@@ -102,16 +102,17 @@ define(function(require) {
 				dom.setCssText(node, value);
 			};
 		};
-		this.class = function(node, selector, variable, filter) {
+		this['class'] = function(node, selector, variable, filter) {
 			return function(value, oldValue) {
 				oldValue && dom.removeClass(node, oldValue);
 				dom.addClass(node, value);
 			};
 		};
-		this.event = function(node, selector, variable, filter, key) {
+		this.event = function(node, selector, variable, filter, eventType) {
 			eventMap = this.eventMap;
+			var eventHandleKey = selector + '-' + eventType;
 			return function(value) {
-				eventMap[selector] = value;
+				eventMap[eventHandleKey] = value;
 			};
 		};
 		this.customAttr = function(node, selector, variable, filter, key) {
@@ -121,7 +122,7 @@ define(function(require) {
 			};
 		};
 		//默认的处理函数
-		this.default = function(node, selector, variable, filter, type) {
+		this['default'] = function(node, selector, variable, filter, type) {
 			return function(value) {
 				dom.setAttr(node, type, value);
 			};
@@ -131,4 +132,4 @@ define(function(require) {
 
 
 	return new HandleMap();
-})
+});

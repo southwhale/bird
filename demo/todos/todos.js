@@ -35,10 +35,9 @@ define(function(require) {
 			this.applyBind(clearCompletedTpl, dom.gById('clear-completed'));
 		};
 
-		this.initModel = function($){
-			var itemTpl = '<li><div class="view"><input class="toggle" type="checkbox" name="chkItems" valueVariable="{{checkedItemsValue}}"/>'
-			 			+ '<label>{{title}}</label><a class="destroy"></a>'
-			 			+ '</div><input class="edit" type="text" value="{{title}}"/></li>';
+		this.initModel = function($, $watcher){
+			$.count = 1;
+			
 
 			
 			var me = this;
@@ -48,10 +47,11 @@ define(function(require) {
 					return;
 				}
 				if(this.value){
-					$.title = this.value;
-					me.applyBind(itemTpl, dom.gById('todo-list'), true);
+					$['title' + $.count] = this.value;
+					me.applyBind(getItemTpl($.count), dom.gById('todo-list'), true);
 					this.value = '';
 					updateItemCount();
+					$.count++;
 				}
 			};
 
@@ -76,7 +76,12 @@ define(function(require) {
 				}
 				dom.removeNode(this.parentNode.parentNode);
 				updateItemCount();
-				updateCheckedCount();
+				var values = [];
+				var chkboxs = dom.getAll('#todo-list div input[type=checkbox]');
+				array.forEach(chkboxs, function(chbox){
+					chbox.checked && values.push(chbox.value);
+				});
+				$.set('checkedItemsValue', values.join(','));
 			};
 
 			$.checkAll = function(e){
@@ -89,12 +94,16 @@ define(function(require) {
 				}
 				
 				$.set('checkedItemsValue', values.join(','));
-				updateCheckedCount();
+				//updateCheckedCount();
 			};
 
 
-			function updateCheckedCount(){
-				var checkedCount = require('jquery')('#todo-list div input:checked').length;//dom.getAll('#todo-list div input:checked').length;
+			$watcher.watch('checkedItemsValue', function(value){
+				updateCheckedCount(value ? value.split(',').length : 0);
+			});
+
+
+			function updateCheckedCount(checkedCount){
 				var text = '';
 				checkedCount === 1 && (text = ' item');
 				checkedCount > 1 && (text = ' items');
@@ -112,18 +121,21 @@ define(function(require) {
 				$.set('itemCount', text);
 			}
 
-			this.updateCheckedCount = updateCheckedCount;
+
+			function getItemTpl(count){
+				return '<li><div class="view"><input class="toggle" type="checkbox" name="chkItems" valueVariable="{{checkedItemsValue}}" value="{{count}}"/>'
+			 			+ '<label ondblclick="{{editItem}}">{{title' + count + '}}</label><a class="destroy" onclick="{{removeItem}}"></a>'
+			 			+ '</div><input class="edit" type="text" value="{{title' + count + '}}" onblur="{{showLabel}}"/></li>';
+			}
+
 		};
 
 		this.bindEvent = function(){
-			var me = this;
-			event.delegate('input[type=checkbox]', 'click', function(e){
-				me.updateCheckedCount();
-			},dom.gById('todo-list'));
+
 		};
 
 		this.beforeLeave = function(){
-			event.destroy(dom.gById('todo-list'));
+
 		};			
       
     			
