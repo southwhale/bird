@@ -60,7 +60,8 @@ define(function(require) {
 				filterKeys = Array.prototype.slice.call(arguments);
 				json = this;
 			}else{
-				filterKeys = Array.prototype.slice.call(arguments, 1);
+				filterKeys = arguments[1];
+				filterKeys = lang.isArray(filterKeys) ? filterKeys : Array.prototype.slice.call(arguments, 1);
 			}
 			var ret = {};
 			array.forEach(filterKeys, function(v){
