@@ -17,12 +17,13 @@ define(function(require) {
 
 
 		this.start = function() {
-			this.watchLocation();
+			this.watchHash();
 			this.bootFirstUrl();
-			console.log('bird.router started!');
+			console.log('bird.router[use hashChange] started!');
 		};
 
 		this.changeHash = function(hash) {
+			hash = hash.replace(/^#/,'');
 			if (this.lastHash === hash) {
 				return;
 			}
@@ -63,16 +64,16 @@ define(function(require) {
 			return '/';
 		};
 
-		this.watchLocation = function() {
+		this.watchHash = function() {
 			this.lastHash = '';
 			var me = this;
 
-			event.addListener(window, 'popstate', function(e) {
-				me.handleLocationChange();
+			event.addListener(window, 'hashchange', function() {
+				me.handleHashChange();
 			});
 		};
 
-		this.handleLocationChange = function(hash) {
+		this.handleHashChange = function(hash) {
 			hash = hash || this.getHash();
 			if (this.lastHash !== hash) {
 				this.referrer = this.lastHash;
@@ -120,11 +121,11 @@ define(function(require) {
 			}
 		};
 
-		this.route = function(url, isNotHash) {
-			if (isNotHash && !/^#/.test(url)) {
+		this.route = function(url, isWholeUrl) {
+			if (isWholeUrl && !/^#/.test(url)) {
 				window.location.href = url;
 			} else {
-				this.changeHash(url.replace(/^#/, ''));
+				this.changeHash(url);
 			}
 		};
 

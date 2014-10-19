@@ -21,7 +21,7 @@ define(function(require) {
 			var properties = ['type', 'altKey', 'ctrlKey', 'shiftKey', 'metaKey', 'fromElement', 'toElement',
 				'charCode', 'keyCode', 'clientX', 'clientY', 'offsetX', 'offsetY', 'screenX', 'screenY', 'defaultPrevented',
 				'bubbles', 'cancelBubble', 'cancelable', 'path', 'clipboardData', 'eventPhase', 'returnValue',
-				'changedTouches', 'targetTouches', 'touches', 'propertyName',
+				'changedTouches', 'targetTouches', 'touches', 'propertyName','state',
 				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button'
 			];
 			array.forEach(properties, function(property) {
@@ -294,7 +294,7 @@ define(function(require) {
 				var target = e.target;
 				array.each(elements, function(element) {
 					if (target === element) {
-						e.stopImmediatePropagation();
+						//e.stopImmediatePropagation();
 						oldHandle.call(target, e);
 						return false;
 					}

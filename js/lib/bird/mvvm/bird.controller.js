@@ -38,11 +38,11 @@ define(function(require) {
 		};
 
 		this.back = function() {
-			location.hash = this.lastAction ? ('!' + this.lastAction.args.location) : '';
+			this.redirect(this.lastAction ? ('#!' + this.lastAction.args.location) : '/');
 		};
 
-		this.redirect = function(url, isNotHash) {
-			router.route(url, isNotHash);
+		this.redirect = function(url, isWholeUrl) {
+			router.route(url, isWholeUrl);
 		};
 
 		this.initActionListener = function() {

@@ -18,7 +18,7 @@ define(function(require){
 
 	(function () {
 
-		this.title = '沪江网 | 出错啦！！！';
+		this.title = '出错啦！！！';
 
 		this.afterRender = function($){
 			//mask.show();
