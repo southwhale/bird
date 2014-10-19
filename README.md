@@ -9,9 +9,11 @@ a simple mvvm library
 bird做了两件事：路由控制 和 双向绑定
 
 
-<b>路由控制:</b> 通过继承基类bird.action实现各业务子类的路由控制(支持hashChange和pushState两种路由实现,默认使用hashChange的实现,可根据具体需求修改bird.controller里router的引用)
+-**路由控制：** 
+    通过继承基类bird.action实现各业务子类的路由控制（支持hashChange和pushState两种路由实现，默认使用hashChange的实现，可根据具体需求修改<a href="js/lib/mvvm/bird.controller.js" target="_blank">bird.controller</a>里router的引用）
 
-<b>双向绑定:</b> 使用双花括号{{...}}实现双向绑定
+-**双向绑定：** 
+    使用双花括号{{...}}实现双向绑定
 
 ----
 ###示例
@@ -20,7 +22,7 @@ bird做了两件事：路由控制 和 双向绑定
   	
 ----
 ###说明
-<b>注</b>：<i style="color:red">强烈建议路由的路径由'#!'开头,可以避免一些意料之外的问题</i>
+**注：**强烈建议路由的路径由'#!'开头,可以避免一些意料之外的问题
 
 如何运行示例？
 

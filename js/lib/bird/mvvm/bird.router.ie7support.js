@@ -22,7 +22,7 @@ define(function(require) {
 			this.init();
 			this.watchHash();
 			this.bootFirstUrl();
-			console.log('bird.router started!');
+			console.log('bird.router[ie7support] started!');
 		};
 
 		this.init = function() {
