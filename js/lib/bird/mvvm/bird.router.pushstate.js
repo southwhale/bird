@@ -23,8 +23,7 @@ define(function(require) {
 		};
 
 		this.changeLocation = function(loc) {
-			loc = loc.replace(/^#/,'');
-			loc = loc.replace(/^!/,'');
+			loc = loc.replace(/^#!/,'');
 			if (this.lastLocation === loc) {
 				return;
 			}
@@ -42,7 +41,7 @@ define(function(require) {
 			}
 			var loc = location.search;
 
-			return loc || '/';
+			return loc || '?/';
 		};
 
 		this.watchLocation = function() {
@@ -57,18 +56,13 @@ define(function(require) {
 
 			event.delegate('a', 'click', function(e) {
 				var hrefAttrValue = e.target.getAttribute('href');
-				if(hrefAttrValue && hrefAttrValue.indexOf('#') === 0){
+				if(hrefAttrValue && hrefAttrValue.indexOf('#!') === 0){
 					e.preventDefault();
-					hrefAttrValue = hrefAttrValue.replace(/^#/,'');
-					hrefAttrValue = hrefAttrValue.replace(/^!/,'');
+					hrefAttrValue = hrefAttrValue.replace(/^#!/,'');
 					if(hrefAttrValue.indexOf('?') === -1){
 						hrefAttrValue = '?' + hrefAttrValue;
 					}
-					
-					history.pushState({
-						loc: hrefAttrValue
-					},'',hrefAttrValue);
-					me.handleLocationChange();
+					me.handleLocationChange(hrefAttrValue);
 				}
 			},document);
 		};
@@ -78,7 +72,11 @@ define(function(require) {
 			if (this.lastLocation !== loc) {
 				this.referrer = this.lastLocation;
 				this.lastLocation = loc;
-
+				if(!history.state || history.state.loc != loc){
+					history.pushState({
+						loc: loc
+					},'',loc);
+				}
 				this.parseActionQueryParam();
 				this.callModule();
 			}
@@ -125,7 +123,7 @@ define(function(require) {
 		};
 
 		this.route = function(url, isWholeUrl) {
-			if (isWholeUrl && !/^#/.test(url)) {
+			if (isWholeUrl && !/^#!/.test(url)) {
 				window.location.href = url;
 			} else {
 				this.changeLocation(url);
