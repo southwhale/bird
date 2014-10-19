@@ -413,7 +413,7 @@ define(function(require) {
 				'start', 'finish', 'bounce', //marquee
 				'contextmenu', //右键
 				'drag', 'dragdrop', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart',
-				'propertychange', 'readystatechange', 'input',
+				'propertychange', 'readystatechange', 'input', 'popstate',
 				'beforeprint', 'afterprint',
 				'help', //F1键
 				'select', 'selectstart',
