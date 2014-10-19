@@ -32,31 +32,7 @@ define(function(require) {
 		};
 
 		this.getHash = function() {
-			// firefox下location.hash会自动decode
-			// 体现在：
-			//   视觉上相当于decodeURI，
-			//   但是读取location.hash的值相当于decodeURIComponent
-			// 所以需要从location.href里取出hash值
-			/*var hash = location.hash;
-				if (browser.isFirefox()) {
-					hash = location.href.match(/#(.*)$/);
-					hash && (hash = hash[1]);
-				}
-
-				if (hash) {
-					return hash.replace(/^#/, '');
-				}
-
-				return '';*/
-
-			//以上为网络上可以找到的实现,
-			//以下为我自己的实现
 			var hash = location.hash;
-
-			//通过js改变hash好像不存在上述的问题
-			/*if (hash && browser.isFirefox()) {
-				hash = encodeURI(hash);
-				}*/
 
 			if (hash) {
 				return hash.replace(/^#/, '').replace(/^!/, '') || '/';
