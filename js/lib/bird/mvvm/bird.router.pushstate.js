@@ -58,18 +58,17 @@ define(function(require) {
 			event.delegate('a', 'click', function(e) {
 				var hrefAttrValue = e.target.getAttribute('href');
 				if(hrefAttrValue && hrefAttrValue.indexOf('#') === 0){
+					e.preventDefault();
 					hrefAttrValue = hrefAttrValue.replace(/^#/,'');
 					hrefAttrValue = hrefAttrValue.replace(/^!/,'');
 					if(hrefAttrValue.indexOf('?') === -1){
 						hrefAttrValue = '?' + hrefAttrValue;
 					}
-					if(!/^(?:http|https)\:/i.test(hrefAttrValue)){
-						e.preventDefault();
-						history.pushState({
-							loc: hrefAttrValue
-						},'',hrefAttrValue);
-						me.handleLocationChange();
-					}
+					
+					history.pushState({
+						loc: hrefAttrValue
+					},'',hrefAttrValue);
+					me.handleLocationChange();
 				}
 			},document);
 		};
