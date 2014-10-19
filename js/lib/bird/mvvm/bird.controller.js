@@ -4,7 +4,7 @@
  */
 
 define(function(require) {
-	var router = require('./bird.router');
+	var router = require('./bird.router.hashchange');
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var Action = require('./bird.action');

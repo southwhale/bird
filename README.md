@@ -9,7 +9,7 @@ a simple mvvm library
 bird做了两件事：路由控制 和 双向绑定
 
 
-<b>路由控制:</b> 通过继承基类bird.action实现各业务子类的路由控制
+<b>路由控制:</b> 通过继承基类bird.action实现各业务子类的路由控制(支持hashChange和pushState两种路由实现,默认使用hashChange的实现,可根据具体需求修改bird.controller里router的引用)
 
 <b>双向绑定:</b> 使用双花括号{{...}}实现双向绑定
 
