@@ -57,7 +57,7 @@ define(function(require) {
 
 			event.delegate('a', 'click', function(e) {
 				var hrefAttrValue = e.target.getAttribute('href');
-				if(hrefAttrValue.indexOf('#') === 0){
+				if(hrefAttrValue && hrefAttrValue.indexOf('#') === 0){
 					hrefAttrValue = hrefAttrValue.replace(/^#/,'');
 					hrefAttrValue = hrefAttrValue.replace(/^!/,'');
 					if(hrefAttrValue.indexOf('?') === -1){
