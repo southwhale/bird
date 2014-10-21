@@ -28,7 +28,7 @@ define(function(require) {
 		};
 
 		//return 由HtmlElement组成的数组
-		this.getAll = this.getElements = function(selector, context) {
+		this.getAll = this.getElements = function(selector, context, range) {
 			if (!lang.isString(selector)) {
 				return lang.isArray(selector) ? selector : [selector];
 			}
@@ -46,8 +46,29 @@ define(function(require) {
 			var length = Number(elems.length) || 0;
 			var ret = [];
 			for (var i = 0; i < length; i++) {
-				ret.push(elems[i]);
+				if(!range){
+					ret.push(elems[i]);
+				}else{
+					for(var j=0,len=range.length;j < len;j++){
+						if(elems[i] === range[j]){
+							ret.push(elems[i]);
+							break;
+						}
+					}
+				}
 			}
+			return ret;
+		};
+
+		this.index = function(node, nodes){
+			var ret = -1;
+			array.each(nodes, function(v, index, nodes){
+				if(v === node){
+					ret = index;
+					return false;
+				}
+			});
+
 			return ret;
 		};
 

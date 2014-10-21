@@ -285,7 +285,7 @@ define(function(require) {
 			this.watcher.unsubscribe();
 			event.destroyPropertyChangeEvents();
 
-			this.dataBind.destroy(this.container);
+			this.dataBind.destroy();
 			this.model.destroy();
 			this.beforeLeave();
 			//解决ie8等浏览器切换action时页面闪动的问题

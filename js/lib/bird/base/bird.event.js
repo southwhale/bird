@@ -21,7 +21,7 @@ define(function(require) {
 			var properties = ['type', 'altKey', 'ctrlKey', 'shiftKey', 'metaKey', 'fromElement', 'toElement',
 				'charCode', 'keyCode', 'clientX', 'clientY', 'offsetX', 'offsetY', 'screenX', 'screenY', 'defaultPrevented',
 				'bubbles', 'cancelBubble', 'cancelable', 'path', 'clipboardData', 'eventPhase', 'returnValue',
-				'changedTouches', 'targetTouches', 'touches', 'propertyName','state',
+				'changedTouches', 'targetTouches', 'touches', 'propertyName', 'state',
 				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button'
 			];
 			array.forEach(properties, function(property) {
@@ -191,8 +191,18 @@ define(function(require) {
 			}
 			var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
 			var eventHandleCache = eventTypeCache[eventType] = eventTypeCache[eventType] || {};
-			var eventHandleQueue = eventHandleCache['queue'] = eventHandleCache['queue'] || [];
-			eventHandleQueue.push(handle);
+			var eventHandleQueue;
+			if (!(eventHandleQueue = eventHandleCache['queue'])) {
+				eventHandleQueue = eventHandleCache['queue'] = [];
+				eventHandleQueue.delegateCount = 0;
+			}
+
+			if (handle.selector) {
+				eventHandleQueue.splice(eventHandleQueue.delegateCount++, 0, handle);
+			} else {
+				eventHandleQueue.push(handle);
+			}
+
 			if (!eventHandleCache['callback'] && (el.addEventListener || el.attachEvent)) {
 				var me = this;
 				var callback = function(originalEvent) {
@@ -200,7 +210,7 @@ define(function(require) {
 					originalEvent = originalEvent || wsevent;
 
 					var e = new Event(originalEvent);
-					me.trigger(el, eventType, e);
+					me.trigger(el, e);
 				};
 				var capture = /^(?:focus|blur)$/i.test(eventType);
 				eventHandleCache['callback'] = callback;
@@ -230,25 +240,32 @@ define(function(require) {
 				array.descArrayEach(eventHandleQueue, function(fn, index, handles) {
 					if (fn === handle) {
 						handles.splice(index, 1);
+						if (handle.selector) {
+							eventHandleQueue.delegateCount--;
+						}
 					}
 				});
 				if (!eventHandleQueue.length) {
 					removeEventCallback(el, eventType, eventHandleCache);
+					delete eventHandleQueue.delegateCount;
 				}
 
 				return;
 			}
 
+			eventHandleQueue.length = 0;
+			delete eventHandleQueue.delegateCount;
+
 			removeEventCallback(el, eventType, eventHandleCache);
 		};
 
-		function removeEventCallback(el, eventType, eventHandleCache){
+		function removeEventCallback(el, eventType, eventHandleCache) {
 			var capture = /^(?:focus|blur)$/i.test(eventType);
 			el.removeEventListener ? el.removeEventListener(eventType, eventHandleCache['callback'], capture) : el.detachEvent("on" + eventType, eventHandleCache['callback']);
 			delete eventHandleCache['callback'];
 		}
 
-		this.trigger = function(el, eventType, data) {
+		this.trigger = function(el, data) {
 			if (!el.__uid__) {
 				return;
 			}
@@ -256,6 +273,11 @@ define(function(require) {
 			if (!eventTypeCache) {
 				return;
 			}
+
+			var handlerQueue;
+			var eventType = data.type;
+			//data.delegateTarget = el;
+
 			if (eventType) {
 				var eventHandleCache = eventTypeCache[eventType];
 				if (!eventHandleCache) {
@@ -265,20 +287,108 @@ define(function(require) {
 				if (!eventHandleQueue || !eventHandleQueue.length) {
 					return;
 				}
-				util.each(eventHandleQueue, function(handle) {
-					handle.call(el, data);
-				});
+				
+				handlerQueue = this._handlers.call(el, data, eventHandleQueue);
+				this._dispatch.call(el, data, handlerQueue);
 				return;
 			}
 
-			util.each(eventTypeCache, function(handleCache) {
-				util.each(handleCache && handleCache['queue'] || [], function(handle) {
-					handle.call(el, data);
-				});
+			var me = this;
+
+			object.forEach(eventTypeCache, function(handleCache) {
+				if(handleCache && handleCache['queue']){
+					handlerQueue = this._handlers.call(el, data, eventHandleQueue);
+					me._dispatch.call(el, data, handlerQueue);
+				}
 			});
 		};
 
+		this._dispatch = function(event, handlerQueue) {
 
+			var i, ret, handle, matched, j;
+			event.delegateTarget = this;
+
+
+			// Run delegates first; they may want to stop propagation beneath us
+			i = 0;
+			while ((matched = handlerQueue[i++]) && !event.isPropagationStopped()) {
+				event.currentTarget = matched.elem;
+
+				j = 0;
+				while ((handle = matched.handlers[j++]) && !event.isImmediatePropagationStopped()) {
+
+					ret = handle.call(matched.elem, event);
+
+					if (ret !== undefined) {
+						if ((event.result = ret) === false) {
+							event.preventDefault();
+							event.stopPropagation();
+						}
+					}
+				}
+			}
+
+			return event.result;
+		};
+
+		this._handlers = function(event, handlers) {
+			var sel, handleObj, matches, i,
+				handlerQueue = [],
+				delegateCount = handlers.delegateCount,
+				cur = event.target;
+
+			// Find delegate handlers
+			// Black-hole SVG <use> instance trees (#13180)
+			// Avoid non-left-click bubbling in Firefox (#3861)
+			if (delegateCount && cur.nodeType && (!event.button || event.type !== "click")) {
+
+				/* jshint eqeqeq: false */
+				for (; cur != this; cur = cur.parentNode || this) {
+					/* jshint eqeqeq: true */
+
+					// Don't check non-elements (#13208)
+					// Don't process clicks on disabled elements (#6911, #8165, #11382, #11764)
+					if (cur.nodeType === 1 && (cur.disabled !== true || event.type !== "click")) {
+						matches = [];
+						for (i = 0; i < delegateCount; i++) {
+							handleObj = handlers[i];
+
+							// Don't conflict with Object.prototype properties (#13203)
+							sel = handleObj.selector + " ";
+
+							if (matches[sel] === undefined) {
+								matches[sel] = handleObj.needsContext ?
+									dom.index(cur, dom.getAll(sel, this)) >= 0 :
+									dom.getAll(sel, this, [cur]).length;
+							}
+							if (matches[sel]) {
+								matches.push(handleObj);
+							}
+						}
+						if (matches.length) {
+							handlerQueue.push({
+								elem: cur,
+								handlers: matches
+							});
+						}
+					}
+				}
+			}
+
+			// Add the remaining (directly-bound) handlers
+			if (delegateCount < handlers.length) {
+				handlerQueue.push({
+					elem: this,
+					handlers: handlers.slice(delegateCount)
+				});
+			}
+
+			return handlerQueue;
+		};
+
+		var whitespace = "[\\x20\\t\\r\\n\\f]",
+			rNeedsContext = new RegExp("^" + whitespace + "*[>+~]|:(even|odd|eq|gt|lt|nth|first|last)(?:\\(" +
+				whitespace + "*((?:-\\d)?\\d*)" + whitespace + "*\\)|)(?=[^-]|$)", "i");
 
 		//selector {String|required} 
 		this.delegate = function(selector, eventType, handle, context) {
@@ -290,15 +400,7 @@ define(function(require) {
 
 			var oldHandle = handle;
 			handle = function(e) {
-				var elements = dom.getElements(selector, context);
-				var target = e.target;
-				array.each(elements, function(element) {
-					if (target === element) {
-						//e.stopImmediatePropagation();
-						oldHandle.call(target, e);
-						return false;
-					}
-				});
+				oldHandle.call(e.target, e);
 			};
 			if (context.addEventListener) {
 				if ('change' === eventType) {
@@ -313,7 +415,7 @@ define(function(require) {
 					var firstElement = elements[0];
 					if (/^(?:checkbox|radio)$/i.test(firstElement.type) || /^select$/i.test(firstElement.tagName)) {
 						eventType = 'click';
-					}else if('onpropertychange' in firstElement){
+					} else if ('onpropertychange' in firstElement) {
 						//IE的onpropertychange不冒泡
 						eventType = 'propertychange';
 						handle = function(e) {
@@ -325,7 +427,7 @@ define(function(require) {
 
 						var me = this;
 
-						array.forEach(elements, function(element){
+						array.forEach(elements, function(element) {
 							me.delegatedPropertyChangeNodes.push(element);
 							me._addListener(element, eventType, handle);
 						});
@@ -339,6 +441,10 @@ define(function(require) {
 					})[eventType];
 				}
 			}
+
+			handle.elem = context;
+			handle.selector = selector;
+			handle.needsContext = selector && rNeedsContext.test(selector);
 
 			this.addListener(context, eventType, handle);
 			handle = elements = firstElement = null;
@@ -363,15 +469,18 @@ define(function(require) {
 			}
 
 
-			util.each(eventTypeCache, function(handleCache, eventType) {
-				handleCache['queue'].length = 0;
+			object.forEach(eventTypeCache, function(handleCache, eventType) {
+				var queue = handleCache['queue'];
+				queue.length = 0;
+				delete queue.delegateCount;
+				queue = null;
 				removeEventCallback(el, eventType, handleCache);
 			});
 		};
 
-		this.destroyPropertyChangeEvents = function(){
+		this.destroyPropertyChangeEvents = function() {
 			var me = this;
-			array.forEach(this.delegatedPropertyChangeNodes, function(node){
+			array.forEach(this.delegatedPropertyChangeNodes, function(node) {
 				me._removeListener(node, 'propertychange');
 			});
 			this.delegatedPropertyChangeNodes.length = 0;

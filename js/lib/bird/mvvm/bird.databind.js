@@ -36,6 +36,7 @@ define(function(require) {
 	function DataBind() {
 		this.tplParser = new TplParser();
 		this.typeHandleMap = require('./bird.handlemap');
+		this.eventBindedNodes = [];
 	}
 
 	(function() {
@@ -128,6 +129,7 @@ define(function(require) {
 								me.typeHandleMap.eventMap[eventHandleKey] = lang.isFunction(value) ? value : lang.noop;
 							}
 							me.bindEventOnNode(node, val.key, eventHandle);
+							array.pushUniqueInArray(node, me.eventBindedNodes);
 						}
 						me._bindHandleByType(watcher, val, key, node, selector);
 						
@@ -150,6 +152,8 @@ define(function(require) {
 				} else if(/^textarea$/i.test(info.tagName) && lang.isPlainObject(info.value || info.htmlText)){
 					me._addEventOnInput(node, selector, info.value || info.htmlText, model, container);
 				}
+
+				array.pushUniqueInArray(container, me.eventBindedNodes);
 			});
 		};
 
@@ -168,6 +172,7 @@ define(function(require) {
 
 			if(isChkboxOrRadio || isSelect){
 				this.delegateEventOnSelector(selector, 'change', checkedInputChangeHandle, container);
+				//this.bindEventOnNode(node, 'change', checkedInputChangeHandle);
 				return;
 			}
 			//input类型控件(包括textarea)的过滤器字段实际是验证器字段
@@ -192,7 +197,7 @@ define(function(require) {
 			}
 
 			this.delegateEventOnSelector(selector, 'change', textInputChangeHandle, container);
-
+			//this.bindEventOnNode(node, 'change', textInputChangeHandle);
 
 			function textInputChangeHandle(e) {
 				e.stopPropagation();
@@ -263,12 +268,15 @@ define(function(require) {
 		};
 
 
-		this.destroy = function (container, deepDestroy) {
+		this.destroy = function (deepDestroy) {
 			deepDestroy && this.tplParser.destroy();
 			object.forEach(this.typeHandleMap.eventMap, function(v, k, map){
 				delete map[k];
 			});
-			event.destroy(container);
+			array.forEach(this.eventBindedNodes, function(node){
+				event.destroy(node);
+			});
+			this.eventBindedNodes.length = 0;
 		};
 
 
