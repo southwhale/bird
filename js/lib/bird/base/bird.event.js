@@ -189,6 +189,16 @@ define(function(require) {
 			if (!el.__uid__) {
 				el.__uid__ = util.uuid('el_');
 			}
+
+			//事件委托在这里不做处理，使用delegate里的处理
+			if(!handle.selector){
+				var obj = preHandle(el, eventType, handle);
+				eventType = obj.eventType;
+				handle = obj.handle;
+				obj = null;
+			}
+			
+
 			var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
 			var eventHandleCache = eventTypeCache[eventType] = eventTypeCache[eventType] || {};
 			var eventHandleQueue;
@@ -288,25 +298,68 @@ define(function(require) {
 					return;
 				}
 				
-				handlerQueue = this._handlers.call(el, data, eventHandleQueue);
-				this._dispatch.call(el, data, handlerQueue);
+				handlerQueue = handlers(el, data, eventHandleQueue);
+				dispatch(el, data, handlerQueue);
 				return;
 			}
 
-			var me = this;
 
 			object.forEach(eventTypeCache, function(handleCache) {
 				if(handleCache && handleCache['queue']){
-					handlerQueue = this._handlers.call(el, data, eventHandleQueue);
-					me._dispatch.call(el, data, handlerQueue);
+					handlerQueue = handlers(el, data, eventHandleQueue);
+					dispatch(el, data, handlerQueue);
 				}
 			});
 		};
 
-		this._dispatch = function(event, handlerQueue) {
+		var eventTypeMap = {
+			level2: {
+				'change': 'propertychange',
+				'focus': 'focusin',
+				'blur': 'focusout'
+			},
+			level3: {
+				'change': 'input',
+				'focus': 'focusin',
+				'blur': 'focusout'
+			}
+		};
+
+
+		function preHandle(el, eventType, handle){
+			var retObj = {
+				handle: handle
+			};
+			if(el.addEventListener){
+				retObj.eventType = eventType;
+				if (eventType === 'change' && !/^(?:checkbox|radio|hidden|button)$/i.test(el.type) && !/^select$/i.test(el.tagName)) {
+					retObj.eventType = eventTypeMap.level3[eventType];
+				}
+			}else if(el.attachEvent){
+				retObj.eventType = eventTypeMap.level2[eventType] || eventType;
+				if (eventType === 'change' && /^(?:checkbox|radio)$/i.test(el.type) || /^select$/i.test(el.tagName)) {
+					retObj.eventType = 'click';
+				}
+
+				if(retObj.eventType === 'propertychange'){
+					retObj.handle = function(){
+						handle.apply(this, arguments);
+					};
+					retObj.handle.elem = handle.elem;
+					retObj.handle.selector = handle.selector;
+					retObj.handle.needsContext = handle.needsContext;
+					delete handle.elem;
+					delete handle.selector;
+					delete handle.needsContext;
+				}
+			}
+			return retObj;
+		}
+
+		function dispatch(el, event, handlerQueue) {
 
 			var i, ret, handle, matched, j;
-			event.delegateTarget = this;
+			event.delegateTarget = el;
 
 
 			// Run delegates first; they may want to stop propagation beneath us
@@ -331,7 +384,7 @@ define(function(require) {
 			return event.result;
 		};
 
-		this._handlers = function(event, handlers) {
+		function handlers(el, event, handlers) {
 			var sel, handleObj, matches, i,
 				handlerQueue = [],
 				delegateCount = handlers.delegateCount,
@@ -343,7 +396,7 @@ define(function(require) {
 			if (delegateCount && cur.nodeType && (!event.button || event.type !== "click")) {
 
 				/* jshint eqeqeq: false */
-				for (; cur != this; cur = cur.parentNode || this) {
+				for (; cur != el; cur = cur.parentNode || el) {
 					/* jshint eqeqeq: true */
 
 					// Don't check non-elements (#13208)
@@ -358,8 +411,8 @@ define(function(require) {
 
 							if (matches[sel] === undefined) {
 								matches[sel] = handleObj.needsContext ?
-									dom.index(cur, dom.getAll(sel, this)) >= 0 :
-									dom.getAll(sel, this, [cur]).length;
+									dom.index(cur, dom.getAll(sel, el)) >= 0 :
+									dom.getAll(sel, el, [cur]).length;
 							}
 							if (matches[sel]) {
 								matches.push(handleObj);
@@ -378,7 +431,7 @@ define(function(require) {
 			// Add the remaining (directly-bound) handlers
 			if (delegateCount < handlers.length) {
 				handlerQueue.push({
-					elem: this,
+					elem: el,
 					handlers: handlers.slice(delegateCount)
 				});
 			}

@@ -142,18 +142,16 @@ define(function(require) {
 				});
 
 				if(/^select$/i.test(info.tagName) && lang.isPlainObject(info.valueVariable)){
-					me._addEventOnInput(node, selector, info.valueVariable, model, container);
+					me._addEventOnInput(node, info.valueVariable, model);
 				} else if(/^input$/i.test(info.tagName)){
 					if(/^(?:checkbox|radio)$/i.test(node.type) && lang.isPlainObject(info.valueVariable)){
-						me._addEventOnInput(node, selector, info.valueVariable, model, container);
+						me._addEventOnInput(node, info.valueVariable, model);
 					}else if(lang.isPlainObject(info.value)){
-						me._addEventOnInput(node, selector, info.value, model, container);
+						me._addEventOnInput(node, info.value, model);
 					}
 				} else if(/^textarea$/i.test(info.tagName) && lang.isPlainObject(info.value || info.htmlText)){
-					me._addEventOnInput(node, selector, info.value || info.htmlText, model, container);
+					me._addEventOnInput(node, info.value || info.htmlText, model);
 				}
-
-				array.pushUniqueInArray(container, me.eventBindedNodes);
 			});
 		};
 
@@ -161,18 +159,19 @@ define(function(require) {
 		 * IE不支持onchange和oninput,但IE有onpropertychange
 		 * onchange需要失去焦点才触发,oninput在输入时就触发
 		 */
-		this._addEventOnInput = function(node, selector, value, model, container){
+		this._addEventOnInput = function(node, value, model){
 			var attrVariable = value.variable,
 				filter = value.filter,
 				me = this,
 				validators = [];
 
+			array.pushUniqueInArray(node, this.eventBindedNodes);
+
 			var isChkboxOrRadio = /^(?:checkbox|radio)$/i.test(node.type);
 			var isSelect = /^select$/i.test(node.tagName);
 
 			if(isChkboxOrRadio || isSelect){
-				this.delegateEventOnSelector(selector, 'change', checkedInputChangeHandle, container);
-				//this.bindEventOnNode(node, 'change', checkedInputChangeHandle);
+				this.bindEventOnNode(node, 'change', checkedInputChangeHandle);
 				return;
 			}
 			//input类型控件(包括textarea)的过滤器字段实际是验证器字段
@@ -196,11 +195,12 @@ define(function(require) {
 				});
 			}
 
-			this.delegateEventOnSelector(selector, 'change', textInputChangeHandle, container);
-			//this.bindEventOnNode(node, 'change', textInputChangeHandle);
+			this.bindEventOnNode(node, 'change', textInputChangeHandle);
 
 			function textInputChangeHandle(e) {
-				e.stopPropagation();
+				if (e.propertyName && e.propertyName !== 'value') {
+					return;
+				}
 				
 				var target = e.target;
 				var value = target.value;
@@ -212,8 +212,6 @@ define(function(require) {
 			}
 
 			function checkedInputChangeHandle(e){
-				e.stopPropagation();
-				
 				var target = e.target;
 				var value;
 				if (/^input$/i.test(target.tagName)) {
