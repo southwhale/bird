@@ -10,7 +10,6 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var dom = require('bird.dom');
 	var array = require('bird.array');
-	var event = require('bird.event');
 	var util = require('bird.util');
 	var request = require('bird.request');
 	var Model = require('./bird.model');
@@ -283,7 +282,6 @@ define(function(require) {
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
 			this.watcher.unsubscribe();
-			event.destroyPropertyChangeEvents();
 
 			this.dataBind.destroy();
 			this.model.destroy();

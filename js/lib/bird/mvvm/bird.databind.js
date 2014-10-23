@@ -128,7 +128,7 @@ define(function(require) {
 							if(!me.typeHandleMap.eventMap[eventHandleKey]){
 								me.typeHandleMap.eventMap[eventHandleKey] = lang.isFunction(value) ? value : lang.noop;
 							}
-							me.bindEventOnNode(node, val.key, eventHandle);
+							event.on(node, val.key, eventHandle);
 							array.pushUniqueInArray(node, me.eventBindedNodes);
 						}
 						me._bindHandleByType(watcher, val, key, node, selector);
@@ -171,7 +171,7 @@ define(function(require) {
 			var isSelect = /^select$/i.test(node.tagName);
 
 			if(isChkboxOrRadio || isSelect){
-				this.bindEventOnNode(node, 'change', checkedInputChangeHandle);
+				event.on(node, 'change', checkedInputChangeHandle);
 				return;
 			}
 			//input类型控件(包括textarea)的过滤器字段实际是验证器字段
@@ -195,7 +195,7 @@ define(function(require) {
 				});
 			}
 
-			this.bindEventOnNode(node, 'change', textInputChangeHandle);
+			event.on(node, 'change', textInputChangeHandle);
 
 			function textInputChangeHandle(e) {
 				if (e.propertyName && e.propertyName !== 'value') {
@@ -240,14 +240,6 @@ define(function(require) {
 				}
 				watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap['default']).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === 'event' ? variableInfo.key : type));
 			}
-		};
-
-		this.delegateEventOnSelector = function(selector, type, handle, context) {
-			event.delegate(selector, type, handle, context);
-		};
-
-		this.bindEventOnNode = function(node, type, handle){
-			event.on(node, type, handle);
 		};
 
 

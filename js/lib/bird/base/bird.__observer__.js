@@ -60,10 +60,7 @@ define(function(require){
 
 		this.watch = this.subscribe;
 		this.notify = this.publish;
-
-		this.getUpdates = function(channel){
-			return this.channelMap[channel];
-		};
+		
 	}).call(Observer.prototype);
 
 

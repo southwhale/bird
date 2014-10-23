@@ -47,12 +47,12 @@ define(function(require) {
 
 		this.initActionListener = function() {
 			var me = this;
-			array.forEach(this.actionMaps, function(map) {
-				router.listenLocation(map, function(data) {
-					if (lang.isString(map.action)) {
-						me.dispatch(map.action, data);
-					} else if (lang.isArray(map.action)) {
-						array.forEach(map.action, function(actionName) {
+			array.forEach(this.actionMaps, function(la) {
+				router.listenLocation(la, function(data) {
+					if (lang.isString(la.action)) {
+						me.dispatch(la.action, data);
+					} else if (lang.isArray(la.action)) {
+						array.forEach(la.action, function(actionName) {
 							me.dispatch(actionName, data);
 						});
 					}

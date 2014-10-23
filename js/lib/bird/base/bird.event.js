@@ -149,7 +149,6 @@ define(function(require) {
 
 	function EventListner() {
 		this.eventCache = {};
-		this.delegatedPropertyChangeNodes = [];
 	}
 
 	(function() {
@@ -190,13 +189,10 @@ define(function(require) {
 				el.__uid__ = util.uuid('el_');
 			}
 
-			//事件委托在这里不做处理，使用delegate里的处理
-			if(!handle.selector){
-				var obj = preHandle(el, eventType, handle);
-				eventType = obj.eventType;
-				handle = obj.handle;
-				obj = null;
-			}
+			var obj = preHandle(el, eventType, handle);
+			eventType = obj.eventType;
+			handle = obj.handle;
+			obj = null;
 			
 
 			var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
@@ -319,9 +315,7 @@ define(function(require) {
 				'blur': 'focusout'
 			},
 			level3: {
-				'change': 'input',
-				'focus': 'focusin',
-				'blur': 'focusout'
+				'change': 'input'
 			}
 		};
 
@@ -343,7 +337,7 @@ define(function(require) {
 
 				if(retObj.eventType === 'propertychange'){
 					retObj.handle = function(){
-						handle.apply(this, arguments);
+						return handle.apply(this, arguments);
 					};
 					retObj.handle.elem = handle.elem;
 					retObj.handle.selector = handle.selector;
@@ -444,63 +438,26 @@ define(function(require) {
 				whitespace + "*((?:-\\d)?\\d*)" + whitespace + "*\\)|)(?=[^-]|$)", "i");
 
 		//selector {String|required} 
+		//需要确保代理的事件类型可冒泡,不冒泡的类型该方法未做模拟冒泡
 		this.delegate = function(selector, eventType, handle, context) {
 			if (!lang.isString(selector)) {
 				return;
 			}
 
-			context = context || doc.body;
+			context = context || doc;
 
 			var oldHandle = handle;
 			handle = function(e) {
-				oldHandle.call(e.target, e);
+				return oldHandle.call(e.target, e);
 			};
-			if (context.addEventListener) {
-				if ('change' === eventType) {
-					var firstElement = dom.getElement(selector, context);
-					if (!/^(?:checkbox|radio|hidden|button)$/i.test(firstElement.type) && !/^select$/i.test(firstElement.tagName)) {
-						eventType = 'input';
-					}
-				}
-			} else {
-				if ('change' === eventType) {
-					var elements = dom.getElements(selector, context);
-					var firstElement = elements[0];
-					if (/^(?:checkbox|radio)$/i.test(firstElement.type) || /^select$/i.test(firstElement.tagName)) {
-						eventType = 'click';
-					} else if ('onpropertychange' in firstElement) {
-						//IE的onpropertychange不冒泡
-						eventType = 'propertychange';
-						handle = function(e) {
-							if (e.propertyName && e.propertyName !== 'value') {
-								return;
-							}
-							oldHandle.call(this, e);
-						};
-
-						var me = this;
-
-						array.forEach(elements, function(element) {
-							me.delegatedPropertyChangeNodes.push(element);
-							me._addListener(element, eventType, handle);
-						});
-						handle = elements = firstElement = null;
-						return;
-					}
-				} else if (/^(?:focus|blur)$/i.test(eventType)) {
-					eventType = ({
-						focus: 'focusin',
-						blur: 'focusout'
-					})[eventType];
-				}
-			}
+			
 
 			handle.elem = context;
 			handle.selector = selector;
 			handle.needsContext = selector && rNeedsContext.test(selector);
 
 			this.addListener(context, eventType, handle);
-			handle = elements = firstElement = null;
+			handle = null;
 		};
 
 		//只是删除事件绑定时加入的属性
@@ -529,14 +486,6 @@ define(function(require) {
 				queue = null;
 				removeEventCallback(el, eventType, handleCache);
 			});
-		};
-
-		this.destroyPropertyChangeEvents = function() {
-			var me = this;
-			array.forEach(this.delegatedPropertyChangeNodes, function(node) {
-				me._removeListener(node, 'propertychange');
-			});
-			this.delegatedPropertyChangeNodes.length = 0;
 		};
 
 

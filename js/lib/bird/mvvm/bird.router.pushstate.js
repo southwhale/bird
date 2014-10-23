@@ -1,6 +1,7 @@
 define(function(require) {
 	function Router() {
 		this.notFoundActionMap = null;
+		this.locationMap = {};
 	}
 
 
@@ -9,6 +10,7 @@ define(function(require) {
 		var event = require('bird.event');
 		var Observer = require('bird.__observer__');
 		var lang = require('bird.lang');
+		var object = require('bird.object');
 
 		this.actionObserver = new Observer();
 
@@ -104,22 +106,43 @@ define(function(require) {
 
 		this.callModule = function() {
 			if (this.location) {
-				var updates = this.actionObserver.getUpdates(this.location);
-				if (!updates && this.notFoundActionMap) {
-					//这里需要替换掉历史记录中不存在的location记录
-					var search = '?' + this.notFoundActionMap.location;
-					history.replaceState({
-						loc: search
-					}, null, location.pathname + search);
-					this.handleLocationChange(search);
-				} else {
-					this.actionObserver.publish(this.location, {
-						param: this.param,
-						query: this.query,
-						location: this.location,
-						referrer: this.referrer
-					});
+				var loc = this.location;
+				var la = this.locationMap[loc];
+				if (!la) {
+					if(/^\/?[^~#!?]+\/[^~#!?]+/.test(loc)){
+						var lastSlashIndex = loc.lastIndexOf('/');
+						var locPrefix = loc.substring(0, lastSlashIndex + 1) + '{{';
+						var me = this;
+						object.each(this.locationMap, function(v, k){
+							if(k.indexOf(locPrefix) === 0){
+								var key = /\{\{([^~#!?{}]+)\}\}/.exec(k);
+								key = key && key[1];
+								var value = loc.substring(lastSlashIndex + 1);
+								me.param = me.param || {};
+								me.param[key] = value;
+								loc = k;
+								return false;
+							}
+						});
+					}
+
+					if(loc === this.location && this.notFoundActionMap){
+						//这里需要替换掉历史记录中不存在的location记录
+						var search = '?' + this.notFoundActionMap.location;
+						history.replaceState({
+							'loc': search
+						}, null, location.pathname + search);
+						this.handleLocationChange(search);
+						return;
+					}
 				}
+
+				this.actionObserver.publish(loc, {
+					param: this.param,
+					query: this.query,
+					location: this.location,
+					referrer: this.referrer
+				});
 			}
 		};
 
@@ -134,16 +157,17 @@ define(function(require) {
 		this.bootFirstUrl = function() {
 			var me = this;
 			lang.nextTick(function(){
-				me.handleHashChange();
+				me.handleLocationChange();
 			});
 		};
 
 
-		this.listenLocation = function(map, handle) {
-			if (map.isNotFound) {
-				this.notFoundActionMap = map;
+		this.listenLocation = function(la, handle) {
+			if (la.isNotFound) {
+				this.notFoundActionMap = la;
 			}
-			this.actionObserver.subscribe(map.location, handle);
+			this.locationMap[la.location] = la;
+			this.actionObserver.subscribe(la.location, handle);
 		};
 
 
