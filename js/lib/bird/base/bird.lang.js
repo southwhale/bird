@@ -288,6 +288,10 @@ define(function(require) {
 
 		this.noop = function() {};
 
+		this.nextTick = window.setImmediate ? setImmediate.bind(window) : function(callback) {
+	        setTimeout(callback, 0) //IE10-11 or W3C
+	    };
+
 	}).call(Lang.prototype);
 
 	return new Lang();

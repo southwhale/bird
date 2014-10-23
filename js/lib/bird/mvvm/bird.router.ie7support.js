@@ -201,9 +201,9 @@ define(function(require) {
 
 		this.bootFirstUrl = function() {
 			var me = this;
-			setTimeout(function() {
+			lang.nextTick(function(){
 				me.handleHashChange();
-			}, 0);
+			});
 		};
 
 

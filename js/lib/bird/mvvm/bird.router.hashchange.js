@@ -8,6 +8,7 @@ define(function(require) {
 
 		var event = require('bird.event');
 		var Observer = require('bird.__observer__');
+		var lang = require('bird.lang');
 
 		this.actionObserver = new Observer();
 
@@ -107,9 +108,9 @@ define(function(require) {
 
 		this.bootFirstUrl = function() {
 			var me = this;
-			setTimeout(function(){
+			lang.nextTick(function(){
 				me.handleHashChange();
-			}, 0);
+			});
 		};
 
 
