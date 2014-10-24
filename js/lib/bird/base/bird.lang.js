@@ -86,8 +86,51 @@ define(function(require) {
 			return typeof p === 'object' && p !== null;
 		};
 
-		this.isPlainObject = function(p) {
+		/*this.isPlainObject = function(p) {
 			return this.getType(p) === 'Object';
+		};*/
+
+		var i;
+		for (i in new noop) {
+			break;
+		}
+		var ownLast = i !== undefined;
+		var hasOwn = Object.prototype.hasOwnProperty;
+
+		this.isPlainObject = function(obj) {
+			var key;
+			// Must be an Object.
+			// Because of IE, we also have to check the presence of the constructor property.
+			// Make sure that DOM nodes and window objects don't pass through, as well
+			if (!obj || this.getType(obj) !== "Object" || obj.nodeType || this.isWindow(obj)) {
+				return false;
+			}
+
+			try {
+				// Not own constructor property must be Object
+				if (obj.constructor &&
+					!hasOwn.call(obj, "constructor") &&
+					!hasOwn.call(obj.constructor.prototype, "isPrototypeOf")) {
+					return false;
+				}
+			} catch (e) {
+				// IE8,9 Will throw exceptions on certain host objects #9897
+				return false;
+			}
+
+			// Support: IE<9
+			// Handle iteration over inherited properties before own properties.
+			if (ownLast) {
+				for (key in obj) {
+					return hasOwn.call(obj, key);
+				}
+			}
+
+			// Own properties are enumerated firstly, so to speed up,
+			// if last one is own, then all properties are own.
+			for (key in obj) {}
+
+			return key === undefined || hasOwn.call(obj, key);
 		};
 
 		/**
@@ -106,6 +149,7 @@ define(function(require) {
 			//而且即使要用iframe,可以在iframe的页面里加载bird库来处理,也就不存在这个问题了
 			return p != null && p == p.window;
 		};
+
 
 		//IE8及以下版本中p.getElementById为一个object,并非一个function,暂无好的方法来判断
 		this.isHtmlDocument = function(p) {
@@ -190,17 +234,17 @@ define(function(require) {
 		 * @return {Boolean}
 		 */
 		this.isNotEmpty = function(p) {
-			if(this.isNullOrUndefined(p) || p === ''){
+			if (this.isNullOrUndefined(p) || p === '') {
 				return false;
 			}
 
-			if(this.isArray(p) && p.length !== 0){
+			if (this.isArray(p) && p.length !== 0) {
 				return false;
 			}
 
-			if(this.isPlainObject(p)){
-				for(var i in p){
-					if(p.hasOwnProperty(i)){
+			if (this.isPlainObject(p)) {
+				for (var i in p) {
+					if (p.hasOwnProperty(i)) {
 						return true;
 					}
 				}
@@ -211,20 +255,20 @@ define(function(require) {
 		};
 
 
-		this.getVariableInContext = function(s, ctx){
-			if(!this.isObject(ctx)){
+		this.getVariableInContext = function(s, ctx) {
+			if (!this.isObject(ctx)) {
 				console.warn('Parameter `ctx` of `lang.getVariableInContext(s, ctx)` is not an object.');
 				return null;
 			}
-			if(s.indexOf('.') === -1){
+			if (s.indexOf('.') === -1) {
 				return ctx[s];
 			}
 			var segments = s.split('.');
-			
-			for(var i=0,len=segments.length;i < len;i++){
+
+			for (var i = 0, len = segments.length; i < len; i++) {
 				var namespace = ctx[segments[i]];
-				if(namespace == null && i !== len-1){
-					console.warn('Variable: `' + segments.slice(0,i).join('.') + '` has no value.');
+				if (namespace == null && i !== len - 1) {
+					console.warn('Variable: `' + segments.slice(0, i).join('.') + '` has no value.');
 					return;
 				}
 				ctx = namespace;
@@ -232,13 +276,13 @@ define(function(require) {
 			return ctx;
 		};
 
-		this.setVariableInContext = function(s, value, ctx){
-			if(!this.isObject(ctx)){
+		this.setVariableInContext = function(s, value, ctx) {
+			if (!this.isObject(ctx)) {
 				console.warn('Parameter `ctx` of `lang.setVariableInContext(s, value, ctx)` is not an object.');
 				return null;
 			}
 			var lastDotIndex = s.lastIndexOf('.');
-			if(lastDotIndex === -1){
+			if (lastDotIndex === -1) {
 				return ctx[s] = value;
 			}
 			var obj = this.getObjectInContext(s.substring(0, lastDotIndex), ctx);
@@ -246,21 +290,21 @@ define(function(require) {
 		};
 
 
-		this.getGlobalVariable = function(s){
+		this.getGlobalVariable = function(s) {
 			return this.getVariableInContext(s, window);
 		};
 
-		this.getGlobalObject = function(s){
+		this.getGlobalObject = function(s) {
 			return this.getObjectInContext(s, window);
 		};
 
-		this.getObjectInContext = function(s, ctx){
-			if(s.indexOf('.') === -1){
+		this.getObjectInContext = function(s, ctx) {
+			if (s.indexOf('.') === -1) {
 				return ctx[s] || (ctx[s] = {});
 			}
 			var segments = s.split('.');
-			
-			for(var i=0,len=segments.length;i < len;i++){
+
+			for (var i = 0, len = segments.length; i < len; i++) {
 				var key = segments[i];
 				var namespace = ctx[key] || (ctx[key] = {});
 				ctx = namespace;
@@ -286,11 +330,13 @@ define(function(require) {
 			};
 		};
 
-		this.noop = function() {};
+		this.noop = noop;
 
 		this.nextTick = window.setImmediate ? setImmediate.bind(window) : function(callback) {
-	        setTimeout(callback, 0) //IE10-11 or W3C
-	    };
+			setTimeout(callback, 0) //IE10-11 or W3C
+		};
+
+		function noop() {};
 
 	}).call(Lang.prototype);
 
