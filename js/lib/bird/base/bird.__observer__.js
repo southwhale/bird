@@ -59,6 +59,7 @@ define(function(require){
 		};
 
 		this.watch = this.subscribe;
+		this.unwatch = this.unsubscribe;
 		this.notify = this.publish;
 		
 	}).call(Observer.prototype);
