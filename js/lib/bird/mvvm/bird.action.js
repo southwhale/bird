@@ -16,13 +16,11 @@ define(function(require) {
 	var DataBind = require('./bird.databind');
 	var globalContext = require('./bird.globalcontext');
 	var validator = require('./bird.validator');
-	var Observer = require('bird.__observer__');
 
 
 	function Action() {
 		this.id = util.uuid('action_');
 		this.model = new Model();
-		this.watcher = new Observer();
 		this.dataBind = new DataBind();
 		this.args = {};
 		this.actionUrlMap = {};
@@ -54,32 +52,6 @@ define(function(require) {
 		this.container = document.getElementById('Container');
 
 		this.init = function() {
-			var me = this;
-			/* model的set接口逻辑本不该放在这里定义（覆盖原set接口）
-			 * 但这里需要用到watcher去通知更新dom元素
-			 * 为了保证model的纯粹性,这里重新定义set接口
-			 * 这里说的纯粹性是指model里的属性除了几个暴露在外的接口,其他的都是action业务上的数据（即要和后台交互或与页面展现相关的数据）
-			 */
-			this.model.set = function(key, value) {
-				var _key = key;
-				var lastDotIndex = _key.lastIndexOf('.');
-				var obj;
-				if(lastDotIndex === -1){
-					obj = this;
-				}else{
-					obj = lang.getObjectInContext(_key.substring(0, lastDotIndex), this);
-					_key = _key.substring(lastDotIndex + 1, _key.length);
-				}
-				var oldValue = obj[_key];
-				if (oldValue === value) {
-					return;
-				}
-				obj[_key] = value;
-				obj = null;
-				var argArr = [key, value, oldValue, arguments[arguments.length - 1]];
-				me.watcher.publish.apply(me.watcher, argArr);
-				argArr = null;
-			};
 
 			this.lifePhase = this.LifeCycle.INITED;
 		};
@@ -137,7 +109,7 @@ define(function(require) {
 
 		this._initModel = function(args) {
 
-			this.initModel(this.model, this.watcher);
+			this.initModel(this.model, this.model.watcher);
 			this.lifePhase = this.LifeCycle.MODEL_BOUND;
 		};
 
@@ -175,7 +147,7 @@ define(function(require) {
 			}
 			this.dataBind.parseTpl(this.tpl);
 			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-			this.dataBind.bind(this.model, this.watcher, this.container);
+			this.dataBind.bind(this.model, this.model.watcher, this.container);
 		};
 
 		/*
@@ -199,7 +171,7 @@ define(function(require) {
 				container.innerHTML = html;
 			}
 			//绑定事件处理逻辑到该Action的根容器上
-			dataBind.bind(this.model, this.watcher, this.container);
+			dataBind.bind(this.model, this.model.watcher, this.container);
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑
@@ -268,7 +240,7 @@ define(function(require) {
 				me.dataRequestPromise.spread(function() {
 					me.beforeRender(me.model);
 					me.render();
-					me.afterRender(me.model, me.watcher);
+					me.afterRender(me.model, me.model.watcher);
 				}).done();
 			}).done();
 		};
@@ -281,7 +253,6 @@ define(function(require) {
 		this.leave = function(nextAction) {
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
-			this.watcher.unsubscribe();
 
 			this.dataBind.destroy();
 			this.model.destroy();

@@ -2,38 +2,42 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var object = require('bird.object');
-	
+	var Observer = require('bird.__observer__');
 
 	function Model() {
-		
+		this.watcher = new Observer();
 	}
 
 	(function() {
-		var reservedMethodMap = {
+		var reservedObjMap = {
 			'set': 1,
 			'get': 1,
 			'destroy': 1,
 			'toJSON': 1,
 			'toQuery': 1,
-			'filterJSON': 1
+			'filterJSON': 1,
+			'watcher': 1
 		};
 
 		this.set = function(key, value) {
-			var lastDotIndex = key.lastIndexOf('.');
+			var _key = key;
+			var lastDotIndex = _key.lastIndexOf('.');
 			var obj;
-			if(lastDotIndex === -1){
+			if (lastDotIndex === -1) {
 				obj = this;
-			}else{
-				obj = lang.getObjectInContext(key.substring(0, lastDotIndex), this);
-				key = key.substring(lastDotIndex + 1, key.length);
+			} else {
+				obj = lang.getObjectInContext(_key.substring(0, lastDotIndex), this);
+				_key = _key.substring(lastDotIndex + 1, _key.length);
 			}
-			
-			var oldValue = obj[key];
+			var oldValue = obj[_key];
 			if (oldValue === value) {
 				return;
 			}
-			obj[key] = value;
+			obj[_key] = value;
 			obj = null;
+			var argArr = [key, value, oldValue, arguments[arguments.length - 1]];
+			this.watcher.publish.apply(this.watcher, argArr);
+			argArr = null;
 		};
 
 		this.get = function(key) {
@@ -50,23 +54,23 @@ define(function(require) {
 		 * 若过滤参数超过一个，那么变量的第一个引用单词必须相同，即需类似：['a.b','a.c']
 		 * 这样的变量引用将不被支持：['a.b','b.c']
 		 */
-		this.filterJSON = function(json){
+		this.filterJSON = function(json) {
 			var filterKeys;
-			if(lang.isArray(json)){
+			if (lang.isArray(json)) {
 				filterKeys = json;
 				json = this;
-			}else if(lang.isString(json)){
+			} else if (lang.isString(json)) {
 				filterKeys = Array.prototype.slice.call(arguments);
 				json = this;
-			}else{
+			} else {
 				filterKeys = arguments[1];
 				filterKeys = lang.isArray(filterKeys) ? filterKeys : Array.prototype.slice.call(arguments, 1);
 			}
 			var ret = {};
-			array.forEach(filterKeys, function(v){
+			array.forEach(filterKeys, function(v) {
 				var lastDotIndex = v.lastIndexOf('.');
-				if(lastDotIndex !== -1){
-					if(lastDotIndex !== v.indexOf('.')){
+				if (lastDotIndex !== -1) {
+					if (lastDotIndex !== v.indexOf('.')) {
 						console.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!')
 						return;
 					}
@@ -93,8 +97,9 @@ define(function(require) {
 
 		this.destroy = function() {
 			var me = this;
+			this.watcher.unsubscribe();
 			object.forEach(this, function(v, k) {
-				if (reservedMethodMap[k]) {
+				if (reservedObjMap[k]) {
 					return;
 				}
 				delete me[k];
