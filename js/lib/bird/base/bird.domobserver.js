@@ -1,6 +1,8 @@
 /**
  * 监听dom变化
  * 只支持现代浏览器（IE11、chrome、firefox、safari）
+ * options参数 请参考：https://developer.mozilla.org/zh-CN/docs/Web/API/MutationObserver#MutationObserverInit
+ * updateCallback参数 请参考：https://developer.mozilla.org/zh-CN/docs/Web/API/MutationObserver#MutationRecord
  */
 define(function(require){
 	var lang = require('./bird.lang');
