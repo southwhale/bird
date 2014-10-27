@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "bird",
   "author": "liwei47@baidu.com",
-  "dependencies": {},
+  "dependencies": {
+    "express": "4.x"
+  },
   "devDependencies": {
     "chalk": "~0.4.0",
     "grunt": "~0.4.1",

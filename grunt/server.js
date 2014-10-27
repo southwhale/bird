@@ -1,8 +1,3 @@
-/**
- * @file mock server
- * @author maoquan(maoquan@baidu.com)
- */
-
 module.exports = function(grunt) {
 
     var express = require('express');
@@ -13,20 +8,19 @@ module.exports = function(grunt) {
 
     grunt.registerTask('server', 'Starting web servers', function() {
 
-        var config = grunt.config().config;
-        var site = config.site;
-        var baseDir = config.baseDir || __dirname;
+        var site = 'bird';
+        var baseDir = __dirname;
 
         var done = this.async();
         // 独立运行server task进程不退出
         // grunt server:on
 
-        var isMock = config.mock ? true : false;
+        var isMock = true;
 
         //single server
         var server = {
-            port: config.sitesPorts[site],
-            root: path.join(baseDir, config.siteDir, site),
+            port: 6666,
+            root: path.join(baseDir, 'dist', site),
             dataRoot: path.join(baseDir, site, 'data')
         };
         var app = express();
@@ -63,8 +57,8 @@ module.exports = function(grunt) {
         if (!isMock) {
             function mockProxy(req, res, next) {
                 proxy(
-                    config.proxyTarget,
-                    config.proxyTargetPort,
+                    "192.168.2.110",
+                    80,
                     {
                         request: req,
                         response: res
@@ -145,7 +139,7 @@ module.exports = function(grunt) {
             });
         }
         // 有些东西总是mock的
-        var lists = [
+        var list = [
             {
                 action: '/group/add'
             },
@@ -172,7 +166,7 @@ module.exports = function(grunt) {
                 name: 'lbsUpload'
             }
         ];
-        lists.forEach(function(list) {
+        list.forEach(function(list) {
             app.post(list.action, function(req, res) {
                 console.log(req);
                 var uploadArr = [req.files[list.name || 'upload']];
