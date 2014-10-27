@@ -1,6 +1,6 @@
 /**
  * 全局环境缓存区
- *
+ * 挂载在window.globalContext下
  */
 define(function(require) {
 	var lang = require('bird.lang');
