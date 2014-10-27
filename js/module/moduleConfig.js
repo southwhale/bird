@@ -12,7 +12,7 @@
 				'bird.browser', 'bird.dom', 'bird.lang', 'bird.array', 'bird.string', 'bird.date', 'bird.object',
 				'bird.uuid', 'bird.chain', 'bird.event', 'bird.observer', 'bird.request', 'bird.__observer__',
 				'bird.syspatch', 'bird.template', 'bird.animate', 'bird.css3animate', 'bird.spirit', 'bird.util',
-				'bird.class'
+				'bird.class', 'bird.lrucache', 'bird.domobserver'
 			]
 		},
 
