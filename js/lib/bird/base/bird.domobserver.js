@@ -38,7 +38,7 @@ define(function(require){
 			if(!lang.isFunction(update)){
 				return;
 			}
-			array.pushUniqueInArray(update, this.updateCallbackArray);
+			this.updateCallbackArray.push(update);
 		};
 
 		this.unsubscribe = function(update){
@@ -48,7 +48,7 @@ define(function(require){
 				return;
 			}
 
-			util.forEach(this.updateCallbackArray, function(fn, index, fnArray) {
+			array.forEach(this.updateCallbackArray, function(fn, index, fnArray) {
 				if (fn === update) {
 					fnArray.splice(index, 1);
 				}
