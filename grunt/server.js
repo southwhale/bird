@@ -20,15 +20,15 @@ module.exports = function(grunt) {
         //single server
         var server = {
             port: 6666,
-            root: path.join(baseDir, 'dist', site),
+            root: path.join(baseDir, '..'),
             dataRoot: path.join(baseDir, site, 'data')
         };
         var app = express();
-        app.use(express.logger('dev'));
-        app.use(express.compress());
-        app.use(express.favicon(path.join(server.root, 'favicon.ico')));
+        app.use(require('serve-favicon')(__dirname + '/public/favicon.ico'));
+        app.use(require('morgan')('dev'));
+
         if (isMock) {
-            app.use(express.bodyParser());
+            app.use(require('body-parser').json());
         }
         else {
             // 请求的body部分存起来，转发的时候要带上
@@ -247,21 +247,22 @@ module.exports = function(grunt) {
             });
         });
 
+
         app.listen(server.port, function() {
             console.log('server [%s], [http://127.0.0.1:%s], root [%s]',
                 site, server.port, server.root);
         });
 
         // test server
-        (function(site) {
+        /*(function(site) {
             var server = {
                 port: config.sitesPorts[site], root: path.join(baseDir, site)
             };
             var app = express();
-            app.use(express.logger('dev'));
-            app.use(express.compress());
+            //app.use(express.logger('dev'));
+            //app.use(express.compress());
             app.use(express.static(server.root));
-            app.use(express.bodyParser());
+            app.use(require('body-parser'));
             app.all('/base/*', function(req, res, next) {
                 res.sendfile(req.params[0]);
             });
@@ -282,7 +283,7 @@ module.exports = function(grunt) {
                 // qunit依赖服务器启动ready
                 config.live !== 'on' && done(true);
             });
-        })('test');
+        })('test');*/
     });
 };
 
