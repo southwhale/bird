@@ -2,6 +2,7 @@ define(function(require) {
 	var object = require('./bird.object');
 	var array = require('./bird.array');
 	var lang =require('./bird.lang');
+	var string = require('./bird.string');
 	var uuid = require('./bird.uuid');
 
 	function Util() {
@@ -27,6 +28,33 @@ define(function(require) {
 		this.uuid = function(prefix){
 			var uid = uuid.uuid(8);
 			return prefix ? prefix + uid : uid;
+		};
+
+		this.stringify = function(obj) {
+			var isArray = lang.isArray(obj);
+			var ret = [isArray ? '[' : '{'];
+			var _arguments = arguments;
+			var me = this;
+			this.forEach(obj, function(val, key, obj) {
+				if (!isArray) {
+					ret.push(key, ':');
+				}
+
+				if (lang.isArray(val) || lang.isPlainObject(val)) {
+					ret.push(_arguments.callee.call(me, val));
+				} else if (lang.isDate(val)) {
+					ret.push('\"', val.toLocaleString(), '\"');
+				} else {
+					var isRaw = lang.isString(val) || lang.isNumber(val);
+					isRaw && ret.push('\"');
+					ret.push(string.trim(val));
+					isRaw && ret.push('\"');
+				}
+				ret.push(',');
+			});
+			ret.pop();
+			ret.push(isArray ? ']' : '}');
+			return ret.join('');
 		};
 
 	}).call(Util.prototype);

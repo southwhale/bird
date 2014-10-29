@@ -70,49 +70,9 @@ define(function(require) {
 			return dest;
 		};
 
-		this.jsonlization = function(obj) {
-			return '{' + this.stringify(obj) + '}';
-		};
-
-		this.stringify = (obj) {
-	        if(lang.isString(obj)){
-	            return obj;
-	        }
-	        
-	        var arr = [];
-	        var me = this;
-	        var _arguments = arguments;
-	        if (lang.isPlainObject(obj)) {
-	            this.forEach(obj, function(v,i,obj){
-	            	var val = obj[i];
-                    if (lang.isPlainObject(val)) {
-                        arr.push(i + ':{' + _arguments.callee.call(me, val) + '}');
-                    } else if (lang.isArray(val)) {
-                        arr.push(i + ':[' + _arguments.callee.call(me, val) + ']');
-                    } else if (lang.isString(val) || lang.isNumber(val)) {
-                        val += '';
-                        val = val.replace(/^[\s\xa0\u3000]+|[\u3000\xa0\s]+$/g,'');
-                        arr.push(i + ':"' + val.replace(/"/g, '\"') + '"');
-                    }
-	            });
-	            
-	            return arr.join(',');
-	        } else if (lang.isArray(obj)) {
-	            array.each(obj, function(val) {
-	                if (lang.isString(val) || lang.isNumber(val)) {
-	                    arr.push(val);
-	                } else if (lang.isPlainObject(val)) {
-	                    arr.push('{' + _arguments.callee.call(me, val) + '}');
-	                } else if (lang.isArray(val)){
-	                    arr.push('[' + _arguments.callee.call(me, val) + ']');
-	                }
-	            });
-	            return arr.join(',');
-	        }
-	    };
-
+		
 		this.jsonToQuery = function(obj, split) {
-			if(lang.isString(obj)){
+			if (lang.isString(obj)) {
 				return obj;
 			}
 			split = split || ',';
@@ -145,25 +105,25 @@ define(function(require) {
 			}
 		};
 
-		this.keys = function(obj){
-			if(Object.keys){
+		this.keys = function(obj) {
+			if (Object.keys) {
 				return Object.keys(obj);
 			}
-			var DONT_ENUM =  "propertyIsEnumerable,isPrototypeOf,hasOwnProperty,toLocaleString,toString,valueOf,constructor".split(",");
+			var DONT_ENUM = "propertyIsEnumerable,isPrototypeOf,hasOwnProperty,toLocaleString,toString,valueOf,constructor".split(",");
 			var ret = [];
-            for(var key in obj ){
-            	if(obj.hasOwnProperty(key)){
-	                ret.push(key);
-	            }
-            } 
-            if(DONT_ENUM && obj){
-                for(var i = 0 ;key = DONT_ENUM[i++]; ){
-                    if(obj.hasOwnProperty(key)){
-                        ret.push(key);
-                    }
-                }
-            }
-            return ret;
+			for (var key in obj) {
+				if (obj.hasOwnProperty(key)) {
+					ret.push(key);
+				}
+			}
+			if (DONT_ENUM && obj) {
+				for (var i = 0; key = DONT_ENUM[i++];) {
+					if (obj.hasOwnProperty(key)) {
+						ret.push(key);
+					}
+				}
+			}
+			return ret;
 		};
 
 		//过滤plainobject

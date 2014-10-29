@@ -14,32 +14,7 @@ define(function(require) {
 			parse: function(s) {
 				return ctx.eval('(' + s + ')');
 			},
-			stringify: function(obj) {
-				var isArray = lang.isArray(obj);
-				var ret = [isArray ? '[' : '{'];
-				var _arguments = arguments;
-				var me = this;
-				util.forEach(obj, function(val, key, obj) {
-					if (!isArray) {
-						ret.push(key, ':');
-					}
-
-					if (lang.isArray(val) || lang.isPlainObject(val)) {
-						ret.push(_arguments.callee.call(me, val));
-					} else if (lang.isDate(val)) {
-						ret.push('\"', val.toLocaleString(), '\"');
-					} else {
-						var isString = lang.isString(val);
-						isString && ret.push('\"');
-						ret.push(val);
-						isString && ret.push('\"');
-					}
-					ret.push(',');
-				});
-				ret.pop();
-				ret.push(isArray ? ']' : '}');
-				return ret.join('');
-			}
+			stringify: util.stringify
 		};
 	}
 
