@@ -52,7 +52,7 @@ define(function(require) {
 			}
 		},
 		send: function(obj, callback) {
-			request.imgGet(config.url + object.jsonlization(obj),callback);
+			request.imgGet(config.url + JSON.stringify(obj),callback);
 		},
         getErrorInfo: function(e){
         	return {
