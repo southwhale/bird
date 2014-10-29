@@ -8,7 +8,7 @@
 	};
 
 	var modMap = {
-		bird: {
+		/*bird: {
 			prefix: 'lib/bird/base/',
 			mods: [
 				'bird.browser', 'bird.dom', 'bird.lang', 'bird.array', 'bird.string', 'bird.date', 'bird.object',
@@ -21,7 +21,7 @@
 		mvvm: {
 			prefix: 'lib/bird/mvvm/',
 			mods: ['bird.controller', 'bird.router', 'bird.action', 'bird.databind', 'bird.applicationcontext', 'bird.validator']
-		},
+		},*/
 
 		ui: {
 			prefix: 'lib/bird/ui/',
@@ -31,12 +31,12 @@
 			]
 		},
 
-		demo: {
+		/*demo: {
 			prefix: '/bird/demo/',
 			mods: [
 				'index/index', 'todos/todos', 'bootstrap/bs', 'icheck/icheck'
 			]
-		},
+		},*/
 
 		module: {
 			prefix: 'module/biz/',
@@ -58,7 +58,7 @@
 	});
 
 	seajs.config({
-		base: './js/',
+		base: '/bird/js/',
 		alias: alias
 	});
 

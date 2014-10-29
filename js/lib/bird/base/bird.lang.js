@@ -86,9 +86,9 @@ define(function(require) {
 			return typeof p === 'object' && p !== null;
 		};
 
-		/*this.isPlainObject = function(p) {
+		this.isPlainObject = function(p) {
 			return this.getType(p) === 'Object';
-		};*/
+		};
 
 		var i;
 		for (i in new noop) {
@@ -96,8 +96,12 @@ define(function(require) {
 		}
 		var ownLast = i !== undefined;
 		var hasOwn = Object.prototype.hasOwnProperty;
-
-		this.isPlainObject = function(obj) {
+		/**
+		 * 通过 new Object() 或者 字面量 定义的对象
+		 * {Object}
+		 * return {Boolean}
+		 */
+		this.isRawObject = function(obj) {
 			var key;
 			// Must be an Object.
 			// Because of IE, we also have to check the presence of the constructor property.
@@ -133,14 +137,6 @@ define(function(require) {
 			return key === undefined || hasOwn.call(obj, key);
 		};
 
-		/**
-		 * 通过 new Object() 或者 字面量 定义的对象
-		 * {Object}
-		 * return {Boolean}
-		 */
-		this.isRawObject = function(p) {
-			return p != null && p.constructor === Object;
-		};
 
 		//IE8及以下版本中p.setInterval为一个object,并非一个function,暂无好的方法来判断
 		this.isWindow = function(p) {
