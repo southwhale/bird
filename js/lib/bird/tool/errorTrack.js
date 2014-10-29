@@ -4,6 +4,8 @@ define(function(require) {
 	var object = require('bird.object');
 	var dom = require('bird.dom');
 	var browser = require('bird.browser');
+	var array = require('bird.array');
+	var request = require('bird.request');
 
 	var clickPathList = [];
 	var lastClickData;
@@ -37,17 +39,7 @@ define(function(require) {
 			}, true);
 
 			event.addListener(window, 'error', function(e) {
-				me.send({
-					error: {
-						lineNumber: e.lineno,
-						fileName: e.filename,
-						columnNumber: e.colno,
-						message: e.message,
-						stack: e.stack
-					},
-					clickpath: clickPathList,
-					browser: browser.browser
-				});
+				me.send(me.getErrorInfo(e));
 				me.clear();
 			});
 			console.log("ErrorTrack Module Inited!");
@@ -60,8 +52,20 @@ define(function(require) {
 			}
 		},
 		send: function(obj, callback) {
-			var img = new Image();
-			img.src = config.url + '?' + object.jsonToQuery(obj) + '&' + new Date().getTime();
-		}
+			request.imgGet(config.url + object.jsonlization(obj),callback);
+		},
+        getErrorInfo: function(e){
+        	return {
+                error: {
+                    lineNumber: e.lineno || e.errorLine,
+                    fileName: e.filename || e.errorUrl,
+                    columnNumber: e.colno || e.errorCharacter,
+                    message: e.message || e.errorMessage,
+                    stack: e.error && e.error.stack || ''
+                },
+                clickpath: clickPathList,
+                browser: browser.browser
+            };
+        }
 	}
 });

@@ -164,7 +164,7 @@ define(function(require) {
 		};
 
 		this.imageGet = function(url, succuessCallback, errorCallback) {
-			url += (url.indexOf('?') !== -1 ? '&' : '?') + new Date().getTime();
+			url += (url.indexOf('?') !== -1 ? '&' : '?') + '_t=' + new Date().getTime();
 			dom.loadImage(url, succuessCallback, errorCallback);
 		};
 	}).call(Request.prototype);
