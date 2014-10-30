@@ -1,14 +1,18 @@
 (function() {
+	var pathname = location.pathname;
+	var modprefix = /\/$/.test(pathname) ? pathname : pathname.substring(0, pathname.lastIndexOf('/') + 1);
+
 	var alias = {
 		'jquery': 'lib/jquery/jquery-1.11.1',
-		'bootstrap': '/bird/component/bootstrap/js/bootstrap.amd',
-		'icheck': '/bird/component/icheck/icheck.amd',
+		'bootstrap': 'component/bootstrap/js/bootstrap.amd',
+		'icheck': 'component/icheck/icheck.amd',
 		'moment': 'lib/moment/moment',
 		'q': 'lib/q/q'
 	};
 
 	var modMap = {
-		/*bird: {
+		//begin base
+		base: {
 			prefix: 'lib/bird/base/',
 			mods: [
 				'bird.browser', 'bird.dom', 'bird.lang', 'bird.array', 'bird.string', 'bird.date', 'bird.object',
@@ -17,11 +21,13 @@
 				'bird.class', 'bird.lrucache', 'bird.domobserver'
 			]
 		},
-
+		//end
+		//begin mvvm
 		mvvm: {
 			prefix: 'lib/bird/mvvm/',
 			mods: ['bird.controller', 'bird.router', 'bird.action', 'bird.databind', 'bird.applicationcontext', 'bird.validator']
-		},*/
+		},
+		//end
 
 		ui: {
 			prefix: 'lib/bird/ui/',
@@ -30,14 +36,14 @@
 				'bird.ui.mask', 'bird.ui.panel'
 			]
 		},
-
-		/*demo: {
-			prefix: '/bird/demo/',
+		//begin app
+		app: {
+			prefix: modprefix + 'demo/',
 			mods: [
 				'index/index', 'todos/todos', 'bootstrap/bs', 'icheck/icheck'
 			]
-		},*/
-
+		},
+		//end
 		module: {
 			prefix: 'module/biz/',
 			mods: [
@@ -58,7 +64,7 @@
 	});
 
 	seajs.config({
-		base: '/bird/js/',
+		base: modprefix + 'js/',
 		alias: alias
 	});
 

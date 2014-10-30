@@ -19,8 +19,8 @@ define(function(require) {
 	var dom = require('bird.dom');
 	chain.wrapModule(dom, 'dom');*/
 
-	return {
-		init: function() {
+	//return {
+		//init: function() {
 			console.log("Demo Entry Module Inited!");
 
 			Action.setContainer('Container');
@@ -42,6 +42,6 @@ define(function(require) {
 			//这里要求在启动controller之前先加载可能用到的路径对业务模块映射
 
 			controller.start();
-		}
-	}
+		//}
+	//}
 });

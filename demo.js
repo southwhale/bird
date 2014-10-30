@@ -1,3 +1,3 @@
 define(function(require) {
-	require('entry').init();
+	require('./demo/entry');
 });
