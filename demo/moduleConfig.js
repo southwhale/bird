@@ -4,8 +4,8 @@
 
 	var alias = {
 		'jquery': 'lib/jquery/jquery-1.11.1',
-		'bootstrap': 'component/bootstrap/js/bootstrap.amd',
-		'icheck': 'component/icheck/icheck.amd',
+		'bootstrap': modprefix + 'component/bootstrap/js/bootstrap.amd',
+		'icheck': modprefix + 'component/icheck/icheck.amd',
 		'moment': 'lib/moment/moment',
 		'q': 'lib/q/q'
 	};
@@ -40,7 +40,7 @@
 		app: {
 			prefix: modprefix + 'demo/',
 			mods: [
-				'index/index', 'todos/todos', 'bootstrap/bs', 'icheck/icheck'
+				'index/index', 'todos/todos', 'bootstrap/bs', 'icheck/icheck', 'entry'
 			]
 		},
 		//end

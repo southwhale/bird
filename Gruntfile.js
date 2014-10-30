@@ -34,7 +34,7 @@ module.exports = function(grunt) {
       },
       bird: {
         files: [{
-          src: ['output/lib/bird/base/*.js', 'output/lib/bird/mvvm/*.js'],
+          src: ['output/lib/bird/base/*.js', 'output/lib/bird/mvvm/*.js', 'output/demo/**/*.js'],
           dest: 'output/<%= pkg.name %>.min.js'
         }/*, {
           src: ['demo/modConfig.js'],
@@ -51,10 +51,14 @@ module.exports = function(grunt) {
             content = content.replace("./js/lib/seajs/sea-debug.js","lib/seajs/sea-debug.js");
             content = content.replace("!--script","script");
             content = content.replace("script--","script");
-            content = content.replace("./demo/entry","entry");
+            //content = content.replace("./demo/entry","entry");
             return content;
           }
         }
+      },
+      app: {
+        src: 'demo.js',
+        dest: 'output/demo.js'
       },
       asset: {
         files: [
