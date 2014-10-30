@@ -1,0 +1,41 @@
+<div id="todoapp">
+    <header>
+        <h1>
+            Todos
+        </h1>
+        <input id="new-todo" type="text" placeholder="What needs to be done?" onkeyup="{{enter}}" value="{{input}}"/>
+    </header>
+    <section id="main">
+        <input id="toggle-all" type="checkbox" onclick="{{checkAll}}"/>
+        <label for="toggle-all">
+            Mark all as complete
+        </label>
+        <ul id="todo-list">
+        </ul>
+    </section>
+    <footer>
+        <a id="clear-completed"></a>
+        <div id="todo-count">
+        </div>
+    </footer>
+</div>
+<div><span>CHECKBOX:</span><span>{{checkedItemsValue}}</span></div>
+<div><span>TEXT:</span><span>{{input}}</span></div>
+<div id="instructions">
+    Double-click to edit a todo.
+</div>
+<div id="credits">
+    Created by
+    <br />
+    <a href="http://sailinglee.iteye.com">
+        Li Sir
+    </a>
+    .
+    <br />
+    Rewritten by:
+    <a href="https://github.com/iamweilee/bird.git">
+        Bird
+    </a>
+    .
+</div>
+<div><a href="#!/todos~a=3">todo3</a></div>

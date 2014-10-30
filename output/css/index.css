@@ -1,0 +1,267 @@
+
+body{
+	margin:0;
+	padding:0;
+}
+
+#Container{
+	position:relative;
+	left:0;
+	top:0;
+	width:1280px;
+	height:auto;
+	font:normal 12pt Arial;
+	margin:0 auto;
+}
+
+#Bg{
+	
+}
+
+#Frontface{
+	width:604px; 
+	height:167px;
+	margin-top:-83px;
+    margin-left:-302px;
+}
+
+
+
+.pannel{
+	background-color:rgb(245,245,245);
+}
+
+#Copyright{
+	float:right;
+	position:relative;
+	bottom:2.5em;
+	right:2em;
+	color:rgb(205,205,205);
+	font:normal 10pt Arial;
+}
+
+.signinview{
+	width:434px;
+	height:330px;
+	margin-top:-165px;
+    margin-left:-217px;
+}
+
+.registerview{
+	width:434px;
+	height:450px;
+	margin-top:-225px;
+    margin-left:-217px;
+}
+
+.bgcolor{
+	/*background-color: rgb(243,48,74);*/
+	z-index:-1;
+}
+
+.txtbg{
+	background:url(../img/word.png) no-repeat;
+}
+
+.margin0auto{
+	margin:0 auto;
+}
+
+
+.pic_box{
+	font-size:0; 
+	*font-size:200px; 
+	text-align:center;
+}
+.pic_box img{
+	vertical-align:middle;
+}
+.pic_box:after{
+	display:inline-block; 
+	width:0; 
+	height:100%; 
+	content:"center"; 
+	vertical-align:middle; 
+	overflow:hidden;
+}
+
+
+.fl{
+	float:left;
+}
+
+.vhcenter {
+    position: absolute;
+    left:50%;
+    top:50%;
+}
+
+
+.btnbox{
+	width:434px;
+	height:45px;
+	margin:55px auto 0 auto;
+	text-align:center;
+}
+
+a{
+	text-decoration: none;
+	outline: none;
+	cursor: pointer;
+}
+
+
+
+
+.btnbox a{
+	display:block;
+	width:203px;
+	height:45px;
+	line-height:45px;
+	margin:0 7px;
+}
+
+.asignin{
+	background:url(../img/btn_signin.png) no-repeat;
+	color:rgb(255,255,255);
+}
+
+.aregister{
+	background:url(../img/btn_register.png) no-repeat;
+	color:rgb(243,68,92);
+}
+
+
+
+input{
+	border:solid 1px rgb(243,68,92);
+	padding:5px;
+	width:290px;
+	height:25px;
+	margin:11px;
+	outline:none;
+}
+
+.inputValid{
+	border:solid 1px rgb(0,255,0);
+}
+
+.bar{
+	width:100%;
+	height:40px;
+	line-height:40px;
+	background:url(../img/nav.png) no-repeat;
+}
+.bar a{
+	*margin-top: -30px;
+}
+.bar a img{
+	border:none;
+}
+.bar a:link,.bar a:visited,.bar a:hover,.bar a:active{
+	color: transparent;
+}
+
+.main{
+	padding:24px;
+	text-align:center;
+}
+
+.main div{
+	
+}
+
+.submit{
+	text-align:center;
+	color:rgb(255,255,255);
+	margin-top:36px;
+}
+
+.title{
+	margin-left:15px;
+	color:rgb(255,255,255);
+}
+
+.note{
+	margin:15px;
+	font-size:9pt;
+}
+
+.submit a{
+	display:block;
+	width:202px;
+	height:44px;
+	line-height:44px;
+	background: url(../img/btn_submit.png) no-repeat;
+	margin:0 auto;
+}
+
+.submit a:link,.submit a:visited,.submit a:hover,.submit a:active{
+	color:rgb(255,255,255);
+}
+
+.note a:link,.submit a:visited,.note a:hover,.note a:active{
+	color:rgb(0,0,0);
+}
+
+
+.close{
+	float:right;
+	margin:4px 10px 0 0;
+}
+
+
+.underline{
+	text-decoration: underline;
+}
+
+
+.viewWrapper{
+	font:normal 12pt Arial;
+}
+
+/**
+ * 	清除浮动影响
+ */
+.fix{
+	*zoom:1;
+}
+.fix:after{
+	display:block; 
+	content:"clear"; 
+	height:0; 
+	clear:both; 
+	overflow:hidden;
+	visibility:hidden;
+}
+
+
+.blur{	
+    filter: url(blur.svg#blur); /* FireFox, Chrome, Opera */
+    
+    -webkit-filter: blur(10px); /* Chrome, Opera */
+       -moz-filter: blur(10px);
+       	 -o-filter: blur(10px);
+        -ms-filter: blur(10px);    
+            filter: blur(10px);
+    
+    filter: progid:DXImageTransform.Microsoft.Blur(PixelRadius=10, MakeShadow=false); /* IE6~IE9 */
+}
+
+/**
+ * 	media query
+ */
+@media screen and (max-width:1280px){
+	#Container,#Bg img{
+		width:1024px; 
+		height:678px; 
+	}
+}
+
+@media screen and (max-width:1024px){
+	#Container,#Bg img{
+		width:768px; 
+		height:508px; 
+	}
+}
+
