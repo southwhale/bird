@@ -1,126 +1,88 @@
+/**
+ * 根目录下的Gruntfile.js用来构建bird框架，生成合并压缩后的lib和ui放入dep目录下，具体的业务模块依赖于dep下的文件而不依赖src目录下的文件
+ * 业务模块的构建逻辑则在build目录下，两者不要混淆了
+ * 该构建文件未把第三方库合并压缩到bird.js和bird.min.js中，而是在需要时通过require动态引入，若需要一起合并压缩，可修改相应的任务
+ * 执行构建命令需加上参数： --force , 即：grunt --force
+ */
 module.exports = function(grunt) {
 
-  // Project configuration.
+  // bird configuration.
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     transport: {
       options: {
         debug: false
       },
-      expand: {
+      bird: {
         files: [{
           expand: true,
-          cwd: 'output/lib/<%= pkg.name %>/base',
+          cwd: 'src/lib/<%= pkg.name %>/base/',
           src: [
             '*.js', '!bird.oo.js'
           ],
-          dest: 'output/lib/<%= pkg.name %>/base'
+          dest: 'dep/lib/<%= pkg.name %>/base'
         },{
           expand: true,
-          cwd: 'output/lib/<%= pkg.name %>/mvvm',
+          cwd: 'src/lib/<%= pkg.name %>/mvvm/',
           src: ['*.js'],
-          dest: 'output/lib/<%= pkg.name %>/mvvm'
+          dest: 'dep/lib/<%= pkg.name %>/mvvm'
         },{
           expand: true,
-          cwd: 'output/demo',
-          src: ['**/*.js', '!moduleConfig.js', '!moduleConfig.release.js'],
-          dest: 'output/demo'
+          cwd: 'src/lib/<%= pkg.name %>/tool/',
+          src: ['errorTrack.js'],
+          dest: 'dep/lib/<%= pkg.name %>/tool'
         }]
       },
     },
+    concat: {
+      options: {
+        banner: '/**\n * @file: <%= pkg.name %>.js\n * @author: <%= pkg.author %>\n * @version: <%= pkg.version %>\n * @date: <%= grunt.template.today("yyyy-mm-dd") %>\n */\n',
+        separator: '\n'
+      },
+      bird: {
+        src: ['dep/lib/<%= pkg.name %>/**/*.js', '!dep/lib/<%= pkg.name %>/tool/tracker.js'],
+        dest: 'dep/<%= pkg.name %>.js'
+      }
+    },
     uglify: {
       options: {
-        banner: '/*! <%= pkg.name %> <%= grunt.template.today("yyyy-mm-dd") %> */\n'
+        banner: '/*@file:<%= pkg.name %>.min.js @author:<%= pkg.author %> @version:<%= pkg.version %> @date:<%= grunt.template.today("yyyy-mm-dd") %> */\n'
       },
       bird: {
         files: [{
-          src: ['output/lib/bird/base/*.js', 'output/lib/bird/mvvm/*.js', 'output/demo/**/*.js'],
-          dest: 'output/<%= pkg.name %>.min.js'
-        }/*, {
-          src: ['demo/modConfig.js'],
-          dest: 'dest/moduleConfig.min.js'
-        }*/]
+          src: ['dep/<%= pkg.name %>.js'],
+          dest: 'dep/<%= pkg.name %>.min.js'
+        }]
       }
     },
     copy: {
-      homepage: {
-        src: 'demo.html',
-        dest: 'output/demo.html',
-        options: {
-          process: function (content, srcpath) {
-            content = content.replace("./js/lib/seajs/sea-debug.js","lib/seajs/sea-debug.js");
-            content = content.replace("!--script","script");
-            content = content.replace("script--","script");
-            //content = content.replace("./demo/entry","entry");
-            return content;
-          }
-        }
-      },
-      app: {
-        src: 'demo.js',
-        dest: 'output/demo.js'
-      },
-      asset: {
-        files: [
-          // makes all src relative to cwd
-          {
-            expand: true, 
-            cwd: 'demo/', 
-            src: ['**'], 
-            dest: 'output/demo'
-          }
-        ]
-      },
-      moduleConfig: {
-        src: 'demo/moduleConfig.js',
-        dest: 'output/demo/moduleConfig.js',
-        options: {
-          process: function (content, srcpath) {
-            content = content.replace(/\/\/begin/g, '/*//begin');
-            content = content.replace(/\/\/end/g, '//end*/');
-            content = content.replace('base: modprefix + \'js/\'', 'base: modprefix');
-            return content;
-          }
-        }
-      },
       thirdLib: {
         files: [
-          // makes all src relative to cwd
+          //ui
           {
             expand: true, 
-            cwd: 'js/lib/', 
+            cwd: 'src/ui/', 
             src: ['**'], 
-            dest: 'output/lib'
+            dest: 'dep/ui'
           },
+          //3rd lib
           {
             expand: true, 
-            cwd: 'component/', 
-            src: ['**'], 
-            dest: 'output/component'
-          },
-          {
-            expand: true, 
-            cwd: 'css/', 
-            src: ['**'], 
-            dest: 'output/css'
-          },
-          {
-            expand: true, 
-            cwd: 'fonticon/', 
-            src: ['**'], 
-            dest: 'output/fonticon'
+            cwd: 'src/lib/', 
+            src: ['**','!bird/'], 
+            dest: 'dep/lib'
           }
         ]
-      }
-    },
-    connect: {
-      server: {
-        options: {
-          port: 9001,
-          base: 'output',
-          keepalive: true,
-          hostname: "127.0.0.1"
-        }
+      },
+      bird: {
+        files: [
+          {
+            expand: true,
+            cwd: 'src/lib/<%= pkg.name %>/tool/',
+            src: ['tracker.js'],
+            dest: 'dep/lib/<%= pkg.name %>/tool'
+          }
+        ]
       }
     }
   });
@@ -130,16 +92,10 @@ module.exports = function(grunt) {
 
   // Load the plugin that provides the "uglify" task.
   grunt.loadNpmTasks('grunt-contrib-uglify');
-
   grunt.loadNpmTasks('grunt-contrib-copy');
-  //grunt.loadNpmTasks('grunt-contrib-concat');
-  //grunt.loadNpmTasks('grunt-contrib-clean');
-  grunt.loadNpmTasks('grunt-contrib-watch');
-  //grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-contrib-qunit');
-  grunt.loadNpmTasks('grunt-contrib-less');
+  grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-cmd-transport');
-  grunt.loadNpmTasks('grunt-contrib-connect');
+  
   // Default task(s).
-  grunt.registerTask('default', ['copy', 'transport', 'uglify', 'connect']);
+  grunt.registerTask('default', ['copy', 'transport', 'concat', 'uglify']);
 };
