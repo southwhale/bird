@@ -35,7 +35,11 @@ module.exports = function(grunt) {
     },
     concat: {
       options: {
-        banner: '/**\n * @file: <%= pkg.name %>.js\n * @author: <%= pkg.author %>\n * @version: <%= pkg.version %>\n * @date: <%= grunt.template.today("yyyy-mm-dd") %>\n */\n',
+        banner: '/**\n * @file: <%= pkg.name %>.js\n'
+              + ' * @author: <%= pkg.author %>\n'
+              + ' * @version: <%= pkg.version %>\n'
+              + ' * @date: <%= grunt.template.today("yyyy-mm-dd") %>\n'
+              + ' */\n',
         separator: '\n'
       },
       bird: {
