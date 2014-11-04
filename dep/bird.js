@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-03
+ * @date: 2014-11-04
  */
 define("bird.__observer__", [ "./bird.lang", "./bird.util" ], function(require) {
     function Observer() {
