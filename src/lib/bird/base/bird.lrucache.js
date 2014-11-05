@@ -303,60 +303,6 @@ define(function(require) {
 	}; /* </ utilities > */
 
 
-	/*
-	 *
-	 * Create a new instance of the Object
-	 * recommanded by Douglas Crockford
-	 * http://javascript.crockford.com/prototypal.html
-	 *
-	 *
-	 */
-
-
-	Object.create = function(o) {
-
-		function F() {
-			if (o.__construct && typeof o.__construct == 'function') {
-				var objects = o.__construct();
-				for (i in objects) {
-
-					F.prototype[i] = objects[i];
-
-				}
-			}
-		};
-		F.prototype = o;
-		return new F();
-
-
-	};
-
-
-
-	/*
-	 *
-	 * Extending Objects In Javascript.
-	 *
-	 */
-
-	Object.extend = function(o) {
-
-		function F() {
-			if (o.__construct && typeof o.__construct == 'function') {
-				var objects = o.__construct();
-				for (i in objects) {
-
-					F.prototype[i] = objects[i];
-
-				}
-			}
-		};
-		F.prototype = o;
-		return F;
-
-	};
-
-
 
 	/*
 	 *
@@ -367,7 +313,6 @@ define(function(require) {
 	 */
 
 
-	var Cache = {};
 	/*
 	 * Using Closure
 	 * _construc contains Public and Private Objects
@@ -378,7 +323,7 @@ define(function(require) {
 	 *
 	 *
 	 */
-	Cache.__construct = function() {
+	function Cache() {
 
 
 
@@ -1147,6 +1092,8 @@ define(function(require) {
 		}; /*  </ cachePublicActions > */
 
 
-	}; /*  </ Cache.__construct > */
+	} /*  </ Cache.__construct > */
+
+	return Cache;
 
 });

@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-04
+ * @date: 2014-11-06
  */
 define("bird.__observer__", [ "./bird.lang", "./bird.util" ], function(require) {
     function Observer() {
@@ -3187,49 +3187,11 @@ define("bird.lrucache", [], function(require) {
     /* </ utilities > */
     /*
 	 *
-	 * Create a new instance of the Object
-	 * recommanded by Douglas Crockford
-	 * http://javascript.crockford.com/prototypal.html
-	 *
-	 *
-	 */
-    Object.create = function(o) {
-        function F() {
-            if (o.__construct && typeof o.__construct == "function") {
-                var objects = o.__construct();
-                for (i in objects) {
-                    F.prototype[i] = objects[i];
-                }
-            }
-        }
-        F.prototype = o;
-        return new F();
-    };
-    /*
-	 *
-	 * Extending Objects In Javascript.
-	 *
-	 */
-    Object.extend = function(o) {
-        function F() {
-            if (o.__construct && typeof o.__construct == "function") {
-                var objects = o.__construct();
-                for (i in objects) {
-                    F.prototype[i] = objects[i];
-                }
-            }
-        }
-        F.prototype = o;
-        return F;
-    };
-    /*
-	 *
 	 *
 	 * 	 <	/Cache Helper Objects >
 	 *
 	 *
 	 */
-    var Cache = {};
     /*
 	 * Using Closure
 	 * _construc contains Public and Private Objects
@@ -3240,7 +3202,7 @@ define("bird.lrucache", [], function(require) {
 	 *
 	 *
 	 */
-    Cache.__construct = function() {
+    function Cache() {
         /*******************
 		 *
 		 * Private Functions
@@ -3755,7 +3717,9 @@ define("bird.lrucache", [], function(require) {
                 }
             }
         };
-    };
+    }
+    /*  </ Cache.__construct > */
+    return Cache;
 });
 define("bird.object", [ "./bird.lang" ], function(require) {
     var lang = require("./bird.lang");
@@ -4584,6 +4548,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
         this.id = util.uuid("action_");
         this.model = new Model();
         this.dataBind = new DataBind();
+        this.dataBinds = [];
         this.args = {};
         this.actionUrlMap = {};
         this.urlActionMap = {};
@@ -4682,7 +4647,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.container);
+            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -4694,6 +4659,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 return;
             }
             var dataBind = new DataBind();
+            this.dataBinds.push(dataBind);
             dataBind.parseTpl(tpl);
             var html = dataBind.fillTpl(this.model, this.id);
             if (lang.isFunction(append)) {
@@ -4704,7 +4670,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.container);
+            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function() {};
@@ -4763,6 +4729,10 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             globalContext.remove(this.id);
             validator.clearMessageStack();
             this.dataBind.destroy();
+            array.forEach(this.dataBinds, function(dataBind) {
+                dataBind.destroy(true);
+            });
+            this.dataBinds.length = 0;
             this.model.destroy();
             this.beforeLeave();
             //解决ie8等浏览器切换action时页面闪动的问题
@@ -4869,7 +4839,7 @@ define("bird.controller", [ "./bird.router.hashchange", "bird.lang", "bird.array
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
@@ -4878,10 +4848,13 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
     var string = require("bird.string");
     var util = require("bird.util");
     var browser = require("bird.browser");
+    var request = require("bird.request");
+    var LruCache = require("bird.lrucache");
     var globalContext = require("./bird.globalcontext");
     var TplParser = require("./bird.tplparser");
     var filterHelper = require("./bird.filter");
     var validator = require("./bird.validator");
+    var lruCache = new LruCache();
     function DataBind() {
         this.tplParser = new TplParser();
         this.typeHandleMap = require("./bird.handlemap");
@@ -4900,12 +4873,14 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             var parsedInfoCache = this.tplParser.parsedInfoCache;
             var str = this.tplParser.parsedTpl;
             var me = this;
-            //var regMap = {};
             object.forEach(parsedInfoCache, function(parsedInfo) {
                 object.forEach(parsedInfo, function(val, key) {
                     if (lang.isPlainObject(val) && val.variable) {
                         var regStr = "\\{\\{\\s*" + val.variable + "\\s*(?:\\|[^{}]+)?" + "\\}\\}";
-                        var value = model.get(val.variable);
+                        var value = "";
+                        if (val.filter !== "include") {
+                            value = model.get(val.variable);
+                        }
                         if (lang.isUndefinedOrNull(value)) {
                             value = "";
                             var lastDotIndex = val.variable.lastIndexOf(".");
@@ -4945,7 +4920,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, container) {
+        this.bind = function(model, watcher, container, dataBinds, actionId) {
             var me = this;
             container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
@@ -4953,6 +4928,20 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var node = dom.g(selector, container);
                 object.forEach(info, function(val, key) {
                     if (/id|bindId|tagName/.test(key)) {
+                        return;
+                    }
+                    if (val.filter === "include") {
+                        var cachedTpl = lruCache.getValue(val.variable);
+                        if (cachedTpl) {
+                            var dataBind = doInclude(node, cachedTpl, model, actionId);
+                            dataBind && dataBinds.push(dataBind);
+                        } else {
+                            request.syncLoad(val.variable, function(data) {
+                                var dataBind = doInclude(node, data, model, actionId);
+                                dataBind && dataBinds.push(dataBind);
+                                lruCache.add(val.variable, data);
+                            });
+                        }
                         return;
                     }
                     if (lang.isPlainObject(val) && val.variable) {
@@ -5085,6 +5074,20 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             });
             this.eventBindedNodes.length = 0;
         };
+        function doInclude(elem, tplContent, model, actionId) {
+            var html;
+            if (elem) {
+                if (/\{\{[^{}]+\}\}/.test(tplContent)) {
+                    var dataBind = new DataBind();
+                    dataBind.parseTpl(tplContent);
+                    html = dataBind.fillTpl(model, actionId);
+                } else {
+                    html = tplContent;
+                }
+                dom.setHtml(elem, html);
+            }
+            return dataBind;
+        }
     }).call(DataBind.prototype);
     return DataBind;
 });

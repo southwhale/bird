@@ -18,6 +18,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
         this.id = util.uuid("action_");
         this.model = new Model();
         this.dataBind = new DataBind();
+        this.dataBinds = [];
         this.args = {};
         this.actionUrlMap = {};
         this.urlActionMap = {};
@@ -116,7 +117,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.container);
+            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -128,6 +129,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 return;
             }
             var dataBind = new DataBind();
+            this.dataBinds.push(dataBind);
             dataBind.parseTpl(tpl);
             var html = dataBind.fillTpl(this.model, this.id);
             if (lang.isFunction(append)) {
@@ -138,7 +140,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.container);
+            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function() {};
@@ -197,6 +199,10 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             globalContext.remove(this.id);
             validator.clearMessageStack();
             this.dataBind.destroy();
+            array.forEach(this.dataBinds, function(dataBind) {
+                dataBind.destroy(true);
+            });
+            this.dataBinds.length = 0;
             this.model.destroy();
             this.beforeLeave();
             //解决ie8等浏览器切换action时页面闪动的问题

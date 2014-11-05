@@ -16,7 +16,7 @@
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
@@ -25,10 +25,13 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
     var string = require("bird.string");
     var util = require("bird.util");
     var browser = require("bird.browser");
+    var request = require("bird.request");
+    var LruCache = require("bird.lrucache");
     var globalContext = require("./bird.globalcontext");
     var TplParser = require("./bird.tplparser");
     var filterHelper = require("./bird.filter");
     var validator = require("./bird.validator");
+    var lruCache = new LruCache();
     function DataBind() {
         this.tplParser = new TplParser();
         this.typeHandleMap = require("./bird.handlemap");
@@ -47,12 +50,14 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             var parsedInfoCache = this.tplParser.parsedInfoCache;
             var str = this.tplParser.parsedTpl;
             var me = this;
-            //var regMap = {};
             object.forEach(parsedInfoCache, function(parsedInfo) {
                 object.forEach(parsedInfo, function(val, key) {
                     if (lang.isPlainObject(val) && val.variable) {
                         var regStr = "\\{\\{\\s*" + val.variable + "\\s*(?:\\|[^{}]+)?" + "\\}\\}";
-                        var value = model.get(val.variable);
+                        var value = "";
+                        if (val.filter !== "include") {
+                            value = model.get(val.variable);
+                        }
                         if (lang.isUndefinedOrNull(value)) {
                             value = "";
                             var lastDotIndex = val.variable.lastIndexOf(".");
@@ -92,7 +97,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, container) {
+        this.bind = function(model, watcher, container, dataBinds, actionId) {
             var me = this;
             container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
@@ -100,6 +105,20 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var node = dom.g(selector, container);
                 object.forEach(info, function(val, key) {
                     if (/id|bindId|tagName/.test(key)) {
+                        return;
+                    }
+                    if (val.filter === "include") {
+                        var cachedTpl = lruCache.getValue(val.variable);
+                        if (cachedTpl) {
+                            var dataBind = doInclude(node, cachedTpl, model, actionId);
+                            dataBind && dataBinds.push(dataBind);
+                        } else {
+                            request.syncLoad(val.variable, function(data) {
+                                var dataBind = doInclude(node, data, model, actionId);
+                                dataBind && dataBinds.push(dataBind);
+                                lruCache.add(val.variable, data);
+                            });
+                        }
                         return;
                     }
                     if (lang.isPlainObject(val) && val.variable) {
@@ -232,6 +251,20 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             });
             this.eventBindedNodes.length = 0;
         };
+        function doInclude(elem, tplContent, model, actionId) {
+            var html;
+            if (elem) {
+                if (/\{\{[^{}]+\}\}/.test(tplContent)) {
+                    var dataBind = new DataBind();
+                    dataBind.parseTpl(tplContent);
+                    html = dataBind.fillTpl(model, actionId);
+                } else {
+                    html = tplContent;
+                }
+                dom.setHtml(elem, html);
+            }
+            return dataBind;
+        }
     }).call(DataBind.prototype);
     return DataBind;
 });
