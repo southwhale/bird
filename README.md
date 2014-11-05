@@ -15,6 +15,12 @@ a simple mvvm library
 
 - **双向绑定：** 
  * 使用双花括号{{...}}实现双向绑定
+ * 支持输入控件的双向绑定：<i>input[type=text|password|radio|checkbox], select, textarea</i>
+ * 支持include指令, 只支持include html
+ * 支持validator, 支持扩展validator
+ * 支持以下标签属性的双向绑定：<i>'class', 'src', 'href', 'value', 'valueVariable', 'style', 'type', 'alt', 'for', 'readonly', 'disabled', 'checked', 'selected', 'placeholder', 'onXXX'(事件属性)</i>
+ * 支持标签内容的双向绑定, 如：<i>&lt;div&gt;{{content}}&lt;/div&gt;</i>
+ * **不支持逻辑运算符和循环**
 
 ----
 ###示例
