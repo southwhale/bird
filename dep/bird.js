@@ -4532,7 +4532,7 @@ define("bird.uuid", [], function(require) {
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.validator" ], function(require) {
+define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.validator", "bird.lrucache" ], function(require) {
     var Q = require("q");
     var object = require("bird.object");
     var lang = require("bird.lang");
@@ -4544,11 +4544,13 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
     var DataBind = require("./bird.databind");
     var globalContext = require("./bird.globalcontext");
     var validator = require("./bird.validator");
+    var LRUCache = require("bird.lrucache");
     function Action() {
         this.id = util.uuid("action_");
         this.model = new Model();
         this.dataBind = new DataBind();
         this.dataBinds = [];
+        this.lruCache = new LRUCache();
         this.args = {};
         this.actionUrlMap = {};
         this.urlActionMap = {};
@@ -4647,7 +4649,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -4670,7 +4672,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function() {};
@@ -4839,7 +4841,7 @@ define("bird.controller", [ "./bird.router.hashchange", "bird.lang", "bird.array
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
@@ -4849,12 +4851,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
     var util = require("bird.util");
     var browser = require("bird.browser");
     var request = require("bird.request");
-    var LruCache = require("bird.lrucache");
     var globalContext = require("./bird.globalcontext");
     var TplParser = require("./bird.tplparser");
     var filterHelper = require("./bird.filter");
     var validator = require("./bird.validator");
-    var lruCache = new LruCache();
     function DataBind() {
         this.tplParser = new TplParser();
         this.typeHandleMap = require("./bird.handlemap");
@@ -4920,7 +4920,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, container, dataBinds, actionId) {
+        this.bind = function(model, watcher, container, dataBinds, lruCache, actionId) {
             var me = this;
             container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
@@ -4936,7 +4936,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             var dataBind = doInclude(node, cachedTpl, model, actionId);
                             dataBind && dataBinds.push(dataBind);
                         } else {
-                            request.syncLoad(val.variable, function(data) {
+                            request.load(val.variable, function(data) {
                                 var dataBind = doInclude(node, data, model, actionId);
                                 dataBind && dataBinds.push(dataBind);
                                 lruCache.add(val.variable, data);

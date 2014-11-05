@@ -16,7 +16,7 @@
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
@@ -26,12 +26,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
     var util = require("bird.util");
     var browser = require("bird.browser");
     var request = require("bird.request");
-    var LruCache = require("bird.lrucache");
     var globalContext = require("./bird.globalcontext");
     var TplParser = require("./bird.tplparser");
     var filterHelper = require("./bird.filter");
     var validator = require("./bird.validator");
-    var lruCache = new LruCache();
     function DataBind() {
         this.tplParser = new TplParser();
         this.typeHandleMap = require("./bird.handlemap");
@@ -97,7 +95,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, container, dataBinds, actionId) {
+        this.bind = function(model, watcher, container, dataBinds, lruCache, actionId) {
             var me = this;
             container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
@@ -113,7 +111,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             var dataBind = doInclude(node, cachedTpl, model, actionId);
                             dataBind && dataBinds.push(dataBind);
                         } else {
-                            request.syncLoad(val.variable, function(data) {
+                            request.load(val.variable, function(data) {
                                 var dataBind = doInclude(node, data, model, actionId);
                                 dataBind && dataBinds.push(dataBind);
                                 lruCache.add(val.variable, data);

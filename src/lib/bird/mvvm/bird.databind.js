@@ -27,15 +27,11 @@ define(function(require) {
 	var util = require('bird.util');
 	var browser = require('bird.browser');
 	var request = require('bird.request');
-	var LruCache = require('bird.lrucache');
-
 
 	var globalContext = require('./bird.globalcontext');
 	var TplParser = require('./bird.tplparser');
 	var filterHelper = require('./bird.filter');
 	var validator = require('./bird.validator');
-
-	var lruCache = new LruCache();
 
 	function DataBind() {
 		this.tplParser = new TplParser();
@@ -114,7 +110,7 @@ define(function(require) {
 		};
 
 		//第三步：绑定模板变量到对应的处理函数
-		this.bind = function(model, watcher, container, dataBinds, actionId) {
+		this.bind = function(model, watcher, container, dataBinds, lruCache, actionId) {
 			var me = this;
 			container = container || document;
 			object.forEach(this.tplParser.parsedInfoCache, function(info) {

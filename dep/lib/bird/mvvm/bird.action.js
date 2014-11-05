@@ -2,7 +2,7 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.validator" ], function(require) {
+define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.validator", "bird.lrucache" ], function(require) {
     var Q = require("q");
     var object = require("bird.object");
     var lang = require("bird.lang");
@@ -14,11 +14,13 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
     var DataBind = require("./bird.databind");
     var globalContext = require("./bird.globalcontext");
     var validator = require("./bird.validator");
+    var LRUCache = require("bird.lrucache");
     function Action() {
         this.id = util.uuid("action_");
         this.model = new Model();
         this.dataBind = new DataBind();
         this.dataBinds = [];
+        this.lruCache = new LRUCache();
         this.args = {};
         this.actionUrlMap = {};
         this.urlActionMap = {};
@@ -117,7 +119,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -140,7 +142,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function() {};
