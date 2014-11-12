@@ -6241,7 +6241,7 @@ define("errorTrack", [ "bird.event", "bird.object", "bird.dom", "bird.browser", 
             }
         },
         send: function(obj, callback) {
-            request.imgGet(config.url + JSON.stringify(obj), callback);
+            request.imageGet(config.url + JSON.stringify(obj), callback);
         },
         getErrorInfo: function(e) {
             return {
