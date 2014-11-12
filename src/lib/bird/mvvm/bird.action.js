@@ -188,7 +188,7 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
-		this.beforeRender = function(modelReference) {
+		this.beforeRender = function(modelReference, watcherReference) {
 
 		};
 
@@ -241,7 +241,7 @@ define(function(require) {
 				}
 
 				me.dataRequestPromise.spread(function() {
-					me.beforeRender(me.model);
+					me.beforeRender(me.model, me.model.watcher);
 					me.render();
 					me.afterRender(me.model, me.model.watcher);
 				}).done();

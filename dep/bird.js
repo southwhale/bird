@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-06
+ * @date: 2014-11-13
  */
 define("bird.__observer__", [ "./bird.lang", "./bird.util" ], function(require) {
     function Observer() {
@@ -4681,7 +4681,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             this.lifePhase = this.LifeCycle.EVENT_BOUND;
         };
         //子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
-        this.beforeRender = function(modelReference) {};
+        this.beforeRender = function(modelReference, watcherReference) {};
         this.render = function() {
             var me = this;
             object.forEach(this.requestDataCache, function(value, key) {
@@ -4719,7 +4719,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                     me._bindEvent();
                 }
                 me.dataRequestPromise.spread(function() {
-                    me.beforeRender(me.model);
+                    me.beforeRender(me.model, me.model.watcher);
                     me.render();
                     me.afterRender(me.model, me.model.watcher);
                 }).done();
