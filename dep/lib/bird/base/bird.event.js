@@ -26,7 +26,7 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
                 this.colno = originalEvent.colno || wsevent.errorCharacter;
                 this.filename = originalEvent.filename || wsevent.errorUrl;
                 this.message = originalEvent.message || wsevent.errorMessage;
-                this.stack = originalEvent.error && originalEvent.error.stack || "";
+                this.error = originalEvent.error;
             }
             this.target = this.target || this.srcElement || document;
             if (this.target.nodeType === 3) {
