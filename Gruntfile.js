@@ -49,7 +49,9 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: '/*@file:<%= pkg.name %>.min.js @author:<%= pkg.author %> @version:<%= pkg.version %> @date:<%= grunt.template.today("yyyy-mm-dd") %> */\n'
+        banner: '/*@file:<%= pkg.name %>.min.js @author:<%= pkg.author %> @version:<%= pkg.version %> @date:<%= grunt.template.today("yyyy-mm-dd") %> */\n',
+        sourceMap: true/*,
+        sourceMapName: './dep/bird.min.js.map'*/
       },
       bird: {
         files: [{
