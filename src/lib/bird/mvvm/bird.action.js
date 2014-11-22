@@ -178,12 +178,12 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑
-		this.bindEvent = function() {
+		this.bindEvent = function(modelReference, watcherReference) {
 
 		};
 
-		this._bindEvent = function() {
-			this.bindEvent();
+		this._bindEvent = function(modelReference, watcherReference) {
+			this.bindEvent(modelReference, watcherReference);
 			this.lifePhase = this.LifeCycle.EVENT_BOUND;
 		};
 
@@ -237,7 +237,7 @@ define(function(require) {
 				me._applyBind();
 
 				if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
-					me._bindEvent();
+					me._bindEvent(me.model, me.model.watcher);
 				}
 
 				me.dataRequestPromise.spread(function() {
@@ -249,11 +249,12 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
-		this.beforeLeave = function() {
+		this.beforeLeave = function(modelReference, watcherReference) {
 
 		};
 
 		this.leave = function(nextAction) {
+			this.beforeLeave(this.model, this.model.watcher);
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
 
@@ -264,7 +265,6 @@ define(function(require) {
 			this.dataBinds.length = 0;
 
 			this.model.destroy();
-			this.beforeLeave();
 			//解决ie8等浏览器切换action时页面闪动的问题
 			if (nextAction && nextAction.container !== this.container) {
 				dom.empty(this.container);

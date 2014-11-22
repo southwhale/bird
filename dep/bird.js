@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-22
+ * @date: 2014-11-23
  */
 define("bird.__observer__", [ "./bird.lang", "./bird.util" ], function(require) {
     function Observer() {
@@ -4675,9 +4675,9 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
-        this.bindEvent = function() {};
-        this._bindEvent = function() {
-            this.bindEvent();
+        this.bindEvent = function(modelReference, watcherReference) {};
+        this._bindEvent = function(modelReference, watcherReference) {
+            this.bindEvent(modelReference, watcherReference);
             this.lifePhase = this.LifeCycle.EVENT_BOUND;
         };
         //子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
@@ -4716,7 +4716,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 document.title = me.title || "";
                 me._applyBind();
                 if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
-                    me._bindEvent();
+                    me._bindEvent(me.model, me.model.watcher);
                 }
                 me.dataRequestPromise.spread(function() {
                     me.beforeRender(me.model, me.model.watcher);
@@ -4726,8 +4726,9 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             }).done();
         };
         //子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
-        this.beforeLeave = function() {};
+        this.beforeLeave = function(modelReference, watcherReference) {};
         this.leave = function(nextAction) {
+            this.beforeLeave(this.model, this.model.watcher);
             globalContext.remove(this.id);
             validator.clearMessageStack();
             this.dataBind.destroy();
@@ -4736,7 +4737,6 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             });
             this.dataBinds.length = 0;
             this.model.destroy();
-            this.beforeLeave();
             //解决ie8等浏览器切换action时页面闪动的问题
             if (nextAction && nextAction.container !== this.container) {
                 dom.empty(this.container);
