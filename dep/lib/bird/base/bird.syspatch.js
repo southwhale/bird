@@ -63,7 +63,10 @@ define("bird.syspatch", [ "./bird.util", "./bird.lang" ], function(require) {
     }
     if (!ctx.DEBUG) {
         ctx.console = {
-            log: lang.noop
+            log: lang.noop,
+            warn: lang.noop,
+            info: lang.noop,
+            error: lang.noop
         };
     }
 });

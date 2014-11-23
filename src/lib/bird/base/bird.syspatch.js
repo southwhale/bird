@@ -71,10 +71,10 @@ define(function(require) {
 
 	if (!ctx.DEBUG) {
 		ctx.console = {
-			log: lang.noop/*,关闭调试状态不应同时关掉警告和报错信息的功能
+			log: lang.noop,
 			warn: lang.noop,
 			info: lang.noop,
-			error: lang.noop*/
+			error: lang.noop
 		};
 	}
 

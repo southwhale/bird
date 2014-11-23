@@ -15,6 +15,7 @@ define(function(require) {
 	var Model = require('./bird.model');
 	var DataBind = require('./bird.databind');
 	var globalContext = require('./bird.globalcontext');
+	var RequestHelper = require('./bird.requesthelper');
 	var validator = require('./bird.validator');
 	var LRUCache = require('bird.lrucache');
 
@@ -24,12 +25,10 @@ define(function(require) {
 		this.model = new Model();
 		this.dataBind = new DataBind();
 		this.dataBinds = [];
+		this.requestHelper = new RequestHelper();
 		this.lruCache = new LRUCache();
 		this.args = {};
-		this.actionUrlMap = {};
-		this.urlActionMap = {};
-		this.requestDataCache = {};
-		this.dataRequestPromise = null;
+
 		this.lifePhase = this.LifeCycle.NEW;
 
 		this.init();
@@ -52,40 +51,58 @@ define(function(require) {
 
 		this.tpl = '';
 
-		this.container = document.getElementById('Container');
+		this.name = '';
+
+		this.container = document.getElementById('wrapper');
 
 		this.init = function() {
+			if(!this.requestUrl) {
+				this.requestUrl = {};
+			}
 
+			if(!this.requestUrlWhenEnter){
+				this.requestUrlWhenEnter = {};
+			}
+
+			object.extend(this.requestUrl, this.requestUrlWhenEnter);
+
+			if(!this.requestUrl.resource){
+				this.requestUrl.resource = '/api/' + this.name;
+			}
+
+			this.requestHelper.generateRequestMethods(this.requestUrl, this.name);
 			this.lifePhase = this.LifeCycle.INITED;
 		};
 
-		this.initRequestURL = function(map) {
-			if (!lang.isPlainObject(map)) {
-				return;
-			}
-			this.actionUrlMap = map;
-			var me = this;
-			object.forEach(this.actionUrlMap, function(url, action) {
-				me.urlActionMap[url] || (me.urlActionMap[url] = []);
-				me.urlActionMap[url].push(action);
-			});
-		};
 
-
-		this.requestData = function() {
+		this._requestData = function() {
 			var me = this;
 			var deferred;
 			var promiseArr = [];
 
-			if (lang.isNotEmpty(this.urlActionMap)) {
-				object.forEach(this.urlActionMap, function(actions, url) {
+			if (lang.isNotEmpty(this.requestUrlWhenEnter)) {
+				object.forEach(this.requestUrlWhenEnter, function(value, key) {
+					var arr = value.split(/\s+/);
+					var reqType = arr && arr[0];
+					var url = arr && arr[1];
+					if (/\{\{[^{}]+\}\}/.test(url)) {
+						url = string.format(url, me.args);
+					}
+
 					deferred = Q.defer();
 					(function(deferred) {
-						request.get(url, me.argMap, function(data) {
-							array.forEach(actions, function(action) {
-								me.requestDataCache[action] = data;
-							});
-							deferred.resolve();
+						request.ajax({
+							url: url,
+							requestType: reqType,
+							data: me.args && me.args.param,
+							complete: function(data){
+								data = data && data.result || data || {};
+								me.model[url] = data;
+								deferred.resolve();
+							},
+							error: function(){
+								deferred.resolve();
+							}
 						});
 					})(deferred);
 					promiseArr.push(deferred.promise);
@@ -104,40 +121,18 @@ define(function(require) {
 			/**
 			 * 通过往modelReference上挂载属性的方式修改action.model,如：
 			 * modelReference.name = 'liwei';
-			 * modelReference.email = '383523223@qq.com';
+			 * modelReference.email = 'relativeli@qq.com';
 			 * modelReference.company = 'Baidu';
 			 */
 
 		};
 
-		this._initModel = function(args) {
+		this._initModel = function() {
 
 			this.initModel(this.model, this.model.watcher);
 			this.lifePhase = this.LifeCycle.MODEL_BOUND;
 		};
 
-		/**
-		 * @deprecated
-		 * 请使用$.set()
-		 */
-		this.setToModel = function(key, value) {
-			this.model.set(key, value, this.dataBind);
-		};
-
-		/**
-		 * @deprecated
-		 * 请使用$.toJSON()
-		 */
-		this.getModelObject = function() {
-			var ret = {};
-			object.forEach(this.model, function(v, k) {
-				if (lang.isFunction(v)) {
-					return;
-				}
-				ret[k] = v;
-			});
-			return ret;
-		};
 
 		/*
 		 * 初始模板应用双向绑定
@@ -182,8 +177,8 @@ define(function(require) {
 
 		};
 
-		this._bindEvent = function(modelReference, watcherReference) {
-			this.bindEvent(modelReference, watcherReference);
+		this._bindEvent = function() {
+			this.bindEvent(this.model, this.model.watcher);
 			this.lifePhase = this.LifeCycle.EVENT_BOUND;
 		};
 
@@ -193,13 +188,14 @@ define(function(require) {
 		};
 
 
-		this.render = function() {
-			var me = this;
-			object.forEach(this.requestDataCache, function(value, key) {
-				me.model.set(key, value);
-			});
-
+		this._render = function() {
+			this.render(this.model, this.model.watcher);
 			this.lifePhase = this.LifeCycle.RENDERED;
+		};
+
+		//子类可以覆盖该接口,请求后台数据返回后重新渲染模板部分内容
+		this.render = function(modelReference, watcherReference){
+
 		};
 
 		//子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
@@ -226,23 +222,25 @@ define(function(require) {
 		this.enter = function(args) {
 			var me = this;
 			this.args = args;
-			this.initRequestURL();
+			this._requestData();
 			this._initModel();
-			this.requestData();
 			this.loadTpl();
 			this.tplRequestPromise.then(function() {
 				//根据Action的变化更新浏览器标题栏
-				document.title = me.title || '';
+
+				if(me.title){
+					document.title = me.title;
+				}
 
 				me._applyBind();
 
 				if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
-					me._bindEvent(me.model, me.model.watcher);
+					me._bindEvent();
 				}
 
 				me.dataRequestPromise.spread(function() {
 					me.beforeRender(me.model, me.model.watcher);
-					me.render();
+					me._render();
 					me.afterRender(me.model, me.model.watcher);
 				}).done();
 			}).done();
@@ -258,6 +256,7 @@ define(function(require) {
 			globalContext.remove(this.id);
 			validator.clearMessageStack();
 
+			this.dataRequestPromise = null;
 			this.dataBind.destroy();
 			array.forEach(this.dataBinds, function(dataBind){
 				dataBind.destroy(true);
