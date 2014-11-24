@@ -78,6 +78,7 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                         url: url,
                         data: data,
                         requestType: reqType,
+                        responseType: "json",
                         complete: completeCallback,
                         error: errorCallback
                     });

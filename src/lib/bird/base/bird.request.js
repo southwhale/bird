@@ -35,25 +35,24 @@ define(function(require) {
 			var obj = {
 				async: true,
 				requestType: 'get',
-				responseType: 'json'
+				responseType: ''
 			};
 			object.extend(obj, arg);
-
-			xhr.responseType = obj.responseType;
 
 			xhr.onreadystatechange = function() {
 				if (xhr.readyState == 4) {
 					if (xhr.status == 200) {
 						if (lang.isFunction(obj.complete)) {
-							if (string.equalsIgnoreCase(obj.responseType, 'json')) {
-								obj.complete(lang.isUndefined(xhr.response) 
-									? (typeof JSON !== 'undefined' && lang.isFunction(JSON.parse) 
-									? JSON.parse(xhr.responseText) : eval('(' + xhr.responseText + ')')) : xhr.response, xhr.status);
-							} else if (string.equalsIgnoreCase(obj.responseType, 'xml')) {
-								obj.complete(xhr.responseXML, xhr.status);
-							} else {
-								obj.complete(xhr.responseText, xhr.status);
-							}
+							if (string.equalsIgnoreCase(obj.responseType, 'xml')) {
+                                obj.complete(this.responseXML, this.status);
+                            } else {
+                                var result = this.response || this.responseText;
+
+                                if (lang.isString(result) && string.equalsIgnoreCase(obj.responseType, 'json')) {
+                                    result = typeof JSON !== 'undefined' && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval('(' + result + ')');
+                                }
+                                obj.complete(result, this.status);
+                            }
 						}
 					} else {
 						if (lang.isFunction(obj.error)) {
@@ -62,11 +61,8 @@ define(function(require) {
 					}
 				}
 			};
-			if (obj.url.indexOf('?') == -1)
-				lnk = '?'
-			else
-				lnk = '&';
 
+			lnk = obj.url.indexOf('?') === -1 ? '?' : '&';
 
 			obj.data = obj.data && object.jsonToQuery(obj.data);
 
@@ -75,6 +71,14 @@ define(function(require) {
 				obj.data = null;
 			}
 			xhr.open(obj.requestType, obj.url, obj.async);
+
+			if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+                xhr.overrideMimeType('application/xml');
+            }
+
+            try{
+                xhr.responseType = obj.responseType;
+            }catch(e){}
 
 			if (string.equalsIgnoreCase(obj.requestType, 'post')) {
 				xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -88,6 +92,7 @@ define(function(require) {
 				url: url,
 				data: data,
 				requestType: 'post',
+				responseType: 'json',
 				complete: callback,
 				error: errorCallback
 			};
@@ -106,6 +111,7 @@ define(function(require) {
 				url: url,
 				data: data,
 				requestType: 'get',
+				responseType: 'json',
 				complete: callback,
 				error: errorCallback
 			};

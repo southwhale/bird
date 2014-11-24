@@ -85,6 +85,7 @@ define(function(require) {
 						url: url,
 						data: data,
 						requestType: reqType,
+						responseType: 'json',
 						complete: completeCallback,
 						error: errorCallback
 					});
