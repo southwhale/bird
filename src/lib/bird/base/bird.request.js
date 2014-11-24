@@ -46,7 +46,9 @@ define(function(require) {
 					if (xhr.status == 200) {
 						if (lang.isFunction(obj.complete)) {
 							if (string.equalsIgnoreCase(obj.responseType, 'json')) {
-								obj.complete(xhr.response, xhr.status);
+								obj.complete(lang.isUndefined(xhr.response) 
+									? (typeof JSON !== 'undefined' && lang.isFunction(JSON.parse) 
+									? JSON.parse(xhr.responseText) : eval('(' + xhr.responseText + ')')) : xhr.response, xhr.status);
 							} else if (string.equalsIgnoreCase(obj.responseType, 'xml')) {
 								obj.complete(xhr.responseXML, xhr.status);
 							} else {
