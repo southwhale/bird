@@ -95,9 +95,9 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             this.dataRequestPromise = Q.all(promiseArr);
         };
         //子类可以覆盖该接口
-        this.initModel = function(modelReference, watcherReference) {};
+        this.initModel = function(modelReference, watcherReference, requesterReference) {};
         this._initModel = function() {
-            this.initModel(this.model, this.model.watcher);
+            this.initModel(this.model, this.model.watcher, this.requestHelper);
             this.lifePhase = this.LifeCycle.MODEL_BOUND;
         };
         /*
@@ -137,21 +137,21 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.lruCache, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
-        this.bindEvent = function(modelReference, watcherReference) {};
+        this.bindEvent = function(modelReference, watcherReference, requesterReference) {};
         this._bindEvent = function() {
-            this.bindEvent(this.model, this.model.watcher);
+            this.bindEvent(this.model, this.model.watcher, this.requestHelper);
             this.lifePhase = this.LifeCycle.EVENT_BOUND;
         };
         //子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
-        this.beforeRender = function(modelReference, watcherReference) {};
+        this.beforeRender = function(modelReference, watcherReference, requesterReference) {};
         this._render = function() {
-            this.render(this.model, this.model.watcher);
+            this.render(this.model, this.model.watcher, this.requestHelper);
             this.lifePhase = this.LifeCycle.RENDERED;
         };
         //子类可以覆盖该接口,请求后台数据返回后重新渲染模板部分内容
-        this.render = function(modelReference, watcherReference) {};
+        this.render = function(modelReference, watcherReference, requesterReference) {};
         //子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
-        this.afterRender = function(modelReference, watcherReference) {};
+        this.afterRender = function(modelReference, watcherReference, requesterReference) {};
         this.loadTpl = function() {
             var deferred = Q.defer();
             if (!this.tplUrl || this.tpl) {
@@ -181,16 +181,16 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                     me._bindEvent();
                 }
                 me.dataRequestPromise.spread(function() {
-                    me.beforeRender(me.model, me.model.watcher);
+                    me.beforeRender(me.model, me.model.watcher, me.requestHelper);
                     me._render();
-                    me.afterRender(me.model, me.model.watcher);
+                    me.afterRender(me.model, me.model.watcher, me.requestHelper);
                 }).done();
             }).done();
         };
         //子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
-        this.beforeLeave = function(modelReference, watcherReference) {};
+        this.beforeLeave = function(modelReference, watcherReference, requesterReference) {};
         this.leave = function(nextAction) {
-            this.beforeLeave(this.model, this.model.watcher);
+            this.beforeLeave(this.model, this.model.watcher, this.requestHelper);
             globalContext.remove(this.id);
             validator.clearMessageStack();
             this.dataRequestPromise = null;
