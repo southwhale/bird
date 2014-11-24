@@ -30,21 +30,23 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 responseType: "json"
             };
             object.extend(obj, arg);
+            xhr.responseType = obj.responseType;
             xhr.onreadystatechange = function() {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         if (lang.isFunction(obj.complete)) {
-                            if (string.equalsIgnoreCase(obj.responseType, "xml")) {
-                                obj.complete(xhr.responseXML);
+                            if (string.equalsIgnoreCase(obj.responseType, "json")) {
+                                obj.complete(xhr.response, xhr.status);
+                            } else if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+                                obj.complete(xhr.responseXML, xhr.status);
                             } else {
-                                obj.complete(xhr.responseText);
+                                obj.complete(xhr.responseText, xhr.status);
                             }
                         }
                     } else {
                         if (lang.isFunction(obj.error)) {
-                            obj.error(xhr.statusText);
+                            obj.error(xhr.statusText, xhr.status);
                         }
-                        console.log(xhr.statusText);
                     }
                 }
             };

@@ -94,6 +94,7 @@ define(function(require) {
 						request.ajax({
 							url: url,
 							requestType: reqType,
+							responseType: 'json',
 							data: me.args && me.args.param,
 							complete: function(data){
 								data = data && data.result || data || {};
@@ -209,7 +210,7 @@ define(function(require) {
 				deferred.resolve();
 			} else {
 				var me = this;
-				request.get(this.tplUrl + '?' + new Date().getTime(), function(data) {
+				request.load(this.tplUrl + '?' + new Date().getTime(), function(data) {
 					me.constructor.prototype.tpl = data;
 					deferred.resolve();
 				});

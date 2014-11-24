@@ -73,6 +73,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                         request.ajax({
                             url: url,
                             requestType: reqType,
+                            responseType: "json",
                             data: me.args && me.args.param,
                             complete: function(data) {
                                 data = data && data.result || data || {};
@@ -157,7 +158,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 deferred.resolve();
             } else {
                 var me = this;
-                request.get(this.tplUrl + "?" + new Date().getTime(), function(data) {
+                request.load(this.tplUrl + "?" + new Date().getTime(), function(data) {
                     me.constructor.prototype.tpl = data;
                     deferred.resolve();
                 });
