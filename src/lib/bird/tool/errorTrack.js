@@ -64,7 +64,8 @@ define(function(require) {
                     stack: e.error && e.error.stack || ''
                 },
                 clickpath: clickPathList,
-                browser: browser.browser
+                browser: browser.browser,
+                callee: arguments.callee.toString()
             };
         }
 	}

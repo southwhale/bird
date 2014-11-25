@@ -2662,11 +2662,11 @@ define("bird.lang", [], function(require) {
             return p === null;
         };
         this.isUndefinedOrNull = function(p) {
-            return typeof p === "undefined" || p === null;
+            return p == null;
         };
         //同isUndefinedOrNull;之所以再定义一个相同功能的函数,只是为了避免记不清而不能确定函数名
         this.isNullOrUndefined = function(p) {
-            return typeof p === "undefined" || p === null;
+            return p == null;
         };
         this.isString = function(p) {
             return this.getType(p) === "String";
@@ -6350,7 +6350,8 @@ define("errorTrack", [ "bird.event", "bird.object", "bird.dom", "bird.browser", 
                     stack: e.error && e.error.stack || ""
                 },
                 clickpath: clickPathList,
-                browser: browser.browser
+                browser: browser.browser,
+                callee: arguments.callee.toString()
             };
         }
     };
