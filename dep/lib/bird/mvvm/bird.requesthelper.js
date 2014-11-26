@@ -17,12 +17,12 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
 		 * 参数的格式:
 		 * 完整格式:
 		 * {
-		 *	"getOne": "GET /api/resource/{{id}}",
-		 *	"getAll": "GET /api/resource",
-		 *	"create": "POST /api/resource",
-		 *	"updateSome": "PATCH /api/resource/{{id}}",//更新部分属性
-		 *	"updateAll": "PUT /api/resource/{{id}}",//更新全部属性
-		 *	"delete": "DELETE /api/resource/{{id}}"
+		 *	"getById": "GET /api/resource/{{id}}",
+		 *	"getList": "GET /api/resource",
+		 *	"save": "POST /api/resource",
+		 *	"update": "PUT /api/resource/{{id}}",//更新属性, IE8不支持PATCH, 故不区分PATCH和PUT
+		 *	"removeById": "DELETE /api/resource/{{id}}",
+		 *	"remove": "DELETE /api/resource"
 		 * }
 		 * 或
 		 * 简洁格式:
@@ -36,19 +36,18 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
         this.generateRequestMethods = function(map, modName) {
             var me = this;
             var reqTypeMap = {
-                getOne: "GET",
-                getAll: "GET",
-                create: "POST",
-                updateSome: "PATCH",
-                //更新部分属性
-                updateAll: "PUT",
-                //更新全部属性
-                "delete": "DELETE"
+                getById: "GET",
+                getList: "GET",
+                save: "POST",
+                update: "PUT",
+                //更新属性
+                removeById: "DELETE",
+                remove: "DELETE"
             };
             object.forEach(reqTypeMap, function(value, key) {
                 if (!map[key] && map["resource"] && !me[key]) {
                     map[key] = value + " " + map["resource"];
-                    if (key !== "getAll" && key !== "create") {
+                    if (/^(?:getById|update|removeById)$/.test(key)) {
                         map[key] += (/\/$/.test(map[key]) ? "" : "/") + "{{id}}";
                     }
                 }
@@ -84,6 +83,16 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                     });
                 };
             });
+            if (map["save"] && !this.saveOrUpdate) {
+                // 有id则为update, 否则为save
+                this.saveOrUpdate = function(data, completeCallback, errorCallback) {
+                    if (data.id) {
+                        this.update(data, completeCallback, errorCallback);
+                    } else {
+                        this.save(data, completeCallback, errorCallback);
+                    }
+                };
+            }
         };
     }).call(RequestHelper.prototype);
     return RequestHelper;

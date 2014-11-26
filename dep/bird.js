@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-25
+ * @date: 2014-11-26
  */
 define("bird.__observer__", [ "./bird.lang", "./bird.util" ], function(require) {
     function Observer() {
@@ -3918,11 +3918,11 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         if (lang.isFunction(obj.complete)) {
-                            if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+                            if (/^xml$/i.test(obj.responseType)) {
                                 obj.complete(this.responseXML, this.status);
                             } else {
                                 var result = this.response || this.responseText;
-                                if (lang.isString(result) && string.equalsIgnoreCase(obj.responseType, "json")) {
+                                if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
                                     result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval("(" + result + ")");
                                 }
                                 obj.complete(result, this.status);
@@ -3937,18 +3937,18 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
             };
             lnk = obj.url.indexOf("?") === -1 ? "?" : "&";
             obj.data = obj.data && object.jsonToQuery(obj.data);
-            if (string.equalsIgnoreCase(obj.requestType, "get")) {
+            if (/^(?:head|get|delete)$/i.test(obj.requestType)) {
                 obj.data && (obj.url += lnk + obj.data);
                 obj.data = null;
             }
             xhr.open(obj.requestType, obj.url, obj.async);
-            if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+            if (/^xml$/i.test(obj.responseType)) {
                 xhr.overrideMimeType("application/xml");
             }
             try {
                 xhr.responseType = obj.responseType;
             } catch (e) {}
-            if (string.equalsIgnoreCase(obj.requestType, "post")) {
+            if (/^(?:post|put|patch)$/i.test(obj.requestType)) {
                 xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             }
             xhr.send(obj.data);
@@ -5433,12 +5433,12 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
 		 * 参数的格式:
 		 * 完整格式:
 		 * {
-		 *	"getOne": "GET /api/resource/{{id}}",
-		 *	"getAll": "GET /api/resource",
-		 *	"create": "POST /api/resource",
-		 *	"updateSome": "PATCH /api/resource/{{id}}",//更新部分属性
-		 *	"updateAll": "PUT /api/resource/{{id}}",//更新全部属性
-		 *	"delete": "DELETE /api/resource/{{id}}"
+		 *	"getById": "GET /api/resource/{{id}}",
+		 *	"getList": "GET /api/resource",
+		 *	"save": "POST /api/resource",
+		 *	"update": "PUT /api/resource/{{id}}",//更新属性, IE8不支持PATCH, 故不区分PATCH和PUT
+		 *	"removeById": "DELETE /api/resource/{{id}}",
+		 *	"remove": "DELETE /api/resource"
 		 * }
 		 * 或
 		 * 简洁格式:
@@ -5452,19 +5452,18 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
         this.generateRequestMethods = function(map, modName) {
             var me = this;
             var reqTypeMap = {
-                getOne: "GET",
-                getAll: "GET",
-                create: "POST",
-                updateSome: "PATCH",
-                //更新部分属性
-                updateAll: "PUT",
-                //更新全部属性
-                "delete": "DELETE"
+                getById: "GET",
+                getList: "GET",
+                save: "POST",
+                update: "PUT",
+                //更新属性
+                removeById: "DELETE",
+                remove: "DELETE"
             };
             object.forEach(reqTypeMap, function(value, key) {
                 if (!map[key] && map["resource"] && !me[key]) {
                     map[key] = value + " " + map["resource"];
-                    if (key !== "getAll" && key !== "create") {
+                    if (/^(?:getById|update|removeById)$/.test(key)) {
                         map[key] += (/\/$/.test(map[key]) ? "" : "/") + "{{id}}";
                     }
                 }
@@ -5500,6 +5499,16 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                     });
                 };
             });
+            if (map["save"] && !this.saveOrUpdate) {
+                // 有id则为update, 否则为save
+                this.saveOrUpdate = function(data, completeCallback, errorCallback) {
+                    if (data.id) {
+                        this.update(data, completeCallback, errorCallback);
+                    } else {
+                        this.save(data, completeCallback, errorCallback);
+                    }
+                };
+            }
         };
     }).call(RequestHelper.prototype);
     return RequestHelper;

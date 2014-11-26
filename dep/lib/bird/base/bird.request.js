@@ -34,11 +34,11 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         if (lang.isFunction(obj.complete)) {
-                            if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+                            if (/^xml$/i.test(obj.responseType)) {
                                 obj.complete(this.responseXML, this.status);
                             } else {
                                 var result = this.response || this.responseText;
-                                if (lang.isString(result) && string.equalsIgnoreCase(obj.responseType, "json")) {
+                                if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
                                     result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval("(" + result + ")");
                                 }
                                 obj.complete(result, this.status);
@@ -53,18 +53,18 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
             };
             lnk = obj.url.indexOf("?") === -1 ? "?" : "&";
             obj.data = obj.data && object.jsonToQuery(obj.data);
-            if (string.equalsIgnoreCase(obj.requestType, "get")) {
+            if (/^(?:head|get|delete)$/i.test(obj.requestType)) {
                 obj.data && (obj.url += lnk + obj.data);
                 obj.data = null;
             }
             xhr.open(obj.requestType, obj.url, obj.async);
-            if (string.equalsIgnoreCase(obj.responseType, "xml")) {
+            if (/^xml$/i.test(obj.responseType)) {
                 xhr.overrideMimeType("application/xml");
             }
             try {
                 xhr.responseType = obj.responseType;
             } catch (e) {}
-            if (string.equalsIgnoreCase(obj.requestType, "post")) {
+            if (/^(?:post|put|patch)$/i.test(obj.requestType)) {
                 xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             }
             xhr.send(obj.data);
