@@ -136,8 +136,8 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this._addBindIdToHtmlStartTag = function(tagStr, bindId) {
             var str, arr;
-            var tagNoPropRE = /^(<[a-z]+)(\/?>(?:.|\n|\r)*)/i;
-            var tagWithPropRE = /^(<[a-z]+)(\s+(?:.|\n|\r)*\/?>)/i;
+            var tagNoPropRE = /^(<[a-z]+\d*)(\/?>(?:.|\n|\r)*)/i;
+            var tagWithPropRE = /^(<[a-z]+\d*)(\s+(?:.|\n|\r)*\/?>)/i;
             if (arr = tagNoPropRE.exec(tagStr) || tagWithPropRE.exec(tagStr)) {
                 str = arr[1] + ' bindid="' + bindId + '"' + arr[2];
             }
