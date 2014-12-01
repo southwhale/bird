@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-11-30
+ * @date: 2014-12-01
  */
 /**
  *	封装LRU cache为独立模块
@@ -4913,6 +4913,8 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                                 regStr = key + "=([\"'])\\s*" + regStr + "\\s*\\1";
                             } else if (/^style$/i.test(key) && val.key) {
                                 regStr = val.key + ":\\s*" + regStr + "\\s*;?";
+                            } else if (/^class$/i.test(key)) {
+                                regStr = "\\s*" + regStr;
                             }
                         }
                         var reg = new RegExp(regStr, "g");

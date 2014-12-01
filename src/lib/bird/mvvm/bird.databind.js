@@ -88,7 +88,9 @@ define(function(require) {
 								regStr = key + '\=(["\'])\\s*' + regStr + '\\s*\\1';
 							} else if (/^style$/i.test(key) && val.key) {
 								regStr = val.key + '\:\\s*' + regStr + '\\s*;?';
-							}
+							} else if (/^class$/i.test(key)) {
+                            	regStr = "\\s*" + regStr;
+                            }
 						}
 
 						var reg = new RegExp(regStr, 'g');
