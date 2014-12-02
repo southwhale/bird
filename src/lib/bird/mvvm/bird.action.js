@@ -56,17 +56,17 @@ define(function(require) {
 		this.container = document.getElementById('wrapper');
 
 		this.init = function() {
-			if(!this.requestUrl) {
+			if (!this.requestUrl) {
 				this.requestUrl = {};
 			}
 
-			if(!this.requestUrlWhenEnter){
+			if (!this.requestUrlWhenEnter) {
 				this.requestUrlWhenEnter = {};
 			}
 
 			object.extend(this.requestUrl, this.requestUrlWhenEnter);
 
-			if(!this.requestUrl.resource){
+			if (!this.requestUrl.resource) {
 				this.requestUrl.resource = '/api/' + this.name;
 			}
 
@@ -96,12 +96,12 @@ define(function(require) {
 							requestType: reqType,
 							responseType: 'json',
 							data: me.args && me.args.param,
-							complete: function(data){
+							complete: function(data) {
 								data = data && data.result || data || {};
 								me.model[url] = data;
 								deferred.resolve();
 							},
-							error: function(){
+							error: function() {
 								deferred.resolve();
 							}
 						});
@@ -154,17 +154,17 @@ define(function(require) {
 		 * 一个Action对应一个根容器,即使这里的container非根容器,它也必须是根容器的子节点,所以这里可以把事件绑定在根容器上
 		 * @public
 		 */
-		this.applyBind = function(tpl, container, append){
-			if(!tpl || !container){
+		this.applyBind = function(tpl, container, append) {
+			if (!tpl || !container) {
 				return;
 			}
 			var dataBind = new DataBind();
 			this.dataBinds.push(dataBind);
 			dataBind.parseTpl(tpl);
 			var html = dataBind.fillTpl(this.model, this.id);
-			if(lang.isFunction(append)){
+			if (lang.isFunction(append)) {
 				append(html, container);
-			} else if(append){
+			} else if (append) {
 				dom.appendTo(html, container);
 			} else {
 				container.innerHTML = html;
@@ -195,7 +195,7 @@ define(function(require) {
 		};
 
 		//子类可以覆盖该接口,请求后台数据返回后重新渲染模板部分内容
-		this.render = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference){
+		this.render = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {
 
 		};
 
@@ -229,7 +229,7 @@ define(function(require) {
 			this.tplRequestPromise.then(function() {
 				//根据Action的变化更新浏览器标题栏
 
-				if(me.title){
+				if (me.title && me.title !== document.title) {
 					document.title = me.title;
 				}
 
@@ -259,7 +259,7 @@ define(function(require) {
 
 			this.dataRequestPromise = null;
 			this.dataBind.destroy();
-			array.forEach(this.dataBinds, function(dataBind){
+			array.forEach(this.dataBinds, function(dataBind) {
 				dataBind.destroy(true);
 			});
 			this.dataBinds.length = 0;

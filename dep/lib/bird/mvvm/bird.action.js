@@ -173,7 +173,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             this.loadTpl();
             this.tplRequestPromise.then(function() {
                 //根据Action的变化更新浏览器标题栏
-                if (me.title) {
+                if (me.title && me.title !== document.title) {
                     document.title = me.title;
                 }
                 me._applyBind();

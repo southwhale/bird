@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-01
+ * @date: 2014-12-03
  */
 /**
  *	封装LRU cache为独立模块
@@ -4721,7 +4721,7 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             this.loadTpl();
             this.tplRequestPromise.then(function() {
                 //根据Action的变化更新浏览器标题栏
-                if (me.title) {
+                if (me.title && me.title !== document.title) {
                     document.title = me.title;
                 }
                 me._applyBind();
