@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-03
+ * @date: 2014-12-04
  */
 /**
  *	封装LRU cache为独立模块
