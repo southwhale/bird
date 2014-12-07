@@ -19,7 +19,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         var literalAttrs = [ "id" ];
         //valueVariable是用来为checkbox 、radio 、select服务的
         //这三个控件的value通常作为固定选项值存在
-        var variableAttrs = [ "class", "src", "href", "value", "valueVariable", "style", "type", "alt", "for", "readonly", "disabled", "checked", "selected", "placeholder" ];
+        var variableAttrs = [ "class", "src", "href", "value", "valueVariable", "style", "type", "alt", "for", "readonly", "disabled", "checked", "selected", "placeholder", "width", "height", "cols", "border", "rowspan", "colspan", "bgcolor", "align", "border", "cellpadding", "cellspacing", "frame", "rules", "summary", "download", "coords", "media", "hreflang", "rel", "target", "shape", "autoplay", "controls", "loop", "muted", "preload", "autofocus", "form", "formaction", "name", "formmethod", "formtarget", "formnovalidate", "formenctype", "cite", "datetime", "valuetype", "open", "poster" ];
         var parseFunctionNames = [ "_parseInlineEvents", "_parseCustomAttr" ];
         var regExpMap = {
             htmlStartTag: /<([a-zA-Z]+\d*)([^>]*?)\/?>/g,
