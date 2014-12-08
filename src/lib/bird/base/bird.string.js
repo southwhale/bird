@@ -14,7 +14,8 @@ define(function(require){
 		var camelizeRE = /-([a-z])/ig;
 		var placeholderRE = /\{\{(.+?)\}\}/g;
 		var spaceBetweenTagsRE = /(<[a-zA-Z]+\d*\s*[^>]*\/?>)[\s\xa0\u3000]+|(<\/[a-zA-Z]+\d*>)[\s\xa0\u3000]+|[\s\xa0\u3000]+(<[a-zA-Z]+\d*\s*[^>]*\/?>)|[\s\xa0\u3000]+(<\/[a-zA-Z]+\d*>)/g;
-		var bothEndQuotesRE = /(['"])([^'"])\1/
+		var bothEndQuotesRE = /(['"])([^'"])\1/;
+		var htmlCommentsRE = /<!--(?:.|\r|\n)*?-->/g;
 
 		this.capitalize = function(str) {
 			return str.replace(capitalizeRE, function(s) {
@@ -39,13 +40,17 @@ define(function(require){
 		 **/
 		//删除Html标签，保留innerText内容
 		this.removeHtmlTags = function (str){
-			return str.replace(htmlTagsRE, ""); 
+			return str.replace(htmlTagsRE, ''); 
 		};
 
 		this.removeSpaceBetweenTags = function(str){
 			return str.replace(spaceBetweenTagsRE,function(m, n, o, p, q){
 				return n || o || p || q || '';
 			});
+		};
+
+		this.removeHtmlComments = function(str){
+			return str.replace(htmlCommentsRE, '');
 		};
 
 		//\xa0 -> &nbsp;    \u3000 -> 全角空格

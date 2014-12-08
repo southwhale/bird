@@ -740,7 +740,7 @@ define(function(require) {
 			head.appendChild(style);
 		};
 
-		this.loadscript = function(url, callback) {
+		this.loadscript = function(url, callback, removeAfterLoaded) {
 			var script = document.createElement("script");
 			lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
 				if (script.readyState && script.readyState != 'loaded' && script.readyState != 'complete') {
@@ -749,13 +749,17 @@ define(function(require) {
 
 				script.onreadystatechange = script.onload = null;
 
-				callback();
+				callback.apply(this, arguments);
+				if(removeAfterLoaded) {
+					this.parentNode.removeChild(this);
+				}
 			});
 			//script.setAttribute('id', this.scriptId);
 			script.setAttribute('charset', "UTF-8");
-			script.type = "text/javacript";
+			script.type = "text/javascript";
 			script.src = url;
-			document.body.appendChild(script);
+			var parentNode = document.getElementsByTagName("head")[0] || document.body;
+			parentNode.appendChild(script);
 		};
 
 		this.loadScriptString = function(code) {
@@ -767,7 +771,8 @@ define(function(require) {
 			} catch (e) {
 				script.text = code;
 			}
-			document.body.appendChild(script);
+			var parentNode = document.getElementsByTagName("head")[0] || document.body;
+			parentNode.appendChild(script);
 		};
 
 		this.loadImage = function(url, successCallback, errorCallback) {

@@ -81,6 +81,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         this._generateLiteralParser(literalAttrs);
         this._generateVariableParser(variableAttrs);
         this.parseTpl = function(str) {
+            str = string.removeHtmlComments(str);
             this.parsedTpl = string.removeSpaceBetweenTags(str);
             this._parseHtmlProperties();
             this._parseTextContent();
@@ -130,9 +131,8 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         this._compilePropertyTplStr = function(propertyStr, parsedInfo, matchedStr) {
             var me = this;
             if (propertyStr) {
-                var arr = propertyStr.split(/\s+/);
-                array.forEach(arr, function(prop) {
-                    if (regExpMap.hasVariable.test(prop) && /\=/.test(prop)) {
+                propertyStr.replace(/\s+([a-z][a-z0-9_\-$]*=(['"])\s*(?:.|\n|\r)*?\s*\2)/gi, function(m, prop) {
+                    if ((/^id=/i.test(prop) || regExpMap.hasVariable.test(prop)) && /\=/.test(prop)) {
                         var propKey = prop.split("=")[0];
                         var fn = /^on/i.test(propKey) ? me._parseInlineEvents : me["_parse" + string.capitalize(propKey)];
                         if (lang.isFunction(fn)) {
@@ -143,9 +143,6 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                     }
                 });
             }
-            /*propertyStr && array.forEach(parseFunctionNames, function(name) {
-                me[name](propertyStr, parsedInfo);
-            });*/
             this._addBindIdToHtmlStartTag(matchedStr, parsedInfo.bindId);
         };
         this._addBindIdToHtmlStartTag = function(tagStr, bindId) {

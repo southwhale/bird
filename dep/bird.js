@@ -2737,20 +2737,24 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             var head = document.getElementsByTagName("head")[0];
             head.appendChild(style);
         };
-        this.loadscript = function(url, callback) {
+        this.loadscript = function(url, callback, removeAfterLoaded) {
             var script = document.createElement("script");
             lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
                 if (script.readyState && script.readyState != "loaded" && script.readyState != "complete") {
                     return;
                 }
                 script.onreadystatechange = script.onload = null;
-                callback();
+                callback.apply(this, arguments);
+                if (removeAfterLoaded) {
+                    this.parentNode.removeChild(this);
+                }
             });
             //script.setAttribute('id', this.scriptId);
             script.setAttribute("charset", "UTF-8");
-            script.type = "text/javacript";
+            script.type = "text/javascript";
             script.src = url;
-            document.body.appendChild(script);
+            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode.appendChild(script);
         };
         this.loadScriptString = function(code) {
             var script = document.createElement("script");
@@ -2761,7 +2765,8 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             } catch (e) {
                 script.text = code;
             }
-            document.body.appendChild(script);
+            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode.appendChild(script);
         };
         this.loadImage = function(url, successCallback, errorCallback) {
             var img = new Image();
@@ -4149,6 +4154,7 @@ define("bird.string", [], function(require) {
         var placeholderRE = /\{\{(.+?)\}\}/g;
         var spaceBetweenTagsRE = /(<[a-zA-Z]+\d*\s*[^>]*\/?>)[\s\xa0\u3000]+|(<\/[a-zA-Z]+\d*>)[\s\xa0\u3000]+|[\s\xa0\u3000]+(<[a-zA-Z]+\d*\s*[^>]*\/?>)|[\s\xa0\u3000]+(<\/[a-zA-Z]+\d*>)/g;
         var bothEndQuotesRE = /(['"])([^'"])\1/;
+        var htmlCommentsRE = /<!--(?:.|\r|\n)*?-->/g;
         this.capitalize = function(str) {
             return str.replace(capitalizeRE, function(s) {
                 return s.toUpperCase();
@@ -4175,6 +4181,9 @@ define("bird.string", [], function(require) {
             return str.replace(spaceBetweenTagsRE, function(m, n, o, p, q) {
                 return n || o || p || q || "";
             });
+        };
+        this.removeHtmlComments = function(str) {
+            return str.replace(htmlCommentsRE, "");
         };
         //\xa0 -> &nbsp;    \u3000 -> 全角空格
         this.trim = function(s) {
@@ -6088,6 +6097,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         this._generateLiteralParser(literalAttrs);
         this._generateVariableParser(variableAttrs);
         this.parseTpl = function(str) {
+            str = string.removeHtmlComments(str);
             this.parsedTpl = string.removeSpaceBetweenTags(str);
             this._parseHtmlProperties();
             this._parseTextContent();
@@ -6137,9 +6147,8 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         this._compilePropertyTplStr = function(propertyStr, parsedInfo, matchedStr) {
             var me = this;
             if (propertyStr) {
-                var arr = propertyStr.split(/\s+/);
-                array.forEach(arr, function(prop) {
-                    if (regExpMap.hasVariable.test(prop) && /\=/.test(prop)) {
+                propertyStr.replace(/\s+([a-z][a-z0-9_\-$]*=(['"])\s*(?:.|\n|\r)*?\s*\2)/gi, function(m, prop) {
+                    if ((/^id=/i.test(prop) || regExpMap.hasVariable.test(prop)) && /\=/.test(prop)) {
                         var propKey = prop.split("=")[0];
                         var fn = /^on/i.test(propKey) ? me._parseInlineEvents : me["_parse" + string.capitalize(propKey)];
                         if (lang.isFunction(fn)) {
@@ -6150,9 +6159,6 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                     }
                 });
             }
-            /*propertyStr && array.forEach(parseFunctionNames, function(name) {
-                me[name](propertyStr, parsedInfo);
-            });*/
             this._addBindIdToHtmlStartTag(matchedStr, parsedInfo.bindId);
         };
         this._addBindIdToHtmlStartTag = function(tagStr, bindId) {
