@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-04
+ * @date: 2014-12-08
  */
 /**
  *	封装LRU cache为独立模块
@@ -6136,9 +6136,23 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this._compilePropertyTplStr = function(propertyStr, parsedInfo, matchedStr) {
             var me = this;
-            propertyStr && array.forEach(parseFunctionNames, function(name) {
+            if (propertyStr) {
+                var arr = propertyStr.split(/\s+/);
+                array.forEach(arr, function(prop) {
+                    if (regExpMap.hasVariable.test(prop) && /\=/.test(prop)) {
+                        var propKey = prop.split("=")[0];
+                        var fn = /^on/i.test(propKey) ? me._parseInlineEvents : me["_parse" + string.capitalize(propKey)];
+                        if (lang.isFunction(fn)) {
+                            fn.call(me, propertyStr, parsedInfo);
+                        } else {
+                            me.parseUnregisterProperty(propKey, propertyStr, parsedInfo);
+                        }
+                    }
+                });
+            }
+            /*propertyStr && array.forEach(parseFunctionNames, function(name) {
                 me[name](propertyStr, parsedInfo);
-            });
+            });*/
             this._addBindIdToHtmlStartTag(matchedStr, parsedInfo.bindId);
         };
         this._addBindIdToHtmlStartTag = function(tagStr, bindId) {
@@ -6236,6 +6250,23 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                 });
             }
             return ret;
+        };
+        this.parseUnregisterProperty = function(val, str, parsedInfoCache) {
+            var reg = new RegExp("\\s+" + val + "=(['\"])\\s*((?:.|\\n|\\r)*?)\\s*\\1", "i");
+            var arr = reg.exec(str);
+            if (arr) {
+                var varAndFilter = this._parsePlaceholderVariableAndFilter(arr[2]);
+                if (varAndFilter) {
+                    var vari = varAndFilter[1];
+                    var filter = varAndFilter[2];
+                    if (vari) {
+                        var parsedInfo = parsedInfoCache[val] = {
+                            variable: vari
+                        };
+                        filter && (parsedInfo.filter = filter);
+                    }
+                }
+            }
         };
         this.destroy = function() {
             object.forEach(this.parsedInfoCache, function(v, k, cache) {
