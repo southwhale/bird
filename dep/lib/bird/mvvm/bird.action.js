@@ -2,8 +2,7 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
-    var Q = require("q");
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -56,10 +55,22 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
             this.requestHelper.generateRequestMethods(this.requestUrl, this.name);
             this.lifePhase = this.LifeCycle.INITED;
         };
-        this._requestData = function() {
+        this._requestData = function(callback) {
             var me = this;
-            var deferred;
-            var promiseArr = [];
+            this.promise = {
+                isListening: false,
+                requestCount: 0,
+                callback: callback,
+                callCallback: function() {
+                    if (!this.requestCount && this.isListening) {
+                        this.callback();
+                    }
+                },
+                listen: function() {
+                    this.isListening = true;
+                    this.callCallback();
+                }
+            };
             if (lang.isNotEmpty(this.requestUrlWhenEnter)) {
                 object.forEach(this.requestUrlWhenEnter, function(value, key) {
                     var arr = value.split(/\s+/);
@@ -68,31 +79,25 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                     if (/\{\{[^{}]+\}\}/.test(url)) {
                         url = string.format(url, me.args);
                     }
-                    deferred = Q.defer();
-                    (function(deferred) {
-                        request.ajax({
-                            url: url,
-                            requestType: reqType,
-                            responseType: "json",
-                            data: me.args && me.args.param,
-                            complete: function(data) {
-                                data = data && data.result || data || {};
-                                me.model[url] = data;
-                                deferred.resolve();
-                            },
-                            error: function() {
-                                deferred.resolve();
-                            }
-                        });
-                    })(deferred);
-                    promiseArr.push(deferred.promise);
+                    request.ajax({
+                        url: url,
+                        requestType: reqType,
+                        responseType: "json",
+                        data: me.args && me.args.param,
+                        complete: function(data) {
+                            data = data && data.result || data || {};
+                            me.model[url] = data;
+                            me.promise.requestCount--;
+                            me.promise.callCallback();
+                        },
+                        error: function() {
+                            me.promise.requestCount = 0;
+                            me.promise.callCallback();
+                        }
+                    });
+                    me.promise.requestCount++;
                 });
-            } else {
-                deferred = Q.defer();
-                deferred.resolve();
-                promiseArr.push(deferred.promise);
             }
-            this.dataRequestPromise = Q.all(promiseArr);
         };
         //子类可以覆盖该接口
         this.initModel = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
@@ -152,26 +157,27 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
         this.render = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         //子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
         this.afterRender = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
-        this.loadTpl = function() {
-            var deferred = Q.defer();
+        this.loadTpl = function(callback) {
             if (!this.tplUrl || this.tpl) {
-                deferred.resolve();
+                callback();
             } else {
                 var me = this;
                 request.load(this.tplUrl + "?" + new Date().getTime(), function(data) {
                     me.constructor.prototype.tpl = data;
-                    deferred.resolve();
+                    callback();
                 });
             }
-            this.tplRequestPromise = deferred.promise;
         };
         this.enter = function(args) {
             var me = this;
             this.args = args;
-            this._requestData();
+            this._requestData(function() {
+                me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+                me._render();
+                me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+            });
             this._initModel();
-            this.loadTpl();
-            this.tplRequestPromise.then(function() {
+            this.loadTpl(function() {
                 //根据Action的变化更新浏览器标题栏
                 if (me.title && me.title !== document.title) {
                     document.title = me.title;
@@ -180,12 +186,8 @@ define("bird.action", [ "q", "bird.object", "bird.lang", "bird.dom", "bird.array
                 if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
                     me._bindEvent();
                 }
-                me.dataRequestPromise.spread(function() {
-                    me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
-                    me._render();
-                    me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
-                }).done();
-            }).done();
+                me.promise.listen();
+            });
         };
         //子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
         this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
