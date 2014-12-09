@@ -117,13 +117,12 @@ define(function(require) {
 			var me = this;
 			container = container || document;
 			object.forEach(this.tplParser.parsedInfoCache, function(info) {
-				var selector = info.id ? ('#' + info.id) : (info.tagName + '[bindid=' + info.bindId + ']');
-				var node = dom.g(selector, container);
-
-				object.forEach(info, function(val, key) {
-					if (/id|bindId|tagName/.test(key)) {
-						return;
-					}
+				var selector = info.id;
+                var node = dom.getElementById(selector);
+                object.forEach(info, function(val, key) {
+                    if (/id|tagName/.test(key)) {
+                        return;
+                    }
 					if (val.filter === "include") {
 						var cachedTpl = lruCache.getValue(val.variable);
 						if (cachedTpl) {

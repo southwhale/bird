@@ -102,10 +102,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             var me = this;
             container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
-                var selector = info.id ? "#" + info.id : info.tagName + "[bindid=" + info.bindId + "]";
-                var node = dom.g(selector, container);
+                var selector = info.id;
+                var node = dom.getElementById(selector);
                 object.forEach(info, function(val, key) {
-                    if (/id|bindId|tagName/.test(key)) {
+                    if (/id|tagName/.test(key)) {
                         return;
                     }
                     if (val.filter === "include") {

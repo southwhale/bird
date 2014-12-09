@@ -94,9 +94,10 @@ define(function(require) {
                 tagName = arr[1];
                 propertyStr = arr[2];
                 if (regExpMap.hasVariable.test(propertyStr)) {
-                    var uuid = util.uuid("bind_");
-                    var parsedInfo = this.parsedInfoCache[uuid] = {
-                        bindId: uuid,
+                    var idArr = /id=(['"])(.+?)\1/i.exec(propertyStr)
+                    var id = idArr && idArr[2] || util.uuid("bind_");
+                    var parsedInfo = this.parsedInfoCache[id] = {
+                        id: id,
                         tagName: tagName
                     };
                     this._compilePropertyTplStr(propertyStr, parsedInfo, arr[0]);
@@ -104,20 +105,28 @@ define(function(require) {
             }
         };
         this._parseTextContent = function() {
-            var arr, parsedInfo, bindArr;
+            var arr, parsedInfo, idArr;
             while (arr = regExpMap.innerText.exec(this.parsedTpl)) {
                 tagName = arr[1];
                 propertyStr = arr[2];
-                if (!/bindid=/i.test(propertyStr)) {
+                if (!/id=/i.test(propertyStr)) {
                     var uuid = util.uuid("bind_");
                     parsedInfo = this.parsedInfoCache[uuid] = {
                         tagName: tagName,
-                        bindId: uuid
+                        id: uuid
                     };
-                    this._compilePropertyTplStr(propertyStr, parsedInfo, arr[0]);
-                } else if (bindArr = /bindid=(['"])(.+?)\1/i.exec(propertyStr)) {
-                    var bindId = bindArr[2];
-                    bindId && (parsedInfo = this.parsedInfoCache[bindId]);
+                    this._addBindIdToHtmlStartTag(arr[0], uuid);
+                } else if (idArr = /id=(['"])(.+?)\1/i.exec(propertyStr)) {
+                    var id = idArr[2];
+                    if(id) {
+                        parsedInfo = this.parsedInfoCache[id];
+                        if(!parsedInfo) {
+                            parsedInfo = this.parsedInfoCache[id] = {
+                                tagName: tagName,
+                                id: id
+                            };
+                        }
+                    }
                 }
                 var varAndFilter = this._parsePlaceholderVariableAndFilter(arr[3]);
                 if (varAndFilter && varAndFilter[1]) {
@@ -133,7 +142,7 @@ define(function(require) {
             var me = this;
             if (propertyStr) {
                 propertyStr.replace(/\s+([a-z][a-z0-9_\-$]*=(['"])\s*(?:.|\n|\r)*?\s*\2)/gi, function(m, prop) {
-                    if ((/^id=/i.test(prop) || regExpMap.hasVariable.test(prop)) && /\=/.test(prop)) {
+                    if (regExpMap.hasVariable.test(prop) && /\=/.test(prop)) {
                         var propKey = prop.split("=")[0];
                         var fn = /^on/i.test(propKey) ? me._parseInlineEvents : me["_parse" + string.capitalize(propKey)];
                         if (lang.isFunction(fn)) {
@@ -144,14 +153,16 @@ define(function(require) {
                     }
                 });
             }
-            this._addBindIdToHtmlStartTag(matchedStr, parsedInfo.bindId);
+            if(!/\s+id=/i.test(matchedStr)) {
+                this._addBindIdToHtmlStartTag(matchedStr, parsedInfo.id);
+            }
         };
-        this._addBindIdToHtmlStartTag = function(tagStr, bindId) {
+        this._addBindIdToHtmlStartTag = function(tagStr, id) {
             var str, arr;
             var tagNoPropRE = /^(<[a-z]+\d*)(\/?>(?:.|\n|\r)*)/i;
             var tagWithPropRE = /^(<[a-z]+\d*)(\s+(?:.|\n|\r)*\/?>)/i;
             if (arr = tagNoPropRE.exec(tagStr) || tagWithPropRE.exec(tagStr)) {
-                str = arr[1] + ' bindid="' + bindId + '"' + arr[2];
+                str = arr[1] + ' id="' + id + '"' + arr[2];
             }
             this.parsedTpl = this.parsedTpl.replace(tagStr, str);
         };
@@ -159,7 +170,7 @@ define(function(require) {
             var placeholderVarWithFilterRE = /^\s*\{\{\s*([^{}|]+?)(?:\s*\|\s*([^{}|]+))?\s*\}\}/;
             return placeholderVarWithFilterRE.exec(text);
         };
-        //不再使用第一个class作为选择器,而是采用动态添加bindId(唯一性),根据bindId查找元素
+        //不再使用第一个class作为选择器,而是采用动态添加id(唯一性),根据id查找元素
         this._parseClass = function(str, parsedInfo) {
             var arr = regExpMap["class"].exec(str);
             if (arr) {
