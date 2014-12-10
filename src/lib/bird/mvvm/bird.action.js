@@ -113,7 +113,7 @@ define(function(require) {
 							me.promise.callCallback();
 						},
 						error: function() {
-							me.promise.requestCount = 0;
+							me.promise.requestCount--;
 							me.promise.callCallback();
 						}
 					});
