@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-10
+ * @date: 2014-12-13
  */
 /**
  *	封装LRU cache为独立模块
@@ -1968,6 +1968,53 @@ define("bird.class", [ "./bird.object" ], function(require) {
         };
     }).call(Class.prototype);
     return new Class();
+});
+/**
+ * cookie helper
+ *
+ */
+define("bird.cookie", [], function(require) {
+    function Cookie() {
+        this.length = 0;
+    }
+    (function() {
+        this.getItem = function(sKey) {
+            if (!sKey || !this.hasOwnProperty(sKey)) {
+                return null;
+            }
+            return unescape(document.cookie.replace(new RegExp("(?:^|.*;\\s*)" + escape(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*((?:[^;](?!;))*[^;]?).*"), "$1"));
+        };
+        this.key = function(nKeyId) {
+            return unescape(document.cookie.replace(/\s*\=(?:.(?!;))*$/, "").split(/\s*\=(?:[^;](?!;))*[^;]?;\s*/)[nKeyId]);
+        };
+        this.setItem = function(sKey, sValue, expireDays) {
+            if (!sKey) {
+                return;
+            }
+            var s = escape(sKey) + "=" + escape(sValue);
+            if (expireDays) {
+                var expireDate = new Date();
+                expireDate.setDate(expireDate.getDate() + expireDays);
+                s += ";expires=" + expireDate.toGMTString();
+            }
+            s += "; path=/";
+            document.cookie = s;
+            this.length = document.cookie.match(/\=/g).length;
+        };
+        this.removeItem = function(sKey) {
+            if (!sKey || !this.hasOwnProperty(sKey)) {
+                return;
+            }
+            var sExpDate = new Date();
+            sExpDate.setDate(sExpDate.getDate() - 1);
+            document.cookie = escape(sKey) + "=; expires=" + sExpDate.toGMTString() + "; path=/";
+            this.length--;
+        };
+        this.hasOwnProperty = function(sKey) {
+            return new RegExp("(?:^|;\\s*)" + escape(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=").test(document.cookie);
+        };
+    }).call(Cookie.prototype);
+    return new Cookie();
 });
 define("bird.css3animate", [ "./bird.css3animation" ], function(require) {
     function CSSAnimate() {}
@@ -4139,6 +4186,66 @@ define("bird.spirit", [ "./bird.requestframe" ], function(require) {
         };
     }).call(Spirit.prototype);
     return new Spirit();
+});
+/**
+ * storage: 本地存储
+ * localStorage & userData
+ *
+ */
+define("bird.storage", [], function() {
+    function Storage() {
+        this.isLocalStorageSupported = !!window.localStorage;
+        if (!this.isLocalStorageSupported) {
+            this.dataDom = null;
+            this.name = location.hostname || "mockLocalStorage";
+        }
+    }
+    (function() {
+        this._init = function() {
+            if (!this.dataDom) {
+                try {
+                    this.dataDom = document.createElement("INPUT");
+                    this.dataDom.type = "hidden";
+                    this.dataDom.style.display = "none";
+                    this.dataDom.addBehavior("#default#userData");
+                    document.body.appendChild(this.dataDom);
+                    var expires = new Date();
+                    expires.setDate(expires.getDate() + 365);
+                    this.dataDom.expires = expires.toUTCString();
+                } catch (e) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        this.setItem = function(key, value) {
+            if (this.isLocalStorageSupported) {
+                localStorage.setItem(key, value);
+            } else if (this._init()) {
+                this.dataDom.load(this.name);
+                this.dataDom.setAttribute(key, value);
+                this.dataDom.save(this.name);
+            }
+        };
+        this.getItem = function(key) {
+            if (this.isLocalStorageSupported) {
+                localStorage.getItem(key);
+            } else if (this._init()) {
+                this.dataDom.load(this.name);
+                return this.dataDom.getAttribute(key);
+            }
+        };
+        this.remove = function(key) {
+            if (this.isLocalStorageSupported) {
+                localStorage.removeItem(key);
+            } else if (this._init()) {
+                this.dataDom.load(this.name);
+                this.dataDom.removeAttribute(key);
+                this.dataDom.save(this.name);
+            }
+        };
+    }).call(Storage.prototype);
+    return new Storage();
 });
 define("bird.string", [], function(require) {
     function _String() {}
