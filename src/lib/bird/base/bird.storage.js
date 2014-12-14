@@ -43,7 +43,7 @@ define(function() {
 
 		this.getItem = function(key) {
 			if (this.isLocalStorageSupported) {
-				localStorage.getItem(key);
+				return localStorage.getItem(key);
 			} else if (this._init()) {
 				this.dataDom.load(this.name);
 				return this.dataDom.getAttribute(key)

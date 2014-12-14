@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-13
+ * @date: 2014-12-14
  */
 /**
  *	封装LRU cache为独立模块
@@ -4229,7 +4229,7 @@ define("bird.storage", [], function() {
         };
         this.getItem = function(key) {
             if (this.isLocalStorageSupported) {
-                localStorage.getItem(key);
+                return localStorage.getItem(key);
             } else if (this._init()) {
                 this.dataDom.load(this.name);
                 return this.dataDom.getAttribute(key);
