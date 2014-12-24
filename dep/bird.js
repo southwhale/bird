@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-15
+ * @date: 2014-12-24
  */
 /**
  *	封装LRU cache为独立模块
@@ -4117,6 +4117,37 @@ define("bird.requestframe", [], function(require) {
         };
     }).call(RequestAFrame.prototype);
     return new RequestAFrame();
+});
+/**
+ * sessionstorage: 会话级别存储
+ * sessionStorage & cookie
+ *
+ */
+define("bird.sessionstorage", [], function() {
+    function SessionStorage() {
+        this.isSessionStorageSupported = !!window.sessionStorage;
+        if (!this.isSessionStorageSupported) {
+            this.expires = 0;
+        }
+    }
+    (function() {
+        this.setItem = function(key, value) {
+            if (this.isSessionStorageSupported) {
+                sessionStorage.setItem(key, value);
+            }
+        };
+        this.getItem = function(key) {
+            if (this.isSessionStorageSupported) {
+                return sessionStorage.getItem(key);
+            }
+        };
+        this.remove = function(key) {
+            if (this.isSessionStorageSupported) {
+                sessionStorage.removeItem(key);
+            }
+        };
+    }).call(SessionStorage.prototype);
+    return new SessionStorage();
 });
 define("bird.spirit", [ "./bird.requestframe" ], function(require) {
     var reqFrame = require("./bird.requestframe");
