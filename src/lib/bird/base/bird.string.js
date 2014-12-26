@@ -68,6 +68,10 @@ define(function(require){
 			});
 		};
 
+		this.escapeRegExp = function (s) {
+	        return s.replace( /[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&" );
+	    };
+
 		this.format = function (template, data) {
             if (!template) {
                 return '';

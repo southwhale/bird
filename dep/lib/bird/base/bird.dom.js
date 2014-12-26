@@ -835,17 +835,33 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
         this.setText = function(element, content) {
             "textContent" in element ? element.textContent = content : element.innerText = content;
         };
+        this.getText = function(element) {
+            return "textContent" in element ? element.textContent : element.innerText;
+        };
         this.setValue = function(element, value) {
             element.value = value;
         };
+        this.getValue = function(element) {
+            return element.value;
+        };
         this.setHtml = function(element, htmlContent) {
             element.innerHTML = htmlContent;
+        };
+        this.getHtml = function(element) {
+            return element.innerHTML;
         };
         this.setAttr = function(element, attrName, value) {
             if (lang.isFunction(element.setAttribute)) {
                 element.setAttribute(attrName, value);
             } else {
                 element[attrName] = value;
+            }
+        };
+        this.getAttr = function(element, attrName) {
+            if (lang.isFunction(element.getAttribute)) {
+                return element.getAttribute(attrName);
+            } else {
+                return element[attrName];
             }
         };
         this.setCssText = function(el, cssText) {
