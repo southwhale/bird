@@ -1037,6 +1037,18 @@ define(function(require) {
 			}
 		};
 
+		this.show = function(element) {
+			if (element.style.display === 'none') {
+				element.style.display = '';
+			}
+		};
+
+		this.hide = function(element) {
+			if (element.style.display !== 'none') {
+				element.style.display = 'none';
+			}
+		};
+
 		this.setCssText = function(el, cssText){
 			'cssText' in el.style ? (el.style.cssText = cssText) : el.setAttribute("style", cssText);
 		};

@@ -184,7 +184,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             return function(value) {
                                 args.unshift(value);
                                 validator.clearMessageStack();
-                                return rule.apply(null, args);
+                                return rule.apply(validator.getRuleMap(), args);
                             };
                         }());
                     }
@@ -231,14 +231,20 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             }
         };
         this.validate = function(validators, target, value) {
-            var errorTipNode = target.id ? dom.g("[for=" + target.id + "]", target.parentNode) : dom.g(".errorTip", target.parentNode);
+            var errorTipNode = target.id ? dom.g("[for=" + target.id + "]") || dom.g(".errorTip", target.parentNode) : dom.g(".errorTip", target.parentNode);
             if (!array.each(validators, function(v) {
                 return v(value);
             })) {
-                errorTipNode && dom.setText(errorTipNode, validator.getMessageStack().join());
+                if (errorTipNode) {
+                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().join());
+                    dom.show(errorTipNode);
+                }
                 return false;
             } else {
-                errorTipNode && dom.setText(errorTipNode, "");
+                if (errorTipNode) {
+                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, "");
+                    dom.hide(errorTipNode);
+                }
             }
             return true;
         };
