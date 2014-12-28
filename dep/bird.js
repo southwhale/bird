@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-28
+ * @date: 2014-12-29
  */
 /**
  *	封装LRU cache为独立模块
@@ -5196,9 +5196,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                         var args = arr.slice(1);
                         validators.push(function() {
                             return function(value) {
-                                args.unshift(value);
+                                var _args = args.slice();
+                                _args.unshift(value);
                                 validator.clearMessageStack();
-                                return rule.apply(validator.getRuleMap(), args);
+                                return rule.apply(validator.getRuleMap(), _args);
                             };
                         }());
                     }
@@ -6469,8 +6470,9 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
     }).call(TplParser.prototype);
     return TplParser;
 });
-define("bird.validator", [ "bird.lang", "bird.array", "bird.object" ], function(require) {
+define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.object" ], function(require) {
     var lang = require("bird.lang");
+    var string = require("bird.string");
     var array = require("bird.array");
     var object = require("bird.object");
     function Validator() {}
@@ -6489,7 +6491,8 @@ define("bird.validator", [ "bird.lang", "bird.array", "bird.object" ], function(
             notNegativeInt: "只能输入非负整数",
             email: "邮箱格式不正确",
             mobile: "手机号码格式不正确",
-            idNumber: "身份证号码格式不正确"
+            idNumber: "身份证号码格式不正确",
+            "float": "小数位不能超过{{digit}}位"
         };
         var ruleMap = {
             required: function(value) {
@@ -6527,7 +6530,7 @@ define("bird.validator", [ "bird.lang", "bird.array", "bird.object" ], function(
                     return true;
                 }
                 if (this.number(value)) {
-                    if (+value > 0 && /^\d+$/.test(value)) {
+                    if (+value > 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
                     messageStack.push(messageMap["positiveInt"]);
@@ -6579,7 +6582,7 @@ define("bird.validator", [ "bird.lang", "bird.array", "bird.object" ], function(
                     return true;
                 }
                 if (this.number(value)) {
-                    if (+value >= 0 && /^\d+$/.test(value)) {
+                    if (+value >= 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
                     messageStack.push(messageMap["positiveInt"]);
@@ -6641,6 +6644,25 @@ define("bird.validator", [ "bird.lang", "bird.array", "bird.object" ], function(
                     return true;
                 }
                 messageStack.push(messageMap["idNumber"]);
+                return false;
+            },
+            "float": function(value, digit) {
+                if (value == null || value === "") {
+                    return true;
+                }
+                if (this.number(value)) {
+                    if (digit == null || digit === "" || digit == 0) {
+                        return true;
+                    }
+                    var re = new RegExp("^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{" + digit + "})$");
+                    if (re.test(value)) {
+                        return true;
+                    }
+                    messageStack.push(string.format(messageMap["float"], {
+                        digit: digit
+                    }));
+                    return false;
+                }
                 return false;
             }
         };

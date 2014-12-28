@@ -182,9 +182,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                         var args = arr.slice(1);
                         validators.push(function() {
                             return function(value) {
-                                args.unshift(value);
+                                var _args = args.slice();
+                                _args.unshift(value);
                                 validator.clearMessageStack();
-                                return rule.apply(validator.getRuleMap(), args);
+                                return rule.apply(validator.getRuleMap(), _args);
                             };
                         }());
                     }

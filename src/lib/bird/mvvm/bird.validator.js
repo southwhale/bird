@@ -1,5 +1,6 @@
 define(function(require) {
 	var lang = require('bird.lang');
+	var string = require('bird.string');
 	var array = require('bird.array');
 	var object = require('bird.object');
 
@@ -22,7 +23,8 @@ define(function(require) {
 			'notNegativeInt': "只能输入非负整数",
 			'email': '邮箱格式不正确',
 			'mobile': '手机号码格式不正确',
-			'idNumber': '身份证号码格式不正确'
+			'idNumber': '身份证号码格式不正确',
+			'float': '小数位不能超过{{digit}}位'
 		};
 
 		var ruleMap = {
@@ -61,7 +63,7 @@ define(function(require) {
 					return true;
 				}
 				if (this.number(value)) {
-					if (+value > 0 && /^\d+$/.test(value)) {
+					if (+value > 0 && /^\+?\d+$/.test(value)) {
 						return true;
 					}
 					messageStack.push(messageMap['positiveInt']);
@@ -113,7 +115,7 @@ define(function(require) {
 					return true;
 				}
 				if (this.number(value)) {
-					if (+value >= 0 && /^\d+$/.test(value)) {
+					if (+value >= 0 && /^\+?\d+$/.test(value)) {
 						return true;
 					}
 					messageStack.push(messageMap['positiveInt']);
@@ -179,6 +181,25 @@ define(function(require) {
 				}
 
 				messageStack.push(messageMap['idNumber']);
+				return false;
+			},
+			'float': function(value, digit) {
+				if(value == null || value === '') {
+					return true;
+				}
+				if (this.number(value)) {
+					if (digit == null || digit === '' || digit == 0) {
+						return true;
+					}
+					var re = new RegExp('^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{' + digit + '})$');
+					if (re.test(value)) {
+						return true;
+					}
+					messageStack.push(string.format(messageMap['float'], {
+						digit: digit
+					}));
+					return false;
+				}
 				return false;
 			}
 		};
