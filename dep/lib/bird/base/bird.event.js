@@ -194,12 +194,12 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
                 });
                 if (!eventHandleQueue.length) {
                     removeEventCallback(el, eventType, eventHandleCache);
-                    delete eventHandleQueue.delegateCount;
+                    eventHandleQueue.delegateCount = 0;
                 }
                 return;
             }
             eventHandleQueue.length = 0;
-            delete eventHandleQueue.delegateCount;
+            eventHandleQueue.delegateCount = 0;
             removeEventCallback(el, eventType, eventHandleCache);
         };
         function removeEventCallback(el, eventType, eventHandleCache) {

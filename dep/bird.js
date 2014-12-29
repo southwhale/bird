@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-29
+ * @date: 2014-12-30
  */
 /**
  *	封装LRU cache为独立模块
@@ -3303,12 +3303,12 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
                 });
                 if (!eventHandleQueue.length) {
                     removeEventCallback(el, eventType, eventHandleCache);
-                    delete eventHandleQueue.delegateCount;
+                    eventHandleQueue.delegateCount = 0;
                 }
                 return;
             }
             eventHandleQueue.length = 0;
-            delete eventHandleQueue.delegateCount;
+            eventHandleQueue.delegateCount = 0;
             removeEventCallback(el, eventType, eventHandleCache);
         };
         function removeEventCallback(el, eventType, eventHandleCache) {

@@ -253,14 +253,14 @@ define(function(require) {
 				});
 				if (!eventHandleQueue.length) {
 					removeEventCallback(el, eventType, eventHandleCache);
-					delete eventHandleQueue.delegateCount;
+					eventHandleQueue.delegateCount = 0; 
 				}
 
 				return;
 			}
 
 			eventHandleQueue.length = 0;
-			delete eventHandleQueue.delegateCount;
+			eventHandleQueue.delegateCount = 0;
 
 			removeEventCallback(el, eventType, eventHandleCache);
 		};
