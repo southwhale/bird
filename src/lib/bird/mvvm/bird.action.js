@@ -152,7 +152,7 @@ define(function(require) {
 			}
 			this.dataBind.parseTpl(this.tpl);
 			this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-			this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+			this.dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
 		};
 
 		/*
@@ -176,7 +176,7 @@ define(function(require) {
 				container.innerHTML = html;
 			}
 			//绑定事件处理逻辑到该Action的根容器上
-			dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+			dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑

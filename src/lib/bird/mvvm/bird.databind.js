@@ -113,9 +113,8 @@ define(function(require) {
 		};
 
 		//第三步：绑定模板变量到对应的处理函数
-		this.bind = function(model, watcher, container, dataBinds, actionId) {
+		this.bind = function(model, watcher, dataBinds, actionId) {
 			var me = this;
-			container = container || document;
 			object.forEach(this.tplParser.parsedInfoCache, function(info) {
 				var selector = info.id;
                 var node = dom.getElementById(selector);
@@ -126,12 +125,10 @@ define(function(require) {
 					if (val.filter === "include") {
 						var cachedTpl = lruCache.getValue(val.variable);
 						if (cachedTpl) {
-							var dataBind = doInclude(node, cachedTpl, model, actionId);
-							dataBind && dataBinds.push(dataBind);
+							doInclude(node, cachedTpl, model, actionId, watcher, dataBinds);
 						} else {
-							request.load(val.variable, function(data) {
-								var dataBind = doInclude(node, data, model, actionId);
-								dataBind && dataBinds.push(dataBind);
+							request.syncLoad(val.variable, function(data) {
+								doInclude(node, data, model, actionId, watcher, dataBinds);
 								lruCache.add(val.variable, data);
 							});
 						}
@@ -300,20 +297,21 @@ define(function(require) {
 		};
 
 
-		function doInclude(elem, tplContent, model, actionId) {
+		function doInclude(elem, tplContent, model, actionId, watcher, dataBinds) {
 			var html;
 			if (elem) {
 				if (/\{\{[^{}]+\}\}/.test(tplContent)) {
 					var dataBind = new DataBind();
 					dataBind.parseTpl(tplContent);
 					html = dataBind.fillTpl(model, actionId);
+					dom.setHtml(elem, html);
+					dataBind.bind(model, watcher, dataBinds, actionId)
+					dataBinds.push(dataBind);
 				} else {
 					html = tplContent;
+					dom.setHtml(elem, html);
 				}
-
-				dom.setHtml(elem, html);
 			}
-			return dataBind;
 		}
 
 

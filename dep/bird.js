@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2014-12-30
+ * @date: 2015-01-06
  */
 /**
  *	封装LRU cache为独立模块
@@ -4840,7 +4840,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            this.dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -4863,7 +4863,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.container, this.dataBinds, this.id);
+            dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
@@ -5112,9 +5112,8 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, container, dataBinds, actionId) {
+        this.bind = function(model, watcher, dataBinds, actionId) {
             var me = this;
-            container = container || document;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
                 var selector = info.id;
                 var node = dom.getElementById(selector);
@@ -5125,12 +5124,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     if (val.filter === "include") {
                         var cachedTpl = lruCache.getValue(val.variable);
                         if (cachedTpl) {
-                            var dataBind = doInclude(node, cachedTpl, model, actionId);
-                            dataBind && dataBinds.push(dataBind);
+                            doInclude(node, cachedTpl, model, actionId, watcher, dataBinds);
                         } else {
-                            request.load(val.variable, function(data) {
-                                var dataBind = doInclude(node, data, model, actionId);
-                                dataBind && dataBinds.push(dataBind);
+                            request.syncLoad(val.variable, function(data) {
+                                doInclude(node, data, model, actionId, watcher, dataBinds);
                                 lruCache.add(val.variable, data);
                             });
                         }
@@ -5273,19 +5270,21 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             });
             this.eventBindedNodes.length = 0;
         };
-        function doInclude(elem, tplContent, model, actionId) {
+        function doInclude(elem, tplContent, model, actionId, watcher, dataBinds) {
             var html;
             if (elem) {
                 if (/\{\{[^{}]+\}\}/.test(tplContent)) {
                     var dataBind = new DataBind();
                     dataBind.parseTpl(tplContent);
                     html = dataBind.fillTpl(model, actionId);
+                    dom.setHtml(elem, html);
+                    dataBind.bind(model, watcher, dataBinds, actionId);
+                    dataBinds.push(dataBind);
                 } else {
                     html = tplContent;
+                    dom.setHtml(elem, html);
                 }
-                dom.setHtml(elem, html);
             }
-            return dataBind;
         }
     }).call(DataBind.prototype);
     return DataBind;
