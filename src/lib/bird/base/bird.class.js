@@ -37,10 +37,21 @@ define(function(require){
 			cleanSuperClassPrototype = null;
 			//恢复原来的原型函数
 			object.forEach(originalSubClassProto, function(fn, property){
-				if(!subClass.prototype[property]){
-					subClass.prototype[property] = fn;
+				if(subClass.prototype[property]) {
+					fn['__propertyname__'] = property;
 				}
+				subClass.prototype[property] = fn;
 			},true);
+
+			subClass.prototype.$superMethod = function(args) {
+				var method = this.$superMethod.caller;
+				var methodName = method['__propertyname__'];
+				subClass.superClass.prototype[methodName].apply(this, args);
+			};
+			subClass.prototype.$superConstructor = function(args) {
+				var method = this.$superConstructor.caller;
+				method.superClass.apply(this, args);
+			};
 			subClass.prototype.constructor = subClass;
 			return subClass;
 		};
