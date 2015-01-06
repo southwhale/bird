@@ -4177,7 +4177,7 @@ define("bird.sessionstorage", [], function() {
                 return sessionStorage.getItem(key);
             }
         };
-        this.remove = function(key) {
+        this.removeItem = function(key) {
             if (this.isSessionStorageSupported) {
                 sessionStorage.removeItem(key);
             }
@@ -4302,7 +4302,7 @@ define("bird.storage", [], function() {
                 return this.dataDom.getAttribute(key);
             }
         };
-        this.remove = function(key) {
+        this.removeItem = function(key) {
             if (this.isLocalStorageSupported) {
                 localStorage.removeItem(key);
             } else if (this._init()) {

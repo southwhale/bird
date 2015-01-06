@@ -46,7 +46,7 @@ define("bird.storage", [], function() {
                 return this.dataDom.getAttribute(key);
             }
         };
-        this.remove = function(key) {
+        this.removeItem = function(key) {
             if (this.isLocalStorageSupported) {
                 localStorage.removeItem(key);
             } else if (this._init()) {

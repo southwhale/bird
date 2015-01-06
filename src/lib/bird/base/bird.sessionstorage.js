@@ -26,7 +26,7 @@ define(function() {
 			}
 		};
 
-		this.remove = function(key) {
+		this.removeItem = function(key) {
 			if (this.isSessionStorageSupported) {
 				sessionStorage.removeItem(key);
 			}
