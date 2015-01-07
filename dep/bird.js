@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-06
+ * @date: 2015-01-07
  */
 /**
  *	封装LRU cache为独立模块
@@ -5253,6 +5253,9 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             }
         };
         this.validate = function(validators, target, value) {
+            if (!validators.length) {
+                return;
+            }
             var errorTipNode = target.id ? dom.g("[for=" + target.id + "]") || dom.g(".errorTip", target.parentNode) : dom.g(".errorTip", target.parentNode);
             if (!array.each(validators, function(v) {
                 return v(value);

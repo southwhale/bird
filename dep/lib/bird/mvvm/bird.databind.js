@@ -229,6 +229,9 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             }
         };
         this.validate = function(validators, target, value) {
+            if (!validators.length) {
+                return;
+            }
             var errorTipNode = target.id ? dom.g("[for=" + target.id + "]") || dom.g(".errorTip", target.parentNode) : dom.g(".errorTip", target.parentNode);
             if (!array.each(validators, function(v) {
                 return v(value);
