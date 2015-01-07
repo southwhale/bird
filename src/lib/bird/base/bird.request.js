@@ -162,10 +162,13 @@ define(function(require) {
 				header.removeChild(script);
 				script = null;
 				header = null;
-				window[cb] = null;
-
-				delete window[cb];
-
+				
+				try {
+					delete window[cb];
+				} catch(e) {
+					window[cb] = null;
+				}
+				
 				callback(r);
 			};
 			script = doc.createElement('script');

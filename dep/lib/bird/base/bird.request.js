@@ -137,8 +137,11 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 header.removeChild(script);
                 script = null;
                 header = null;
-                window[cb] = null;
-                delete window[cb];
+                try {
+                    delete window[cb];
+                } catch (e) {
+                    window[cb] = null;
+                }
                 callback(r);
             };
             script = doc.createElement("script");

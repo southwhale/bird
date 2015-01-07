@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-07
+ * @date: 2015-01-08
  */
 /**
  *	封装LRU cache为独立模块
@@ -4113,8 +4113,11 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 header.removeChild(script);
                 script = null;
                 header = null;
-                window[cb] = null;
-                delete window[cb];
+                try {
+                    delete window[cb];
+                } catch (e) {
+                    window[cb] = null;
+                }
                 callback(r);
             };
             script = doc.createElement("script");
