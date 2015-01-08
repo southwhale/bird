@@ -13,7 +13,6 @@ define(function(require) {
 	var request = require('bird.request');
 	var Model = require('./bird.model');
 	var DataBind = require('./bird.databind');
-	var globalContext = require('./bird.globalcontext');
 	var RequestHelper = require('./bird.requesthelper');
 	var validator = require('./bird.validator');
 	var LRUCache = require('bird.__lrucache__');
@@ -256,7 +255,6 @@ define(function(require) {
 
 		this.leave = function(nextAction) {
 			this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-			globalContext.remove(this.id);
 			validator.clearMessageStack();
 
 			this.dataRequestPromise = null;

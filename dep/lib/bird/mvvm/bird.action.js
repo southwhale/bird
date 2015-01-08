@@ -2,7 +2,7 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.globalcontext", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -11,7 +11,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
     var request = require("bird.request");
     var Model = require("./bird.model");
     var DataBind = require("./bird.databind");
-    var globalContext = require("./bird.globalcontext");
     var RequestHelper = require("./bird.requesthelper");
     var validator = require("./bird.validator");
     var LRUCache = require("bird.__lrucache__");
@@ -193,7 +192,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-            globalContext.remove(this.id);
             validator.clearMessageStack();
             this.dataRequestPromise = null;
             this.dataBind.destroy();

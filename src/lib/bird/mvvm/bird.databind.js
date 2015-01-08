@@ -29,7 +29,6 @@ define(function(require) {
 	var request = require('bird.request');
 	var lruCache = require('bird.lrucache');
 
-	var globalContext = require('./bird.globalcontext');
 	var TplParser = require('./bird.tplparser');
 	var filterHelper = require('./bird.filter');
 	var validator = require('./bird.validator');

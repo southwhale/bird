@@ -16,7 +16,7 @@
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.globalcontext", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
@@ -27,7 +27,6 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
     var browser = require("bird.browser");
     var request = require("bird.request");
     var lruCache = require("bird.lrucache");
-    var globalContext = require("./bird.globalcontext");
     var TplParser = require("./bird.tplparser");
     var filterHelper = require("./bird.filter");
     var validator = require("./bird.validator");
