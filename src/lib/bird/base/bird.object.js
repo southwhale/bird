@@ -70,6 +70,22 @@ define(function(require) {
 			return dest;
 		};
 
+		// 只覆盖dest中存在的属性, 不添加任何额外的属性, 调用前后保证属性名不变
+		this.cover = function(dest, src) {
+			if (arguments.length < 2) {
+				return dest;
+			}
+			if (arguments.length === 2) {
+				this.forEach(dest, function(v, k) {
+					if (k in src) {
+						dest[k] = src[k];
+					}
+				});
+				return dest;
+			}
+			return dest;
+		};
+
 		
 		this.jsonToQuery = function(obj, split) {
 			if (lang.isString(obj)) {
