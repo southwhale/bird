@@ -197,6 +197,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
         this.getRuleMap = function() {
             return ruleMap;
         };
+        this.getMessageMap = function() {
+            return messageMap;
+        };
+        this.getMessage = function(ruleName) {
+            return messageMap[ruleName];
+        };
         this.getRule = function(ruleName) {
             return ruleMap[ruleName];
         };

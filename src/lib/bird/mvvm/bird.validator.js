@@ -208,6 +208,14 @@ define(function(require) {
 			return ruleMap;
 		};
 
+		this.getMessageMap = function() {
+			return messageMap;
+		};
+
+		this.getMessage = function(ruleName) {
+			return messageMap[ruleName];
+		};
+
 		this.getRule = function(ruleName) {
 			return ruleMap[ruleName];
 		};

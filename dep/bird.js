@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-08
+ * @date: 2015-01-13
  */
 /**
  *	封装LRU cache为独立模块
@@ -6695,6 +6695,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
         };
         this.getRuleMap = function() {
             return ruleMap;
+        };
+        this.getMessageMap = function() {
+            return messageMap;
+        };
+        this.getMessage = function(ruleName) {
+            return messageMap[ruleName];
         };
         this.getRule = function(ruleName) {
             return ruleMap[ruleName];
