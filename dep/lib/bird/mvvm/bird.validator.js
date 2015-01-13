@@ -3,9 +3,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
     var string = require("bird.string");
     var array = require("bird.array");
     var object = require("bird.object");
-    function Validator() {}
+    function Validator() {
+        this.messageStack = [];
+    }
     (function() {
-        var messageStack = [];
+        //var messageStack = [];
         var messageMap = {
             required: "请输入",
             number: "只能输入数字",
@@ -22,11 +24,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             idNumber: "身份证号码格式不正确",
             "float": "小数位不能超过{{digit}}位"
         };
+        var me = this;
         var ruleMap = {
             required: function(value) {
                 var ret = lang.isNotEmpty(value);
                 if (!ret) {
-                    messageStack.push(messageMap["required"]);
+                    this.messageStack.push(messageMap["required"]);
                 }
                 return ret;
             },
@@ -36,7 +39,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 }
                 var ret = !isNaN(+value);
                 if (!ret) {
-                    messageStack.push(messageMap["number"]);
+                    this.messageStack.push(messageMap["number"]);
                 }
                 return ret;
             },
@@ -48,7 +51,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value > 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveNumber"]);
+                    this.messageStack.push(messageMap["positiveNumber"]);
                     return false;
                 }
                 return false;
@@ -61,7 +64,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value > 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveInt"]);
+                    this.messageStack.push(messageMap["positiveInt"]);
                     return false;
                 }
                 return false;
@@ -74,7 +77,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value < 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeNumber"]);
+                    this.messageStack.push(messageMap["negativeNumber"]);
                     return false;
                 }
                 return false;
@@ -100,7 +103,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value >= 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveNumber"]);
+                    this.messageStack.push(messageMap["positiveNumber"]);
                     return false;
                 }
                 return false;
@@ -113,7 +116,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value >= 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveInt"]);
+                    this.messageStack.push(messageMap["positiveInt"]);
                     return false;
                 }
                 return false;
@@ -126,7 +129,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value <= 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeNumber"]);
+                    this.messageStack.push(messageMap["negativeNumber"]);
                     return false;
                 }
                 return false;
@@ -139,7 +142,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value <= 0 && /^\-\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeInt"]);
+                    this.messageStack.push(messageMap["negativeInt"]);
                     return false;
                 }
                 return false;
@@ -151,7 +154,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["email"]);
+                this.messageStack.push(messageMap["email"]);
                 return false;
             },
             mobile: function(value) {
@@ -161,7 +164,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^1\d{10,11}$/.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["mobile"]);
+                this.messageStack.push(messageMap["mobile"]);
                 return false;
             },
             idNumber: function(value) {
@@ -171,7 +174,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^(?:\d{15}|\d{18})$/.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["idNumber"]);
+                this.messageStack.push(messageMap["idNumber"]);
                 return false;
             },
             "float": function(value, digit) {
@@ -186,7 +189,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (re.test(value)) {
                         return true;
                     }
-                    messageStack.push(string.format(messageMap["float"], {
+                    this.messageStack.push(string.format(messageMap["float"], {
                         digit: digit
                     }));
                     return false;
@@ -207,10 +210,10 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             return ruleMap[ruleName];
         };
         this.getMessageStack = function() {
-            return messageStack;
+            return this.messageStack;
         };
         this.clearMessageStack = function() {
-            messageStack.length = 0;
+            this.messageStack.length = 0;
         };
         /**
 		 * @param {Object|Array}

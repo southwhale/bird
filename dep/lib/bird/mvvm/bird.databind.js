@@ -97,7 +97,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, dataBinds, actionId) {
+        this.bind = function(model, dataBinds, actionId) {
             var me = this;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
                 var selector = info.id;
@@ -109,10 +109,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     if (val.filter === "include") {
                         var cachedTpl = lruCache.getValue(val.variable);
                         if (cachedTpl) {
-                            doInclude(node, cachedTpl, model, actionId, watcher, dataBinds);
+                            doInclude(node, cachedTpl, model, actionId, dataBinds);
                         } else {
                             request.syncLoad(val.variable, function(data) {
-                                doInclude(node, data, model, actionId, watcher, dataBinds);
+                                doInclude(node, data, model, actionId, dataBinds);
                                 lruCache.add(val.variable, data);
                             });
                         }
@@ -132,7 +132,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             event.on(node, val.key, eventHandle);
                             array.pushUniqueInArray(node, me.eventBindedNodes);
                         }
-                        me._bindHandleByType(watcher, val, key, node, selector);
+                        me._bindHandleByType(model.watcher, val, key, node, selector);
                     } else if (lang.isArray(val)) {
                         var _arguments = arguments;
                         array.forEach(val, function(_val) {
@@ -141,10 +141,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     }
                 });
                 if (/^select$/i.test(info.tagName) && lang.isPlainObject(info.valueVariable)) {
-                    me._addEventOnInput(node, info.valueVariable, model);
+                    me._addEventOnSelect(node, info.valueVariable, model);
                 } else if (/^input$/i.test(info.tagName)) {
                     if (/^(?:checkbox|radio)$/i.test(node.type) && lang.isPlainObject(info.valueVariable)) {
-                        me._addEventOnInput(node, info.valueVariable, model);
+                        me._addEventOnSelect(node, info.valueVariable, model);
                     } else if (lang.isPlainObject(info.value)) {
                         me._addEventOnInput(node, info.value, model);
                     }
@@ -160,12 +160,6 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
         this._addEventOnInput = function(node, value, model) {
             var attrVariable = value.variable, filter = value.filter, me = this, validators = [];
             array.pushUniqueInArray(node, this.eventBindedNodes);
-            var isChkboxOrRadio = /^(?:checkbox|radio)$/i.test(node.type);
-            var isSelect = /^select$/i.test(node.tagName);
-            if (isChkboxOrRadio || isSelect) {
-                event.on(node, "change", checkedInputChangeHandle);
-                return;
-            }
             //input类型控件(包括textarea)的过滤器字段实际是验证器字段
             //即可输入控件的filter字段是验证器字段,不可输入控件则是过滤器字段
             if (filter) {
@@ -180,8 +174,8 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             return function(value) {
                                 var _args = args.slice();
                                 _args.unshift(value);
-                                validator.clearMessageStack();
-                                return rule.apply(validator.getRuleMap(), _args);
+                                //validator.clearMessageStack();
+                                return rule.apply(validator, _args);
                             };
                         }());
                     }
@@ -199,7 +193,16 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 }
                 model.set(attrVariable, value, me, target);
             }
-            function checkedInputChangeHandle(e) {
+        };
+        /**
+		 * IE不支持onchange和oninput,但IE有onpropertychange
+		 * onchange需要失去焦点才触发,oninput在输入时就触发
+		 */
+        this._addEventOnSelect = function(node, value, model) {
+            var attrVariable = value.variable, filter = value.filter, me = this;
+            array.pushUniqueInArray(node, this.eventBindedNodes);
+            event.on(node, "change", selectChangeHandle);
+            function selectChangeHandle(e) {
                 var target = e.target;
                 var value;
                 if (/^input$/i.test(target.tagName)) {
@@ -236,7 +239,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 return v(value);
             })) {
                 if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().join());
+                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().pop());
                     dom.show(errorTipNode);
                 }
                 return false;
@@ -258,7 +261,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             });
             this.eventBindedNodes.length = 0;
         };
-        function doInclude(elem, tplContent, model, actionId, watcher, dataBinds) {
+        function doInclude(elem, tplContent, model, actionId, dataBinds) {
             var html;
             if (elem) {
                 if (/\{\{[^{}]+\}\}/.test(tplContent)) {
@@ -266,7 +269,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     dataBind.parseTpl(tplContent);
                     html = dataBind.fillTpl(model, actionId);
                     dom.setHtml(elem, html);
-                    dataBind.bind(model, watcher, dataBinds, actionId);
+                    dataBind.bind(model, model.watcher, dataBinds, actionId);
                     dataBinds.push(dataBind);
                 } else {
                     html = tplContent;

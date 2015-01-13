@@ -5,11 +5,11 @@ define(function(require) {
 	var object = require('bird.object');
 
 	function Validator() {
-
+		this.messageStack = [];
 	}
 
 	(function() {
-		var messageStack = [];
+		//var messageStack = [];
 		var messageMap = {
 			'required': '请输入',
 			'number': '只能输入数字',
@@ -27,11 +27,13 @@ define(function(require) {
 			'float': '小数位不能超过{{digit}}位'
 		};
 
+		var me = this;
+
 		var ruleMap = {
 			'required': function(value) {
 				var ret = lang.isNotEmpty(value);
 				if (!ret) {
-					messageStack.push(messageMap['required']);
+					this.messageStack.push(messageMap['required']);
 				}
 				return ret;
 			},
@@ -41,7 +43,7 @@ define(function(require) {
 				}
 				var ret = !isNaN(+value);
 				if (!ret) {
-					messageStack.push(messageMap['number']);
+					this.messageStack.push(messageMap['number']);
 				}
 				return ret;
 			},
@@ -53,7 +55,7 @@ define(function(require) {
 					if (+value > 0) {
 						return true;
 					}
-					messageStack.push(messageMap['positiveNumber']);
+					this.messageStack.push(messageMap['positiveNumber']);
 					return false;
 				}
 				return false;
@@ -66,7 +68,7 @@ define(function(require) {
 					if (+value > 0 && /^\+?\d+$/.test(value)) {
 						return true;
 					}
-					messageStack.push(messageMap['positiveInt']);
+					this.messageStack.push(messageMap['positiveInt']);
 					return false;
 				}
 				return false;
@@ -79,7 +81,7 @@ define(function(require) {
 					if (+value < 0) {
 						return true;
 					}
-					messageStack.push(messageMap['negativeNumber']);
+					this.messageStack.push(messageMap['negativeNumber']);
 					return false;
 				}
 				return false;
@@ -105,7 +107,7 @@ define(function(require) {
 					if (+value >= 0) {
 						return true;
 					}
-					messageStack.push(messageMap['positiveNumber']);
+					this.messageStack.push(messageMap['positiveNumber']);
 					return false;
 				}
 				return false;
@@ -118,7 +120,7 @@ define(function(require) {
 					if (+value >= 0 && /^\+?\d+$/.test(value)) {
 						return true;
 					}
-					messageStack.push(messageMap['positiveInt']);
+					this.messageStack.push(messageMap['positiveInt']);
 					return false;
 				}
 				return false;
@@ -131,7 +133,7 @@ define(function(require) {
 					if (+value <= 0) {
 						return true;
 					}
-					messageStack.push(messageMap['negativeNumber']);
+					this.messageStack.push(messageMap['negativeNumber']);
 					return false;
 				}
 				return false;
@@ -144,7 +146,7 @@ define(function(require) {
 					if (+value <= 0 && /^\-\d+$/.test(value)) {
 						return true;
 					}
-					messageStack.push(messageMap['negativeInt']);
+					this.messageStack.push(messageMap['negativeInt']);
 					return false;
 				}
 				return false;
@@ -156,7 +158,7 @@ define(function(require) {
 				if(/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
 					return true;
 				}
-				messageStack.push(messageMap['email']);
+				this.messageStack.push(messageMap['email']);
 				return false;
 			},
 			'mobile': function(value) {
@@ -168,7 +170,7 @@ define(function(require) {
 					return true;
 				}
 
-				messageStack.push(messageMap['mobile']);
+				this.messageStack.push(messageMap['mobile']);
 				return false;
 			},
 			'idNumber': function(value) {
@@ -180,7 +182,7 @@ define(function(require) {
 					return true;
 				}
 
-				messageStack.push(messageMap['idNumber']);
+				this.messageStack.push(messageMap['idNumber']);
 				return false;
 			},
 			'float': function(value, digit) {
@@ -195,7 +197,7 @@ define(function(require) {
 					if (re.test(value)) {
 						return true;
 					}
-					messageStack.push(string.format(messageMap['float'], {
+					this.messageStack.push(string.format(messageMap['float'], {
 						digit: digit
 					}));
 					return false;
@@ -221,11 +223,11 @@ define(function(require) {
 		};
 
 		this.getMessageStack = function() {
-			return messageStack;
+			return this.messageStack;
 		};
 
 		this.clearMessageStack = function() {
-			messageStack.length = 0;
+			this.messageStack.length = 0;
 		};
 
 		/**

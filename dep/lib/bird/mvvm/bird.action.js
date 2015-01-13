@@ -2,7 +2,7 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "bird.__lrucache__" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -12,7 +12,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
     var Model = require("./bird.model");
     var DataBind = require("./bird.databind");
     var RequestHelper = require("./bird.requesthelper");
-    var validator = require("./bird.validator");
+    //var validator = require('./bird.validator');
     var LRUCache = require("bird.__lrucache__");
     function Action() {
         this.id = util.uuid("action_");
@@ -115,7 +115,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
+            this.dataBind.bind(this.model, this.dataBinds, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -138,7 +138,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
+            dataBind.bind(this.model, this.dataBinds, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
@@ -192,7 +192,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-            validator.clearMessageStack();
+            //validator.clearMessageStack();
             this.dataRequestPromise = null;
             this.dataBind.destroy();
             array.forEach(this.dataBinds, function(dataBind) {

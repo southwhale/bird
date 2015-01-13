@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-13
+ * @date: 2015-01-14
  */
 /**
  *	封装LRU cache为独立模块
@@ -4754,7 +4754,7 @@ define("bird.uuid", [], function(require) {
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "bird.__lrucache__" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -4764,7 +4764,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
     var Model = require("./bird.model");
     var DataBind = require("./bird.databind");
     var RequestHelper = require("./bird.requesthelper");
-    var validator = require("./bird.validator");
+    //var validator = require('./bird.validator');
     var LRUCache = require("bird.__lrucache__");
     function Action() {
         this.id = util.uuid("action_");
@@ -4867,7 +4867,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             }
             this.dataBind.parseTpl(this.tpl);
             this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
-            this.dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
+            this.dataBind.bind(this.model, this.dataBinds, this.id);
         };
         /*
 		 * 为动态插入的模板应用双向绑定
@@ -4890,7 +4890,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 container.innerHTML = html;
             }
             //绑定事件处理逻辑到该Action的根容器上
-            dataBind.bind(this.model, this.model.watcher, this.dataBinds, this.id);
+            dataBind.bind(this.model, this.dataBinds, this.id);
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
@@ -4944,7 +4944,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-            validator.clearMessageStack();
+            //validator.clearMessageStack();
             this.dataRequestPromise = null;
             this.dataBind.destroy();
             array.forEach(this.dataBinds, function(dataBind) {
@@ -5137,7 +5137,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             return str;
         };
         //第三步：绑定模板变量到对应的处理函数
-        this.bind = function(model, watcher, dataBinds, actionId) {
+        this.bind = function(model, dataBinds, actionId) {
             var me = this;
             object.forEach(this.tplParser.parsedInfoCache, function(info) {
                 var selector = info.id;
@@ -5149,10 +5149,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     if (val.filter === "include") {
                         var cachedTpl = lruCache.getValue(val.variable);
                         if (cachedTpl) {
-                            doInclude(node, cachedTpl, model, actionId, watcher, dataBinds);
+                            doInclude(node, cachedTpl, model, actionId, dataBinds);
                         } else {
                             request.syncLoad(val.variable, function(data) {
-                                doInclude(node, data, model, actionId, watcher, dataBinds);
+                                doInclude(node, data, model, actionId, dataBinds);
                                 lruCache.add(val.variable, data);
                             });
                         }
@@ -5172,7 +5172,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             event.on(node, val.key, eventHandle);
                             array.pushUniqueInArray(node, me.eventBindedNodes);
                         }
-                        me._bindHandleByType(watcher, val, key, node, selector);
+                        me._bindHandleByType(model.watcher, val, key, node, selector);
                     } else if (lang.isArray(val)) {
                         var _arguments = arguments;
                         array.forEach(val, function(_val) {
@@ -5181,10 +5181,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     }
                 });
                 if (/^select$/i.test(info.tagName) && lang.isPlainObject(info.valueVariable)) {
-                    me._addEventOnInput(node, info.valueVariable, model);
+                    me._addEventOnSelect(node, info.valueVariable, model);
                 } else if (/^input$/i.test(info.tagName)) {
                     if (/^(?:checkbox|radio)$/i.test(node.type) && lang.isPlainObject(info.valueVariable)) {
-                        me._addEventOnInput(node, info.valueVariable, model);
+                        me._addEventOnSelect(node, info.valueVariable, model);
                     } else if (lang.isPlainObject(info.value)) {
                         me._addEventOnInput(node, info.value, model);
                     }
@@ -5200,12 +5200,6 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
         this._addEventOnInput = function(node, value, model) {
             var attrVariable = value.variable, filter = value.filter, me = this, validators = [];
             array.pushUniqueInArray(node, this.eventBindedNodes);
-            var isChkboxOrRadio = /^(?:checkbox|radio)$/i.test(node.type);
-            var isSelect = /^select$/i.test(node.tagName);
-            if (isChkboxOrRadio || isSelect) {
-                event.on(node, "change", checkedInputChangeHandle);
-                return;
-            }
             //input类型控件(包括textarea)的过滤器字段实际是验证器字段
             //即可输入控件的filter字段是验证器字段,不可输入控件则是过滤器字段
             if (filter) {
@@ -5220,8 +5214,8 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                             return function(value) {
                                 var _args = args.slice();
                                 _args.unshift(value);
-                                validator.clearMessageStack();
-                                return rule.apply(validator.getRuleMap(), _args);
+                                //validator.clearMessageStack();
+                                return rule.apply(validator, _args);
                             };
                         }());
                     }
@@ -5239,7 +5233,16 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 }
                 model.set(attrVariable, value, me, target);
             }
-            function checkedInputChangeHandle(e) {
+        };
+        /**
+		 * IE不支持onchange和oninput,但IE有onpropertychange
+		 * onchange需要失去焦点才触发,oninput在输入时就触发
+		 */
+        this._addEventOnSelect = function(node, value, model) {
+            var attrVariable = value.variable, filter = value.filter, me = this;
+            array.pushUniqueInArray(node, this.eventBindedNodes);
+            event.on(node, "change", selectChangeHandle);
+            function selectChangeHandle(e) {
                 var target = e.target;
                 var value;
                 if (/^input$/i.test(target.tagName)) {
@@ -5276,7 +5279,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 return v(value);
             })) {
                 if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().join());
+                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().pop());
                     dom.show(errorTipNode);
                 }
                 return false;
@@ -5298,7 +5301,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
             });
             this.eventBindedNodes.length = 0;
         };
-        function doInclude(elem, tplContent, model, actionId, watcher, dataBinds) {
+        function doInclude(elem, tplContent, model, actionId, dataBinds) {
             var html;
             if (elem) {
                 if (/\{\{[^{}]+\}\}/.test(tplContent)) {
@@ -5306,7 +5309,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     dataBind.parseTpl(tplContent);
                     html = dataBind.fillTpl(model, actionId);
                     dom.setHtml(elem, html);
-                    dataBind.bind(model, watcher, dataBinds, actionId);
+                    dataBind.bind(model, model.watcher, dataBinds, actionId);
                     dataBinds.push(dataBind);
                 } else {
                     html = tplContent;
@@ -6502,9 +6505,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
     var string = require("bird.string");
     var array = require("bird.array");
     var object = require("bird.object");
-    function Validator() {}
+    function Validator() {
+        this.messageStack = [];
+    }
     (function() {
-        var messageStack = [];
+        //var messageStack = [];
         var messageMap = {
             required: "请输入",
             number: "只能输入数字",
@@ -6521,11 +6526,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             idNumber: "身份证号码格式不正确",
             "float": "小数位不能超过{{digit}}位"
         };
+        var me = this;
         var ruleMap = {
             required: function(value) {
                 var ret = lang.isNotEmpty(value);
                 if (!ret) {
-                    messageStack.push(messageMap["required"]);
+                    this.messageStack.push(messageMap["required"]);
                 }
                 return ret;
             },
@@ -6535,7 +6541,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 }
                 var ret = !isNaN(+value);
                 if (!ret) {
-                    messageStack.push(messageMap["number"]);
+                    this.messageStack.push(messageMap["number"]);
                 }
                 return ret;
             },
@@ -6547,7 +6553,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value > 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveNumber"]);
+                    this.messageStack.push(messageMap["positiveNumber"]);
                     return false;
                 }
                 return false;
@@ -6560,7 +6566,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value > 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveInt"]);
+                    this.messageStack.push(messageMap["positiveInt"]);
                     return false;
                 }
                 return false;
@@ -6573,7 +6579,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value < 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeNumber"]);
+                    this.messageStack.push(messageMap["negativeNumber"]);
                     return false;
                 }
                 return false;
@@ -6599,7 +6605,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value >= 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveNumber"]);
+                    this.messageStack.push(messageMap["positiveNumber"]);
                     return false;
                 }
                 return false;
@@ -6612,7 +6618,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value >= 0 && /^\+?\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["positiveInt"]);
+                    this.messageStack.push(messageMap["positiveInt"]);
                     return false;
                 }
                 return false;
@@ -6625,7 +6631,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value <= 0) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeNumber"]);
+                    this.messageStack.push(messageMap["negativeNumber"]);
                     return false;
                 }
                 return false;
@@ -6638,7 +6644,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (+value <= 0 && /^\-\d+$/.test(value)) {
                         return true;
                     }
-                    messageStack.push(messageMap["negativeInt"]);
+                    this.messageStack.push(messageMap["negativeInt"]);
                     return false;
                 }
                 return false;
@@ -6650,7 +6656,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["email"]);
+                this.messageStack.push(messageMap["email"]);
                 return false;
             },
             mobile: function(value) {
@@ -6660,7 +6666,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^1\d{10,11}$/.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["mobile"]);
+                this.messageStack.push(messageMap["mobile"]);
                 return false;
             },
             idNumber: function(value) {
@@ -6670,7 +6676,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (/^(?:\d{15}|\d{18})$/.test(value)) {
                     return true;
                 }
-                messageStack.push(messageMap["idNumber"]);
+                this.messageStack.push(messageMap["idNumber"]);
                 return false;
             },
             "float": function(value, digit) {
@@ -6685,7 +6691,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (re.test(value)) {
                         return true;
                     }
-                    messageStack.push(string.format(messageMap["float"], {
+                    this.messageStack.push(string.format(messageMap["float"], {
                         digit: digit
                     }));
                     return false;
@@ -6706,10 +6712,10 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             return ruleMap[ruleName];
         };
         this.getMessageStack = function() {
-            return messageStack;
+            return this.messageStack;
         };
         this.clearMessageStack = function() {
-            messageStack.length = 0;
+            this.messageStack.length = 0;
         };
         /**
 		 * @param {Object|Array}
