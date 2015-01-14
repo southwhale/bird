@@ -1,16 +1,43 @@
-define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.util", "./bird.object", "./bird.date" ], function(require) {
+define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.string", "./bird.util", "./bird.object", "./bird.date" ], function(require) {
     var dom = require("./bird.dom");
     var lang = require("./bird.lang");
+    var array = require("./bird.array");
     var string = require("./bird.string");
     var util = require("./bird.util");
     var object = require("./bird.object");
     var date = require("./bird.date");
     /*********************************************************************
-	 *                             ajax/jsonp
-	 ********************************************************************/
+     *                             ajax/jsonp
+     ********************************************************************/
     function Request() {}
     (function() {
         var doc = document;
+        var interceptors = [];
+        function ajaxPreFilter(data) {
+            if (interceptors.length) {
+                array.forEach(interceptors, function(interceptor) {
+                    if (lang.isFunction(interceptor.request)) {
+                        interceptor.request(data);
+                    }
+                });
+            }
+        }
+        function ajaxPostFilter(data) {
+            if (interceptors.length && lang.isNotEmpty(data)) {
+                array.forEach(interceptors, function(interceptor) {
+                    if (lang.isFunction(interceptor.response)) {
+                        var ret = interceptor.response(data);
+                        if (!lang.isUndeined(ret)) {
+                            data = ret;
+                        }
+                    }
+                });
+            }
+            return data;
+        }
+        this.addInterceptor = function(interceptor) {
+            lang.isPlainObject(interceptor) && interceptors.push(interceptor);
+        };
         this.ajax = function(arg) {
             //init xhr
             var xhr, lnk;
@@ -30,17 +57,21 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.string", "./bird.u
                 responseType: ""
             };
             object.extend(obj, arg);
+            ajaxPreFilter(obj);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
                         if (lang.isFunction(obj.complete)) {
+                            var result;
                             if (/^xml$/i.test(obj.responseType)) {
-                                obj.complete(this.responseXML, this.status);
+                                result = ajaxPostFilter(this.responseXML);
+                                obj.complete(result, this.status);
                             } else {
-                                var result = this.response || this.responseText;
+                                result = this.response || this.responseText;
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
                                     result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval("(" + result + ")");
                                 }
+                                result = ajaxPostFilter(result);
                                 obj.complete(result, this.status);
                             }
                         }
