@@ -22,9 +22,8 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
                 data.action = name;
                 if (action && action instanceof Action) {
                     me.currentAction && me.currentAction.leave(action);
-                    var lastAction = me.currentAction;
                     me.currentAction = action;
-                    action.enter(data, lastAction);
+                    action.enter(data);
                 }
             });
         };

@@ -30,9 +30,8 @@ define(function(require) {
 				data.action = name;
 				if (action && (action instanceof Action)) {
 					me.currentAction && me.currentAction.leave(action);
-					var lastAction = me.currentAction;
 					me.currentAction = action;
-					action.enter(data, lastAction);
+					action.enter(data);
 				}
 			});
 		};

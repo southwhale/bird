@@ -4781,7 +4781,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.requestHelper = new RequestHelper();
         this.lruCache = new LRUCache();
         this.args = {};
-        this.lastAction = {};
         this.lifePhase = this.LifeCycle.NEW;
         this.init();
     }
@@ -4942,7 +4941,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             router.route(url, isWhole);
         };
         this.back = function() {
-            this.forward(this.lastAction ? "#!" + this.lastAction.args.location : "/");
+            this.forward(this.args.referrer ? "#!" + this.args.referrer : "/");
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
@@ -4971,10 +4970,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 });
             }
         };
-        this.enter = function(args, lastAction) {
+        this.enter = function(args) {
             var me = this;
             this.args = args;
-            this.lastAction = lastAction;
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
@@ -4997,8 +4995,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-            //validator.clearMessageStack();
-            this.lastAction = {};
             this.args = {};
             this.dataRequestPromise = null;
             this.dataBind.destroy();
@@ -5061,9 +5057,8 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
                 data.action = name;
                 if (action && action instanceof Action) {
                     me.currentAction && me.currentAction.leave(action);
-                    var lastAction = me.currentAction;
                     me.currentAction = action;
-                    action.enter(data, lastAction);
+                    action.enter(data);
                 }
             });
         };
