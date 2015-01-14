@@ -1,3 +1,4 @@
-define("bird.router", [ "./bird.router.pushstate", "./bird.router.hashchange" ], function(require) {
-    return history.pushState ? require("./bird.router.pushstate") : require("./bird.router.hashchange");
+define("bird.router", [ "./bird.router.hashchange" ], function(require) {
+    //return history.pushState ? require('./bird.router.pushstate') : require('./bird.router.hashchange');
+    return require("./bird.router.hashchange");
 });

@@ -221,6 +221,12 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             }
             return self === parent;
         };
+        this.getTargetForm = function(target) {
+            while (target && !/^form$/i.test(target.nodeName)) {
+                target = target.parentNode;
+            }
+            return target;
+        };
         //从element向上往context找,直到找到第一个有id的元素或者body元素停止
         this.getTreePath = function(element, context) {
             context = context || document.body;

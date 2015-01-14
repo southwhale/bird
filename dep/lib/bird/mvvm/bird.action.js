@@ -2,7 +2,7 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "bird.__lrucache__" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__", "bird.router" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -12,8 +12,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
     var Model = require("./bird.model");
     var DataBind = require("./bird.databind");
     var RequestHelper = require("./bird.requesthelper");
-    //var validator = require('./bird.validator');
+    var validator = require("./bird.validator");
     var LRUCache = require("bird.__lrucache__");
+    var router = require("bird.router");
     function Action() {
         this.id = util.uuid("action_");
         this.model = new Model();
@@ -22,6 +23,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.requestHelper = new RequestHelper();
         this.lruCache = new LRUCache();
         this.args = {};
+        this.lastAction = {};
         this.lifePhase = this.LifeCycle.NEW;
         this.init();
     }
@@ -140,6 +142,50 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             //绑定事件处理逻辑到该Action的根容器上
             dataBind.bind(this.model, this.dataBinds, this.id);
         };
+        this.validate = function(form) {
+            if (/^input$/i.test(form.nodeName) && /^(?:button|submit|image)$/i.test(form.type)) {
+                form = form.form;
+            } else if (/^(?:button|a)$/i.test(form.nodeName)) {
+                form = dom.getTargetForm(form) || form;
+            }
+            var inputArray = [];
+            inputArray = inputArray.concat(dom.getAll("input", form), dom.getAll("select", form), dom.getAll("textarea", form));
+            var me = this;
+            var result = true;
+            array.forEach(inputArray, function(node, i) {
+                // 凡是添加验证规则的元素 比然会有ID, 解析模板时会自动添加ID
+                if (!node.id || node.disabled || dom.getAttr(node, "ignore")) {
+                    return;
+                }
+                // 非可输入控件一律不做前端验证
+                if (/^input$/i.test(node.nodeName) && /^(?:button|submit|image|checkbox|radio|range|reset|hidden)$/i.test(node.type)) {
+                    return;
+                }
+                // TODO: 验证各字段
+                var validators = me.dataBind.getParsedValidators(node.id);
+                var validatorsArr = [];
+                array.forEach(me.dataBinds, function(dataBind) {
+                    var arr = dataBind.getParsedValidators(node.id);
+                    if (arr && arr.length) {
+                        validatorsArr.push(arr);
+                    }
+                });
+                if (validatorsArr.length) {
+                    validators = Array.prototype.concat.apply(validators, validatorsArr);
+                }
+                var ret = validator.validate(validators, node);
+                if (result && !ret) {
+                    result = false;
+                }
+            });
+            return result;
+        };
+        this.forward = function(url, isWhole) {
+            router.route(url, isWhole);
+        };
+        this.back = function() {
+            this.forward(this.lastAction ? "#!" + this.lastAction.args.location : "/");
+        };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this._bindEvent = function() {
@@ -167,9 +213,10 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 });
             }
         };
-        this.enter = function(args) {
+        this.enter = function(args, lastAction) {
             var me = this;
             this.args = args;
+            this.lastAction = lastAction;
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
@@ -193,6 +240,8 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             //validator.clearMessageStack();
+            this.lastAction = {};
+            this.args = {};
             this.dataRequestPromise = null;
             this.dataBind.destroy();
             array.forEach(this.dataBinds, function(dataBind) {

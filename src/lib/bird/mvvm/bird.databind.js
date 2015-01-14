@@ -177,11 +177,11 @@ define(function(require) {
 		 * IE不支持onchange和oninput,但IE有onpropertychange
 		 * onchange需要失去焦点才触发,oninput在输入时就触发
 		 */
-		this._addEventOnInput = function(node, value, model) {
-			var attrVariable = value.variable,
-				filter = value.filter,
-				me = this,
-				validators = [];
+		this._addEventOnInput = function(node, infoValue, model) {
+			var attrVariable = infoValue.variable,
+				filter = infoValue.filter,
+				me = this;
+			var	validators = infoValue.validators = [];
 
 			array.pushUniqueInArray(node, this.eventBindedNodes);
 
@@ -191,7 +191,7 @@ define(function(require) {
 				var validatorStrArr = filter.split(/\s+/);
 				array.forEach(validatorStrArr, function(str) {
 					var arr = str.split(',');
-					var vname = arr[0];
+					/*var vname = arr[0];
 					var rule = validator.getRule(vname);
 					if (rule) {
 						var args = arr.slice(1);
@@ -203,7 +203,12 @@ define(function(require) {
                                 return rule.apply(validator, _args);
 							};
 						})());
-					}
+
+					}*/
+					validators.push({
+						ruleName: arr[0],
+						rulePropertys: arr.slice(1)
+					});
 				});
 			}
 
@@ -215,12 +220,11 @@ define(function(require) {
 				}
 
 				var target = e.target;
-				var value = target.value;
-				if (!me.validate(validators, target, value)) {
+				if (!validator.validate(validators, target)) {
 					return;
 				}
 
-				model.set(attrVariable, value, me, target);
+				model.set(attrVariable, target.value, me, target);
 			}
 		};
 
@@ -270,28 +274,11 @@ define(function(require) {
 			}
 		};
 
-
-		this.validate = function(validators, target, value) {
-			if (!validators.length) {
-				return;
+		this.getParsedValidators = function(id) {
+			var info = this.tplParser.parsedInfoCache[id];
+			if (info && info.value) {
+				return info.value.validators;
 			}
-			var errorTipNode = target.id ? (dom.g('[for=' + target.id + ']') || dom.g('.errorTip', target.parentNode)) : dom.g('.errorTip', target.parentNode);
-			if (!array.each(validators, function(v) {
-				return v(value);
-			})) {
-				if (errorTipNode) {
-					dom.setText(dom.g('.content', errorTipNode) || errorTipNode, validator.getMessageStack().pop());
-					dom.show(errorTipNode);
-				}
-				return false;
-			} else {
-				if (errorTipNode) {
-					dom.setText(dom.g('.content', errorTipNode) || errorTipNode, '');
-					dom.hide(errorTipNode);
-				}
-			}
-
-			return true;
 		};
 
 
@@ -315,7 +302,7 @@ define(function(require) {
 					dataBind.parseTpl(tplContent);
 					html = dataBind.fillTpl(model, actionId);
 					dom.setHtml(elem, html);
-					dataBind.bind(model, model.watcher, dataBinds, actionId)
+					dataBind.bind(model, dataBinds, actionId)
 					dataBinds.push(dataBind);
 				} else {
 					html = tplContent;

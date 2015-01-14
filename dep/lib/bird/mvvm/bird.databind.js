@@ -157,8 +157,9 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
 		 * IE不支持onchange和oninput,但IE有onpropertychange
 		 * onchange需要失去焦点才触发,oninput在输入时就触发
 		 */
-        this._addEventOnInput = function(node, value, model) {
-            var attrVariable = value.variable, filter = value.filter, me = this, validators = [];
+        this._addEventOnInput = function(node, infoValue, model) {
+            var attrVariable = infoValue.variable, filter = infoValue.filter, me = this;
+            var validators = infoValue.validators = [];
             array.pushUniqueInArray(node, this.eventBindedNodes);
             //input类型控件(包括textarea)的过滤器字段实际是验证器字段
             //即可输入控件的filter字段是验证器字段,不可输入控件则是过滤器字段
@@ -166,19 +167,24 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var validatorStrArr = filter.split(/\s+/);
                 array.forEach(validatorStrArr, function(str) {
                     var arr = str.split(",");
-                    var vname = arr[0];
-                    var rule = validator.getRule(vname);
-                    if (rule) {
-                        var args = arr.slice(1);
-                        validators.push(function() {
-                            return function(value) {
-                                var _args = args.slice();
+                    /*var vname = arr[0];
+					var rule = validator.getRule(vname);
+					if (rule) {
+						var args = arr.slice(1);
+						validators.push((function() {
+							return function(value) {
+								var _args = args.slice();
                                 _args.unshift(value);
                                 //validator.clearMessageStack();
                                 return rule.apply(validator, _args);
-                            };
-                        }());
-                    }
+							};
+						})());
+
+					}*/
+                    validators.push({
+                        ruleName: arr[0],
+                        rulePropertys: arr.slice(1)
+                    });
                 });
             }
             event.on(node, "change", textInputChangeHandle);
@@ -187,11 +193,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     return;
                 }
                 var target = e.target;
-                var value = target.value;
-                if (!me.validate(validators, target, value)) {
+                if (!validator.validate(validators, target)) {
                     return;
                 }
-                model.set(attrVariable, value, me, target);
+                model.set(attrVariable, target.value, me, target);
             }
         };
         /**
@@ -230,26 +235,11 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" ? variableInfo.key : type));
             }
         };
-        this.validate = function(validators, target, value) {
-            if (!validators.length) {
-                return;
+        this.getParsedValidators = function(id) {
+            var info = this.tplParser.parsedInfoCache[id];
+            if (info && info.value) {
+                return info.value.validators;
             }
-            var errorTipNode = target.id ? dom.g("[for=" + target.id + "]") || dom.g(".errorTip", target.parentNode) : dom.g(".errorTip", target.parentNode);
-            if (!array.each(validators, function(v) {
-                return v(value);
-            })) {
-                if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().pop());
-                    dom.show(errorTipNode);
-                }
-                return false;
-            } else {
-                if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, "");
-                    dom.hide(errorTipNode);
-                }
-            }
-            return true;
         };
         this.destroy = function(deepDestroy) {
             deepDestroy && this.tplParser.destroy();
@@ -269,7 +259,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     dataBind.parseTpl(tplContent);
                     html = dataBind.fillTpl(model, actionId);
                     dom.setHtml(elem, html);
-                    dataBind.bind(model, model.watcher, dataBinds, actionId);
+                    dataBind.bind(model, dataBinds, actionId);
                     dataBinds.push(dataBind);
                 } else {
                     html = tplContent;

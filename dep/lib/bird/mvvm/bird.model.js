@@ -71,8 +71,9 @@ define("bird.model", [ "bird.lang", "bird.array", "bird.object", "bird.__observe
                     var arr = v.split(".");
                     var k = arr[1];
                     ret[k] = json[arr[0]][k];
+                } else {
+                    ret[v] = json[v];
                 }
-                ret[v] = json[v];
             });
             return ret;
         };

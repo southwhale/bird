@@ -4,7 +4,7 @@
  */
 
 define(function(require) {
-	var router = require('./bird.router.hashchange');
+	var router = require('./bird.router');
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var Action = require('./bird.action');
@@ -30,19 +30,11 @@ define(function(require) {
 				data.action = name;
 				if (action && (action instanceof Action)) {
 					me.currentAction && me.currentAction.leave(action);
-					me.lastAction = me.currentAction;
+					var lastAction = me.currentAction;
 					me.currentAction = action;
-					action.enter(data);
+					action.enter(data, lastAction);
 				}
 			});
-		};
-
-		this.back = function() {
-			this.redirect(this.lastAction ? ('#!' + this.lastAction.args.location) : '/');
-		};
-
-		this.redirect = function(url, isWholeUrl) {
-			router.route(url, isWholeUrl);
 		};
 
 		this.initActionListener = function() {

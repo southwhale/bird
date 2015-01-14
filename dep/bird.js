@@ -2393,6 +2393,12 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             }
             return self === parent;
         };
+        this.getTargetForm = function(target) {
+            while (target && !/^form$/i.test(target.nodeName)) {
+                target = target.parentNode;
+            }
+            return target;
+        };
         //从element向上往context找,直到找到第一个有id的元素或者body元素停止
         this.getTreePath = function(element, context) {
             context = context || document.body;
@@ -4754,7 +4760,7 @@ define("bird.uuid", [], function(require) {
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "bird.__lrucache__" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__", "bird.router" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
@@ -4764,8 +4770,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
     var Model = require("./bird.model");
     var DataBind = require("./bird.databind");
     var RequestHelper = require("./bird.requesthelper");
-    //var validator = require('./bird.validator');
+    var validator = require("./bird.validator");
     var LRUCache = require("bird.__lrucache__");
+    var router = require("bird.router");
     function Action() {
         this.id = util.uuid("action_");
         this.model = new Model();
@@ -4774,6 +4781,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.requestHelper = new RequestHelper();
         this.lruCache = new LRUCache();
         this.args = {};
+        this.lastAction = {};
         this.lifePhase = this.LifeCycle.NEW;
         this.init();
     }
@@ -4892,6 +4900,50 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             //绑定事件处理逻辑到该Action的根容器上
             dataBind.bind(this.model, this.dataBinds, this.id);
         };
+        this.validate = function(form) {
+            if (/^input$/i.test(form.nodeName) && /^(?:button|submit|image)$/i.test(form.type)) {
+                form = form.form;
+            } else if (/^(?:button|a)$/i.test(form.nodeName)) {
+                form = dom.getTargetForm(form) || form;
+            }
+            var inputArray = [];
+            inputArray = inputArray.concat(dom.getAll("input", form), dom.getAll("select", form), dom.getAll("textarea", form));
+            var me = this;
+            var result = true;
+            array.forEach(inputArray, function(node, i) {
+                // 凡是添加验证规则的元素 比然会有ID, 解析模板时会自动添加ID
+                if (!node.id || node.disabled || dom.getAttr(node, "ignore")) {
+                    return;
+                }
+                // 非可输入控件一律不做前端验证
+                if (/^input$/i.test(node.nodeName) && /^(?:button|submit|image|checkbox|radio|range|reset|hidden)$/i.test(node.type)) {
+                    return;
+                }
+                // TODO: 验证各字段
+                var validators = me.dataBind.getParsedValidators(node.id);
+                var validatorsArr = [];
+                array.forEach(me.dataBinds, function(dataBind) {
+                    var arr = dataBind.getParsedValidators(node.id);
+                    if (arr && arr.length) {
+                        validatorsArr.push(arr);
+                    }
+                });
+                if (validatorsArr.length) {
+                    validators = Array.prototype.concat.apply(validators, validatorsArr);
+                }
+                var ret = validator.validate(validators, node);
+                if (result && !ret) {
+                    result = false;
+                }
+            });
+            return result;
+        };
+        this.forward = function(url, isWhole) {
+            router.route(url, isWhole);
+        };
+        this.back = function() {
+            this.forward(this.lastAction ? "#!" + this.lastAction.args.location : "/");
+        };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this._bindEvent = function() {
@@ -4919,9 +4971,10 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 });
             }
         };
-        this.enter = function(args) {
+        this.enter = function(args, lastAction) {
             var me = this;
             this.args = args;
+            this.lastAction = lastAction;
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
@@ -4945,6 +4998,8 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             //validator.clearMessageStack();
+            this.lastAction = {};
+            this.args = {};
             this.dataRequestPromise = null;
             this.dataBind.destroy();
             array.forEach(this.dataBinds, function(dataBind) {
@@ -4986,8 +5041,8 @@ define("bird.applicationcontext", [], function(require) {
  * 负责查找具体Action的调用
  *
  */
-define("bird.controller", [ "./bird.router.hashchange", "bird.lang", "bird.array", "./bird.action" ], function(require) {
-    var router = require("./bird.router.hashchange");
+define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.action" ], function(require) {
+    var router = require("./bird.router");
     var lang = require("bird.lang");
     var array = require("bird.array");
     var Action = require("./bird.action");
@@ -5006,17 +5061,11 @@ define("bird.controller", [ "./bird.router.hashchange", "bird.lang", "bird.array
                 data.action = name;
                 if (action && action instanceof Action) {
                     me.currentAction && me.currentAction.leave(action);
-                    me.lastAction = me.currentAction;
+                    var lastAction = me.currentAction;
                     me.currentAction = action;
-                    action.enter(data);
+                    action.enter(data, lastAction);
                 }
             });
-        };
-        this.back = function() {
-            this.redirect(this.lastAction ? "#!" + this.lastAction.args.location : "/");
-        };
-        this.redirect = function(url, isWholeUrl) {
-            router.route(url, isWholeUrl);
         };
         this.initActionListener = function() {
             var me = this;
@@ -5197,8 +5246,9 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
 		 * IE不支持onchange和oninput,但IE有onpropertychange
 		 * onchange需要失去焦点才触发,oninput在输入时就触发
 		 */
-        this._addEventOnInput = function(node, value, model) {
-            var attrVariable = value.variable, filter = value.filter, me = this, validators = [];
+        this._addEventOnInput = function(node, infoValue, model) {
+            var attrVariable = infoValue.variable, filter = infoValue.filter, me = this;
+            var validators = infoValue.validators = [];
             array.pushUniqueInArray(node, this.eventBindedNodes);
             //input类型控件(包括textarea)的过滤器字段实际是验证器字段
             //即可输入控件的filter字段是验证器字段,不可输入控件则是过滤器字段
@@ -5206,19 +5256,24 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var validatorStrArr = filter.split(/\s+/);
                 array.forEach(validatorStrArr, function(str) {
                     var arr = str.split(",");
-                    var vname = arr[0];
-                    var rule = validator.getRule(vname);
-                    if (rule) {
-                        var args = arr.slice(1);
-                        validators.push(function() {
-                            return function(value) {
-                                var _args = args.slice();
+                    /*var vname = arr[0];
+					var rule = validator.getRule(vname);
+					if (rule) {
+						var args = arr.slice(1);
+						validators.push((function() {
+							return function(value) {
+								var _args = args.slice();
                                 _args.unshift(value);
                                 //validator.clearMessageStack();
                                 return rule.apply(validator, _args);
-                            };
-                        }());
-                    }
+							};
+						})());
+
+					}*/
+                    validators.push({
+                        ruleName: arr[0],
+                        rulePropertys: arr.slice(1)
+                    });
                 });
             }
             event.on(node, "change", textInputChangeHandle);
@@ -5227,11 +5282,10 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     return;
                 }
                 var target = e.target;
-                var value = target.value;
-                if (!me.validate(validators, target, value)) {
+                if (!validator.validate(validators, target)) {
                     return;
                 }
-                model.set(attrVariable, value, me, target);
+                model.set(attrVariable, target.value, me, target);
             }
         };
         /**
@@ -5270,26 +5324,11 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" ? variableInfo.key : type));
             }
         };
-        this.validate = function(validators, target, value) {
-            if (!validators.length) {
-                return;
+        this.getParsedValidators = function(id) {
+            var info = this.tplParser.parsedInfoCache[id];
+            if (info && info.value) {
+                return info.value.validators;
             }
-            var errorTipNode = target.id ? dom.g("[for=" + target.id + "]") || dom.g(".errorTip", target.parentNode) : dom.g(".errorTip", target.parentNode);
-            if (!array.each(validators, function(v) {
-                return v(value);
-            })) {
-                if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, validator.getMessageStack().pop());
-                    dom.show(errorTipNode);
-                }
-                return false;
-            } else {
-                if (errorTipNode) {
-                    dom.setText(dom.g(".content", errorTipNode) || errorTipNode, "");
-                    dom.hide(errorTipNode);
-                }
-            }
-            return true;
         };
         this.destroy = function(deepDestroy) {
             deepDestroy && this.tplParser.destroy();
@@ -5309,7 +5348,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     dataBind.parseTpl(tplContent);
                     html = dataBind.fillTpl(model, actionId);
                     dom.setHtml(elem, html);
-                    dataBind.bind(model, model.watcher, dataBinds, actionId);
+                    dataBind.bind(model, dataBinds, actionId);
                     dataBinds.push(dataBind);
                 } else {
                     html = tplContent;
@@ -5607,8 +5646,9 @@ define("bird.model", [ "bird.lang", "bird.array", "bird.object", "bird.__observe
                     var arr = v.split(".");
                     var k = arr[1];
                     ret[k] = json[arr[0]][k];
+                } else {
+                    ret[v] = json[v];
                 }
-                ret[v] = json[v];
             });
             return ret;
         };
@@ -6067,8 +6107,9 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
     }).call(Router.prototype);
     return new Router();
 });
-define("bird.router", [ "./bird.router.pushstate", "./bird.router.hashchange" ], function(require) {
-    return history.pushState ? require("./bird.router.pushstate") : require("./bird.router.hashchange");
+define("bird.router", [ "./bird.router.hashchange" ], function(require) {
+    //return history.pushState ? require('./bird.router.pushstate') : require('./bird.router.hashchange');
+    return require("./bird.router.hashchange");
 });
 define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang", "bird.object" ], function(require) {
     function Router() {
@@ -6500,236 +6541,337 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
     }).call(TplParser.prototype);
     return TplParser;
 });
-define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.object" ], function(require) {
+define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.object", "bird.dom" ], function(require) {
     var lang = require("bird.lang");
     var string = require("bird.string");
     var array = require("bird.array");
     var object = require("bird.object");
-    function Validator() {
-        this.messageStack = [];
-    }
+    var dom = require("bird.dom");
+    function Validator() {}
     (function() {
         //var messageStack = [];
-        var messageMap = {
-            required: "请输入",
-            number: "只能输入数字",
-            positiveNumber: "只能输入正数",
-            positiveInt: "只能输入正整数",
-            negativeNumber: "只能输入负数",
-            negativeInt: "只能输入负整数",
-            notPositiveNumber: "只能输入非正数",
-            notPositiveInt: "只能输入非正整数",
-            notNegativeNumber: "只能输入非负数",
-            notNegativeInt: "只能输入非负整数",
-            email: "邮箱格式不正确",
-            mobile: "手机号码格式不正确",
-            idNumber: "身份证号码格式不正确",
-            "float": "小数位不能超过{{digit}}位"
-        };
+        /*var messageMap = {
+			'required': '请输入',
+			'number': '只能输入数字',
+			'positiveNumber': "只能输入正数",
+			'positiveInt': "只能输入正整数",
+			'negativeNumber': "只能输入负数",
+			'negativeInt': "只能输入负整数",
+			'notPositiveNumber': "只能输入非正数",
+			'notPositiveInt': "只能输入非正整数",
+			'notNegativeNumber': "只能输入非负数",
+			'notNegativeInt': "只能输入非负整数",
+			'email': '邮箱格式不正确',
+			'mobile': '手机号码格式不正确',
+			'idNumber': '身份证号码格式不正确',
+			'float': '小数位不能超过{{digit}}位'
+		};*/
         var me = this;
         var ruleMap = {
-            required: function(value) {
-                var ret = lang.isNotEmpty(value);
-                if (!ret) {
-                    this.messageStack.push(messageMap["required"]);
-                }
-                return ret;
-            },
-            number: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                var ret = !isNaN(+value);
-                if (!ret) {
-                    this.messageStack.push(messageMap["number"]);
-                }
-                return ret;
-            },
-            positiveNumber: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value > 0) {
-                        return true;
+            required: {
+                validate: function(value) {
+                    var ret = lang.isNotEmpty(value);
+                    if (!ret) {
+                        return 1;
+                    } else {
+                        return 0;
                     }
-                    this.messageStack.push(messageMap["positiveNumber"]);
-                    return false;
+                },
+                messageMap: {
+                    1: "请输入"
                 }
-                return false;
             },
-            positiveInt: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value > 0 && /^\+?\d+$/.test(value)) {
-                        return true;
+            number: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
                     }
-                    this.messageStack.push(messageMap["positiveInt"]);
-                    return false;
-                }
-                return false;
-            },
-            negativeNumber: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value < 0) {
-                        return true;
+                    var ret = !isNaN(+value);
+                    if (!ret) {
+                        return 1;
                     }
-                    this.messageStack.push(messageMap["negativeNumber"]);
-                    return false;
+                    return 0;
+                },
+                messageMap: {
+                    1: "只能输入数字"
                 }
-                return false;
             },
-            negativeInt: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value < 0 && /^\-\d+$/.test(value)) {
-                        return true;
+            positiveNumber: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
                     }
-                    messageStack.push(messageMap["negativeInt"]);
-                    return false;
-                }
-                return false;
-            },
-            notNegativeNumber: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value >= 0) {
-                        return true;
+                    if (this.number(value)) {
+                        if (+value > 0) {
+                            return 0;
+                        }
                     }
-                    this.messageStack.push(messageMap["positiveNumber"]);
-                    return false;
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入正数"
                 }
-                return false;
             },
-            notNegativeInt: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value >= 0 && /^\+?\d+$/.test(value)) {
-                        return true;
+            positiveInt: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
                     }
-                    this.messageStack.push(messageMap["positiveInt"]);
-                    return false;
-                }
-                return false;
-            },
-            notPositiveNumber: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value <= 0) {
-                        return true;
+                    if (this.number(value)) {
+                        if (+value > 0 && /^\+?\d+$/.test(value)) {
+                            return 0;
+                        }
+                        return 1;
                     }
-                    this.messageStack.push(messageMap["negativeNumber"]);
-                    return false;
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入正整数"
                 }
-                return false;
             },
-            notPositiveInt: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (+value <= 0 && /^\-\d+$/.test(value)) {
-                        return true;
+            negativeNumber: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
                     }
-                    this.messageStack.push(messageMap["negativeInt"]);
-                    return false;
-                }
-                return false;
-            },
-            email: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
-                    return true;
-                }
-                this.messageStack.push(messageMap["email"]);
-                return false;
-            },
-            mobile: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (/^1\d{10,11}$/.test(value)) {
-                    return true;
-                }
-                this.messageStack.push(messageMap["mobile"]);
-                return false;
-            },
-            idNumber: function(value) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (/^(?:\d{15}|\d{18})$/.test(value)) {
-                    return true;
-                }
-                this.messageStack.push(messageMap["idNumber"]);
-                return false;
-            },
-            "float": function(value, digit) {
-                if (value == null || value === "") {
-                    return true;
-                }
-                if (this.number(value)) {
-                    if (digit == null || digit === "" || digit == 0) {
-                        return true;
+                    if (this.number(value)) {
+                        if (+value < 0) {
+                            return 0;
+                        }
+                        return 1;
                     }
-                    var re = new RegExp("^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{" + digit + "})$");
-                    if (re.test(value)) {
-                        return true;
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入负数"
+                }
+            },
+            negativeInt: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
                     }
-                    this.messageStack.push(string.format(messageMap["float"], {
+                    if (this.number(value)) {
+                        if (+value < 0 && /^\-\d+$/.test(value)) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入负整数"
+                }
+            },
+            notNegativeNumber: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (this.number(value)) {
+                        if (+value >= 0) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入非负数"
+                }
+            },
+            notNegativeInt: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (this.number(value)) {
+                        if (+value >= 0 && /^\+?\d+$/.test(value)) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入非负整数"
+                }
+            },
+            notPositiveNumber: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (this.number(value)) {
+                        if (+value <= 0) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入非正数"
+                }
+            },
+            notPositiveInt: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (this.number(value)) {
+                        if (+value <= 0 && /^\-\d+$/.test(value)) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "只能输入非正整数"
+                }
+            },
+            email: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
+                        return 0;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "邮箱格式不正确"
+                }
+            },
+            mobile: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (/^1\d{10,11}$/.test(value)) {
+                        return 0;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "手机号码格式不正确"
+                }
+            },
+            idNumber: {
+                validate: function(value) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (/^(?:\d{15}|\d{18})$/.test(value)) {
+                        return 0;
+                    }
+                    return 1;
+                },
+                messageMap: {
+                    1: "身份证号码格式不正确"
+                }
+            },
+            "float": {
+                validate: function(value, digit) {
+                    if (value == null || value === "") {
+                        return 0;
+                    }
+                    if (this.number(value)) {
+                        if (digit == null || digit === "" || digit == 0) {
+                            return 0;
+                        }
+                        var re = new RegExp("^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{" + digit + "})$");
+                        if (re.test(value)) {
+                            return 0;
+                        }
+                        return [ 1, {
+                            digit: digit
+                        } ];
+                    }
+                    return [ 1, {
                         digit: digit
-                    }));
-                    return false;
+                    } ];
+                },
+                messageMap: {
+                    1: "小数位不能超过{{digit}}位"
                 }
-                return false;
             }
         };
         this.getRuleMap = function() {
             return ruleMap;
         };
-        this.getMessageMap = function() {
-            return messageMap;
-        };
-        this.getMessage = function(ruleName) {
-            return messageMap[ruleName];
-        };
         this.getRule = function(ruleName) {
             return ruleMap[ruleName];
         };
-        this.getMessageStack = function() {
-            return this.messageStack;
+        this.getErrorTipNode = function(inputNode) {
+            return dom.g("[for=" + inputNode.id + "]") || dom.g(".errorTip", inputNode.parentNode);
         };
-        this.clearMessageStack = function() {
-            this.messageStack.length = 0;
+        this.getErrorTipContentNode = function(errorTipNode) {
+            return dom.g(".content", errorTipNode) || errorTipNode;
+        };
+        /**
+		 * float,2 ——>
+		 * {
+		 *    ruleName: 'float',
+		 *	  rulePropertys: [2]
+		 * }
+		 */
+        this.validate = function(validators, target) {
+            if (lang.isPlainObject(validators)) {
+                validators = [ validators ];
+            }
+            if (!validators.length) {
+                return true;
+            }
+            var value = target.value;
+            var errorTipNode = this.getErrorTipNode(target);
+            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            var me = this;
+            var isValid = array.each(validators, function(v) {
+                var rule = me.getRule(v.ruleName);
+                if (!rule) {
+                    return true;
+                }
+                var propertys = v.rulePropertys.slice();
+                propertys.unshift(value);
+                var ret = rule.validate.apply(rule, propertys);
+                if (!ret) {
+                    return true;
+                }
+                var message;
+                if (lang.isArray(ret)) {
+                    message = string.format(rule.messageMap[ret[0]], ret[1]);
+                } else {
+                    message = rule.messageMap[ret];
+                }
+                if (errorTipNode) {
+                    dom.setText(errorTipContentNode, message);
+                    dom.show(errorTipNode);
+                }
+                return false;
+            });
+            if (isValid && errorTipNode) {
+                dom.setText(errorTipContentNode, "");
+                dom.hide(errorTipNode);
+            }
+            return isValid;
         };
         /**
 		 * @param {Object|Array}
 		 *
 		 * {
 		 *		name: 'required',
-		 *		handle: function(){...},
-		 *		message: '请输入'
+		 *		validate: function(){...},
+		 *		messageMap: {
+		 *			1: '请输入'
+		 *		}
 		 * }
 		 */
         this.addValidator = function(v) {
             if (lang.isPlainObject(v)) {
-                ruleMap[v.name] = v.handle;
-                messageMap[v.name] = v.message;
+                ruleMap[v.name] = v;
             } else if (lang.isArray(v)) {
                 var _arguments = arguments;
                 array.forEach(v, function(_v) {
