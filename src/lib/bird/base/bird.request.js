@@ -84,7 +84,7 @@ define(function(require) {
                                 result = this.response || this.responseText;
 
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
-                                    result = typeof JSON !== 'undefined' && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval('(' + result + ')');
+                                    result = typeof JSON !== 'undefined' && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function('return ' + result)();//eval('(' + result + ')');
                                 }
                                 result = ajaxPostFilter(result);
                                 obj.complete(result, this.status);

@@ -69,7 +69,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                             } else {
                                 result = this.response || this.responseText;
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
-                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval("(" + result + ")");
+                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function("return " + result)();
                                 }
                                 result = ajaxPostFilter(result);
                                 obj.complete(result, this.status);

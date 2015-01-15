@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-15
+ * @date: 2015-01-16
  */
 /**
  *	封装LRU cache为独立模块
@@ -4066,7 +4066,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                             } else {
                                 result = this.response || this.responseText;
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
-                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : eval("(" + result + ")");
+                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function("return " + result)();
                                 }
                                 result = ajaxPostFilter(result);
                                 obj.complete(result, this.status);
@@ -4460,7 +4460,8 @@ define("bird.syspatch", [ "./bird.util", "./bird.lang" ], function(require) {
     if (typeof ctx.JSON === "undefined") {
         ctx.JSON = {
             parse: function(s) {
-                return ctx.eval("(" + s + ")");
+                //return ctx.eval('(' + s + ')');
+                return new Function("return " + s)();
             },
             stringify: util.stringify
         };
@@ -4995,7 +4996,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 callback();
             } else {
                 var me = this;
-                request.load(this.tplUrl + "?" + new Date().getTime(), function(data) {
+                request.syncLoad(this.tplUrl + "?" + new Date().getTime(), function(data) {
                     me.constructor.prototype.tpl = data;
                     callback();
                 });
@@ -6562,7 +6563,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
     function Validator() {}
     (function() {
         var checkReg = {
-            require: /.+/,
+            required: /.+/,
             email: /^\w+[-+.\w]*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/,
             phone: /^((\(\d{3}\))|(\d{3}\-))?(\(0\d{2,3}\)|0\d{2,3}-)?[1-9]\d{6,7}$/,
             mobile: /^0?1\d{10}$/,
@@ -6587,264 +6588,290 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             carNo: /^[\u4e00-\u9fa5]{1}[a-zA-Z]{1}[a-zA-Z_0-9]{4}[a-zA-Z_0-9_\u4e00-\u9fa5]$|^[a-zA-Z]{2}\d{7}$/,
             validCode: /^[A-Za-z0-9]{4}$/
         };
-        var me = this;
+        var messageMap = {
+            required: "请输入",
+            number: "只能输入数字",
+            positiveNumber: "只能输入正数",
+            positiveInt: "只能输入正整数",
+            negativeNumber: "只能输入负数",
+            negativeInt: "只能输入负整数",
+            notNegativeNumber: "只能输入非负数",
+            notNegativeInt: "只能输入非负整数",
+            notPositiveNumber: "只能输入非正数",
+            notPositiveInt: "只能输入非正整数",
+            email: "邮箱格式不正确",
+            mobile: "手机号码格式不正确",
+            idCard: "身份证号码格式不正确",
+            "float": "小数位不能超过{{digit}}位"
+        };
         var ruleMap = {
-            required: {
-                validate: function(value) {
-                    var ret = lang.isNotEmpty(value);
-                    if (!ret) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                },
-                messageMap: {
-                    1: "请输入"
-                }
+            required: function(value) {
+                var ret = checkReg.required.test(value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["required"]
+                };
             },
-            number: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    var ret = !isNaN(+value);
-                    if (!ret) {
-                        return 1;
-                    }
-                    return 0;
-                },
-                messageMap: {
-                    1: "只能输入数字"
+            number: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
+                var ret = !isNaN(+value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["number"]
+                };
             },
-            positiveNumber: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value > 0) {
-                            return 0;
-                        }
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入正数"
+            positiveNumber: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
-            },
-            positiveInt: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value > 0 && /^\+?\d+$/.test(value)) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入正整数"
+                var ret = this.number(value);
+                if (!ret.success) {
+                    return ret;
                 }
+                ret = +value > 0;
+                return {
+                    success: ret,
+                    message: !ret && messageMap["positiveNumber"]
+                };
             },
-            negativeNumber: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value < 0) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入负数"
+            positiveInt: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
-            },
-            negativeInt: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value < 0 && /^\-\d+$/.test(value)) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入负整数"
+                var ret = this.positiveNumber(value);
+                if (!ret.success) {
+                    return ret;
                 }
+                ret = /^\+?\d+$/.test(value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["positiveInt"]
+                };
             },
-            notNegativeNumber: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value >= 0) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入非负数"
+            negativeNumber: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
-            },
-            notNegativeInt: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value >= 0 && /^\+?\d+$/.test(value)) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入非负整数"
+                var ret = this.number(value);
+                if (!ret.success) {
+                    return ret;
                 }
+                ret = +value < 0;
+                return {
+                    success: ret,
+                    message: !ret && messageMap["negativeNumber"]
+                };
             },
-            notPositiveNumber: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value <= 0) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入非正数"
+            negativeInt: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
-            },
-            notPositiveInt: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (this.number(value)) {
-                        if (+value <= 0 && /^\-\d+$/.test(value)) {
-                            return 0;
-                        }
-                        return 1;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "只能输入非正整数"
+                var ret = this.negativeNumber(value);
+                if (!ret.success) {
+                    return ret;
                 }
+                ret = /^\-\d+$/.test(value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["negativeInt"]
+                };
             },
-            email: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.(?:com|cn|net|com\.cn)$/i.test(value)) {
-                        return 0;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "邮箱格式不正确"
+            notNegativeNumber: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
-            },
-            mobile: {
-                validate: function(value) {
-                    if (value == null || value === "") {
-                        return 0;
-                    }
-                    if (checkReg.mobile.test(value)) {
-                        return 0;
-                    }
-                    return 1;
-                },
-                messageMap: {
-                    1: "手机号码格式不正确"
+                var ret = this.number(value);
+                if (!ret.success) {
+                    return ret;
                 }
+                ret = +value >= 0;
+                return {
+                    success: ret,
+                    message: !ret && messageMap["notNegativeNumber"]
+                };
             },
-            idCard: {
-                validate: function(b) {
-                    if (!b) {
-                        return 0;
-                    }
-                    var a = checkReg.idCard;
-                    if (!a.test(b)) {
-                        return 1;
-                    }
-                    var g = "11,12,13,14,15,21,22,23,31,32,33,34,35,36,37,41,42,43,44,45,46,50,51,52,53,54,61,62,63,64,65,71,81,82,91";
-                    var e = 0;
-                    var c = "";
-                    var f = b.length;
-                    if (!/^\d{17}(\d|x)$/i.test(b)) {
-                        return 1;
-                    }
-                    var l = b.replace(/x$/i, "a");
-                    var j = l.substr(0, 2);
-                    if (!(g.indexOf(j) >= 0)) {
-                        return 1;
-                    }
-                    if (f == 18) {
-                        sBirthday = l.substr(6, 4) + "-" + Number(l.substr(10, 2)) + "-" + Number(l.substr(12, 2));
-                        var k = new Date(sBirthday.replace(/-/g, "/"));
-                        if (sBirthday != k.getFullYear() + "-" + (k.getMonth() + 1) + "-" + k.getDate()) {
-                            return 1;
-                        }
-                        for (var h = 17; h >= 0; h--) {
-                            e += Math.pow(2, h) % 11 * parseInt(l.charAt(17 - h), 11);
-                        }
-                        if (e % 11 != 1) {
-                            return 1;
-                        }
-                    }
-                    return 0;
-                },
-                messageMap: {
-                    1: "身份证号码格式不正确"
+            notNegativeInt: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
                 }
+                var ret = this.notNegativeNumber(value);
+                if (!ret.success) {
+                    return ret;
+                }
+                ret = /^\+?\d+$/.test(value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["notNegativeInt"]
+                };
             },
-            "float": {
-                validate: function(value, digit) {
-                    if (value == null || value === "") {
-                        return 0;
+            notPositiveNumber: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                var ret = this.number(value);
+                if (!ret.success) {
+                    return ret;
+                }
+                ret = +value <= 0;
+                return {
+                    success: ret,
+                    message: !ret && messageMap["notPositiveNumber"]
+                };
+            },
+            notPositiveInt: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                var ret = this.notPositiveNumber(value);
+                if (!ret.success) {
+                    return ret;
+                }
+                ret = /^\-\d+$/.test(value);
+                return {
+                    success: ret,
+                    message: !ret && messageMap["notPositiveInt"]
+                };
+            },
+            email: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.(?:com|cn|net|com\.cn)$/i.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["email"]
+                };
+            },
+            mobile: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.mobile.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["mobile"]
+                };
+            },
+            idCard: function(b) {
+                if (!b) {
+                    return {
+                        success: true
+                    };
+                }
+                var a = checkReg.idCard;
+                if (!a.test(b)) {
+                    return {
+                        success: false,
+                        message: messageMap["idCard"]
+                    };
+                }
+                var g = "11,12,13,14,15,21,22,23,31,32,33,34,35,36,37,41,42,43,44,45,46,50,51,52,53,54,61,62,63,64,65,71,81,82,91";
+                var e = 0;
+                var c = "";
+                var f = b.length;
+                if (!/^\d{17}(\d|x)$/i.test(b)) {
+                    return {
+                        success: false,
+                        message: messageMap["idCard"]
+                    };
+                }
+                var l = b.replace(/x$/i, "a");
+                var j = l.substr(0, 2);
+                if (!(g.indexOf(j) >= 0)) {
+                    return {
+                        success: false,
+                        message: messageMap["idCard"]
+                    };
+                }
+                if (f == 18) {
+                    sBirthday = l.substr(6, 4) + "-" + Number(l.substr(10, 2)) + "-" + Number(l.substr(12, 2));
+                    var k = new Date(sBirthday.replace(/-/g, "/"));
+                    if (sBirthday != k.getFullYear() + "-" + (k.getMonth() + 1) + "-" + k.getDate()) {
+                        return {
+                            success: false,
+                            message: messageMap["idCard"]
+                        };
                     }
-                    if (this.number(value)) {
-                        if (digit == null || digit === "" || digit == 0) {
-                            return 0;
-                        }
-                        var re = new RegExp("^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{" + digit + "})$");
-                        if (re.test(value)) {
-                            return 0;
-                        }
-                        return [ 1, {
-                            digit: digit
-                        } ];
+                    for (var h = 17; h >= 0; h--) {
+                        e += Math.pow(2, h) % 11 * parseInt(l.charAt(17 - h), 11);
                     }
-                    return [ 1, {
+                    if (e % 11 != 1) {
+                        return {
+                            success: false,
+                            message: messageMap["idCard"]
+                        };
+                    }
+                }
+                return {
+                    success: true
+                };
+            },
+            "float": function(value, digit) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                var ret = this.number(value);
+                if (!ret.success) {
+                    return ret;
+                }
+                if (digit == null || digit === "" || digit == 0) {
+                    return {
+                        success: true
+                    };
+                }
+                var re = new RegExp("^(?:\\+|\\-)?(?:\\d+\\.?|\\d*\\.\\d{" + digit + "})$");
+                if (re.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: string.format(messageMap["float"], {
                         digit: digit
-                    } ];
-                },
-                messageMap: {
-                    1: "小数位不能超过{{digit}}位"
-                }
+                    })
+                };
             }
+        };
+        this.getRule = function(ruleName) {
+            return ruleMap[ruleName];
+        };
+        this.getMessage = function(ruleName) {
+            return messageMap[ruleName];
         };
         this.getErrorTipNode = function(inputNode) {
             return dom.g("[for=" + inputNode.id + "]") || dom.g(".errorTip", inputNode.parentNode);
@@ -6853,12 +6880,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             return dom.g(".content", errorTipNode) || errorTipNode;
         };
         /**
-		 * float,2 ——>
-		 * {
-		 *    ruleName: 'float',
-		 *	  rulePropertys: [2]
-		 * }
-		 */
+         * float,2 ——>
+         * {
+         *    ruleName: 'float',
+         *    rulePropertys: [2]
+         * }
+         */
         this.validate = function(validators, target) {
             if (lang.isPlainObject(validators)) {
                 validators = [ validators ];
@@ -6876,18 +6903,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 }
                 var propertys = v.rulePropertys.slice();
                 propertys.unshift(value);
-                var ret = rule.validate.apply(rule, propertys);
-                if (!ret) {
+                var ret = rule.apply(ruleMap, propertys);
+                if (ret.success) {
                     return true;
                 }
-                var message;
-                if (lang.isArray(ret)) {
-                    message = string.format(rule.messageMap[ret[0]], ret[1]);
-                } else {
-                    message = rule.messageMap[ret];
-                }
                 if (errorTipNode) {
-                    dom.setText(errorTipContentNode, message);
+                    dom.setText(errorTipContentNode, ret.message);
                     dom.show(errorTipNode);
                 }
                 return false;
@@ -6899,20 +6920,19 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             return isValid;
         };
         /**
-		 * @param {Object|Array}
-		 *
-		 * {
-		 *		name: 'required',
-		 *		validate: function(){...},
-		 *		messageMap: {
-		 *			1: '请输入'
-		 *		}
-		 * }
-		 */
+         * @param {Object|Array}
+         *
+         * {
+         *      name: 'required',
+         *      validate: function(){...},
+         *      message: '请输入'
+         * }
+         */
         this.addValidator = function(v) {
             // 添加的验证规则不能与内置规则重名
-            if (lang.isPlainObject(v) && !ruleMap[v.name]) {
-                ruleMap[v.name] = v;
+            if (lang.isPlainObject(v)) {
+                v.validate && !ruleMap[v.name] && (ruleMap[v.name] = v.validate);
+                v.message && !messageMap[v.name] && (messageMap[v.name] = v.message);
             } else if (lang.isArray(v)) {
                 var _arguments = arguments;
                 array.forEach(v, function(_v) {

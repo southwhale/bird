@@ -12,7 +12,8 @@ define(function(require) {
 	if (typeof ctx.JSON === 'undefined') {
 		ctx.JSON = {
 			parse: function(s) {
-				return ctx.eval('(' + s + ')');
+				//return ctx.eval('(' + s + ')');
+				return new Function('return ' + s)();
 			},
 			stringify: util.stringify
 		};
