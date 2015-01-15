@@ -167,20 +167,6 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var validatorStrArr = filter.split(/\s+/);
                 array.forEach(validatorStrArr, function(str) {
                     var arr = str.split(",");
-                    /*var vname = arr[0];
-					var rule = validator.getRule(vname);
-					if (rule) {
-						var args = arr.slice(1);
-						validators.push((function() {
-							return function(value) {
-								var _args = args.slice();
-                                _args.unshift(value);
-                                //validator.clearMessageStack();
-                                return rule.apply(validator, _args);
-							};
-						})());
-
-					}*/
                     validators.push({
                         ruleName: arr[0],
                         rulePropertys: arr.slice(1)

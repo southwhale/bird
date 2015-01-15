@@ -152,7 +152,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             var me = this;
             var result = true;
             array.forEach(inputArray, function(node, i) {
-                // 凡是添加验证规则的元素 比然会有ID, 解析模板时会自动添加ID
+                // 凡是添加验证规则的元素 必然会有ID, 解析模板时会自动添加ID
                 if (!node.id || node.disabled || dom.getAttr(node, "ignore")) {
                     return;
                 }

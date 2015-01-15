@@ -291,12 +291,6 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 }
             }
         };
-        this.getRuleMap = function() {
-            return ruleMap;
-        };
-        this.getRule = function(ruleName) {
-            return ruleMap[ruleName];
-        };
         this.getErrorTipNode = function(inputNode) {
             return dom.g("[for=" + inputNode.id + "]") || dom.g(".errorTip", inputNode.parentNode);
         };
@@ -320,9 +314,8 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             var value = target.value;
             var errorTipNode = this.getErrorTipNode(target);
             var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
-            var me = this;
             var isValid = array.each(validators, function(v) {
-                var rule = me.getRule(v.ruleName);
+                var rule = ruleMap[v.ruleName];
                 if (!rule) {
                     return true;
                 }
@@ -362,7 +355,8 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
 		 * }
 		 */
         this.addValidator = function(v) {
-            if (lang.isPlainObject(v)) {
+            // 添加的验证规则不能与内置规则重名
+            if (lang.isPlainObject(v) && !ruleMap[v.name]) {
                 ruleMap[v.name] = v;
             } else if (lang.isArray(v)) {
                 var _arguments = arguments;

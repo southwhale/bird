@@ -4941,7 +4941,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             var me = this;
             var result = true;
             array.forEach(inputArray, function(node, i) {
-                // 凡是添加验证规则的元素 比然会有ID, 解析模板时会自动添加ID
+                // 凡是添加验证规则的元素 必然会有ID, 解析模板时会自动添加ID
                 if (!node.id || node.disabled || dom.getAttr(node, "ignore")) {
                     return;
                 }
@@ -5282,20 +5282,6 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var validatorStrArr = filter.split(/\s+/);
                 array.forEach(validatorStrArr, function(str) {
                     var arr = str.split(",");
-                    /*var vname = arr[0];
-					var rule = validator.getRule(vname);
-					if (rule) {
-						var args = arr.slice(1);
-						validators.push((function() {
-							return function(value) {
-								var _args = args.slice();
-                                _args.unshift(value);
-                                //validator.clearMessageStack();
-                                return rule.apply(validator, _args);
-							};
-						})());
-
-					}*/
                     validators.push({
                         ruleName: arr[0],
                         rulePropertys: arr.slice(1)
@@ -6860,12 +6846,6 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 }
             }
         };
-        this.getRuleMap = function() {
-            return ruleMap;
-        };
-        this.getRule = function(ruleName) {
-            return ruleMap[ruleName];
-        };
         this.getErrorTipNode = function(inputNode) {
             return dom.g("[for=" + inputNode.id + "]") || dom.g(".errorTip", inputNode.parentNode);
         };
@@ -6889,9 +6869,8 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             var value = target.value;
             var errorTipNode = this.getErrorTipNode(target);
             var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
-            var me = this;
             var isValid = array.each(validators, function(v) {
-                var rule = me.getRule(v.ruleName);
+                var rule = ruleMap[v.ruleName];
                 if (!rule) {
                     return true;
                 }
@@ -6931,7 +6910,8 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
 		 * }
 		 */
         this.addValidator = function(v) {
-            if (lang.isPlainObject(v)) {
+            // 添加的验证规则不能与内置规则重名
+            if (lang.isPlainObject(v) && !ruleMap[v.name]) {
                 ruleMap[v.name] = v;
             } else if (lang.isArray(v)) {
                 var _arguments = arguments;
