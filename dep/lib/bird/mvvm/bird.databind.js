@@ -193,7 +193,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     return;
                 }
                 var target = e.target;
-                if (!validator.validate(validators, target)) {
+                if (validators.length && !validator.validate(validators, target)) {
                     return;
                 }
                 model.set(attrVariable, target.value, me, target);

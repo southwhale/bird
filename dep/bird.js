@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-14
+ * @date: 2015-01-15
  */
 /**
  *	封装LRU cache为独立模块
@@ -5308,7 +5308,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                     return;
                 }
                 var target = e.target;
-                if (!validator.validate(validators, target)) {
+                if (validators.length && !validator.validate(validators, target)) {
                     return;
                 }
                 model.set(attrVariable, target.value, me, target);
@@ -6762,7 +6762,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (value == null || value === "") {
                         return 0;
                     }
-                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
+                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.(?:com|cn|net|com\.cn)$/i.test(value)) {
                         return 0;
                     }
                     return 1;

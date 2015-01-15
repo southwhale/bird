@@ -193,7 +193,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                     if (value == null || value === "") {
                         return 0;
                     }
-                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.[a-z]+(?:\.[a-z]+)?$/i.test(value)) {
+                    if (/^[a-z0-9][a-z0-9\-_]*@[a-z0-9][a-z0-9\-_]*\.(?:com|cn|net|com\.cn)$/i.test(value)) {
                         return 0;
                     }
                     return 1;

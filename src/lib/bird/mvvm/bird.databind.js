@@ -220,7 +220,7 @@ define(function(require) {
 				}
 
 				var target = e.target;
-				if (!validator.validate(validators, target)) {
+				if (validators.length && !validator.validate(validators, target)) {
 					return;
 				}
 
