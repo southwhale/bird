@@ -3224,6 +3224,7 @@ define('echarts/echarts', [
             zlevel: 0,
             z: 2,
             clickable: true,
+            hoverable: true,
             legendHoverLink: false,
             xAxisIndex: 0,
             yAxisIndex: 0,
@@ -15729,7 +15730,7 @@ define('zrender/zrender', [
                 if (typeof formatter === 'function') {
                     return formatter.call(this.myChart, {
                         seriesName: serie.name,
-                        series: series,
+                        series: serie,
                         name: name,
                         value: value,
                         data: data,

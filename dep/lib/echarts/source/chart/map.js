@@ -1,6 +1,5 @@
 define('echarts/chart/map', [
     'require',
-    '../component/base',
     './base',
     'zrender/shape/Text',
     'zrender/shape/Path',
@@ -23,7 +22,6 @@ define('echarts/chart/map', [
     '../util/projection/normal',
     '../chart'
 ], function (require) {
-    var ComponentBase = require('../component/base');
     var ChartBase = require('./base');
     var TextShape = require('zrender/shape/Text');
     var PathShape = require('zrender/shape/Path');
@@ -43,8 +41,7 @@ define('echarts/chart/map', [
     var _textFixed = require('../util/mapData/textFixed');
     var _geoCoord = require('../util/mapData/geoCoord');
     function Map(ecTheme, messageCenter, zr, option, myChart) {
-        ComponentBase.call(this, ecTheme, messageCenter, zr, option, myChart);
-        ChartBase.call(this);
+        ChartBase.call(this, ecTheme, messageCenter, zr, option, myChart);
         var self = this;
         self._onmousewheel = function (params) {
             return self.__onmousewheel(params);
@@ -468,7 +465,8 @@ define('echarts/chart/map', [
                         seriesName += series[data.seriesIndex[j]].name + ' ';
                         if (legend && this._showLegendSymbol[mapType] && legend.hasColor(series[data.seriesIndex[j]].name)) {
                             this.shapeList.push(new CircleShape({
-                                zlevel: this._zlevelBase + 1,
+                                zlevel: this.getZlevelBase(),
+                                z: this.getZBase() + 1,
                                 position: zrUtil.clone(style.position),
                                 _mapType: mapType,
                                 style: {
@@ -505,7 +503,8 @@ define('echarts/chart/map', [
                 style._name = highlightStyle._name = name;
                 font = this.deepQuery(queryTarget, 'itemStyle.normal.label.textStyle');
                 textShape = {
-                    zlevel: this._zlevelBase + 1,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase() + 1,
                     position: zrUtil.clone(style.position),
                     _mapType: mapType,
                     _geo: this.pos2geo(mapType, [
@@ -534,7 +533,8 @@ define('echarts/chart/map', [
                     textShape.highlightStyle.color = 'rgba(0,0,0,0)';
                 }
                 shape = {
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     position: zrUtil.clone(style.position),
                     style: style,
                     highlightStyle: highlightStyle,
@@ -1032,7 +1032,6 @@ define('echarts/chart/map', [
         }
     };
     zrUtil.inherits(Map, ChartBase);
-    zrUtil.inherits(Map, ComponentBase);
     require('../chart').define('map', Map);
     return Map;
 });define('zrender/shape/Path', [
@@ -1621,11 +1620,15 @@ define('echarts/chart/map', [
                 itemShape = this._getItemShape(lastX, lastY, itemWidth, itemHeight, this._selectedMap[i] ? color : '#ccc');
                 itemShape._idx = i;
                 itemShape.onmousemove = this._dispatchHoverLink;
-                itemShape.onclick = this._dataRangeSelected;
+                if (this.dataRangeOption.selectedMode) {
+                    itemShape.clickable = true;
+                    itemShape.onclick = this._dataRangeSelected;
+                }
                 this.shapeList.push(new RectangleShape(itemShape));
                 if (needValueText) {
                     textShape = {
-                        zlevel: this._zlevelBase,
+                        zlevel: this.getZlevelBase(),
+                        z: this.getZBase(),
                         style: {
                             x: lastX + itemWidth + 5,
                             y: lastY,
@@ -1634,15 +1637,18 @@ define('echarts/chart/map', [
                             textFont: font,
                             textBaseline: 'top'
                         },
-                        highlightStyle: { brushType: 'fill' },
-                        clickable: true
+                        highlightStyle: { brushType: 'fill' }
                     };
                     if (this.dataRangeOption.orient == 'vertical' && this.dataRangeOption.x == 'right') {
                         textShape.style.x -= itemWidth + 10;
                         textShape.style.textAlign = 'right';
                     }
                     textShape._idx = i;
-                    textShape.onclick = this._dataRangeSelected;
+                    textShape.onmousemove = this._dispatchHoverLink;
+                    if (this.dataRangeOption.selectedMode) {
+                        textShape.clickable = true;
+                        textShape.onclick = this._dataRangeSelected;
+                    }
                     this.shapeList.push(new TextShape(textShape));
                 }
                 if (this.dataRangeOption.orient == 'horizontal') {
@@ -1674,6 +1680,7 @@ define('echarts/chart/map', [
             var itemWidth = this.dataRangeOption.itemWidth;
             var itemHeight = this.dataRangeOption.itemHeight;
             var textHeight = zrArea.getTextHeight('国', font);
+            var mSize = 10;
             var needValueText = true;
             if (this.dataRangeOption.text) {
                 needValueText = false;
@@ -1700,30 +1707,32 @@ define('echarts/chart/map', [
             }
             if (this.dataRangeOption.orient == 'horizontal') {
                 itemShape = {
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: lastX,
                         y: lastY,
-                        width: itemWidth * 10,
+                        width: itemWidth * mSize,
                         height: itemHeight,
-                        color: zrColor.getLinearGradient(lastX, lastY, lastX + itemWidth * 10, lastY, colorList)
+                        color: zrColor.getLinearGradient(lastX, lastY, lastX + itemWidth * mSize, lastY, colorList)
                     },
                     hoverable: false
                 };
-                lastX += itemWidth * 10 + this._textGap;
+                lastX += itemWidth * mSize + this._textGap;
             } else {
                 itemShape = {
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: lastX,
                         y: lastY,
                         width: itemWidth,
-                        height: itemHeight * 10,
-                        color: zrColor.getLinearGradient(lastX, lastY, lastX, lastY + itemHeight * 10, colorList)
+                        height: itemHeight * mSize,
+                        color: zrColor.getLinearGradient(lastX, lastY, lastX, lastY + itemHeight * mSize, colorList)
                     },
                     hoverable: false
                 };
-                lastY += itemHeight * 10 + this._textGap;
+                lastY += itemHeight * mSize + this._textGap;
             }
             this.shapeList.push(new RectangleShape(itemShape));
             this._calculableLocation = itemShape.style;
@@ -1837,7 +1846,8 @@ define('echarts/chart/map', [
         },
         _buildFiller: function () {
             this._fillerShape = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 style: {
                     x: this._calculableLocation.x,
                     y: this._calculableLocation.y,
@@ -2130,6 +2140,7 @@ define('echarts/chart/map', [
                     text: this._textFormat(this.dataRangeOption.max),
                     textX: textXStart,
                     textY: textYStart,
+                    textFont: font,
                     color: this.getColor(this.dataRangeOption.max),
                     rect: coverRectStart,
                     x: pointListStart[0][0],
@@ -2148,6 +2159,7 @@ define('echarts/chart/map', [
                     text: this._textFormat(this.dataRangeOption.min),
                     textX: textXEnd,
                     textY: textYEnd,
+                    textFont: font,
                     color: this.getColor(this.dataRangeOption.min),
                     rect: coverRectEnd,
                     x: pointListEnd[0][0],
@@ -2160,7 +2172,8 @@ define('echarts/chart/map', [
                 strokeColor: this._endShape.style.color,
                 lineWidth: 1
             };
-            this._startShape.zlevel = this._endShape.zlevel = this._zlevelBase + 1;
+            this._startShape.zlevel = this._endShape.zlevel = this.getZlevelBase();
+            this._startShape.z = this._endShape.z = this.getZBase() + 1;
             this._startShape.draggable = this._endShape.draggable = true;
             this._startShape.ondrift = this._endShape.ondrift = this._ondrift;
             this._startShape.ondragend = this._endShape.ondragend = this._ondragend;
@@ -2182,7 +2195,8 @@ define('echarts/chart/map', [
             var width = this._calculableLocation.width;
             var height = this._calculableLocation.height;
             this._startMask = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 style: {
                     x: x,
                     y: y,
@@ -2193,7 +2207,8 @@ define('echarts/chart/map', [
                 hoverable: false
             };
             this._endMask = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 style: {
                     x: this.dataRangeOption.orient == 'horizontal' ? x + width : x,
                     y: this.dataRangeOption.orient == 'horizontal' ? y : y + height,
@@ -2211,7 +2226,8 @@ define('echarts/chart/map', [
         _buildBackground: function () {
             var padding = this.reformCssArray(this.dataRangeOption.padding);
             this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 hoverable: false,
                 style: {
                     x: this._itemGroupLocation.x - padding[3],
@@ -2235,9 +2251,10 @@ define('echarts/chart/map', [
             var totalHeight = 0;
             var font = this.getFont(this.dataRangeOption.textStyle);
             var textHeight = zrArea.getTextHeight('国', font);
+            var mSize = 10;
             if (this.dataRangeOption.orient == 'horizontal') {
                 if (this.dataRangeOption.text || this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable) {
-                    totalWidth = (this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable ? itemWidth * 10 + itemGap : dataLength * (itemWidth + itemGap)) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[0] != 'undefined' ? zrArea.getTextWidth(this.dataRangeOption.text[0], font) + this._textGap : 0) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[1] != 'undefined' ? zrArea.getTextWidth(this.dataRangeOption.text[1], font) + this._textGap : 0);
+                    totalWidth = (this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable ? itemWidth * mSize + itemGap : dataLength * (itemWidth + itemGap)) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[0] != 'undefined' ? zrArea.getTextWidth(this.dataRangeOption.text[0], font) + this._textGap : 0) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[1] != 'undefined' ? zrArea.getTextWidth(this.dataRangeOption.text[1], font) + this._textGap : 0);
                 } else {
                     itemWidth += 5;
                     for (var i = 0; i < dataLength; i++) {
@@ -2249,7 +2266,7 @@ define('echarts/chart/map', [
             } else {
                 var maxWidth;
                 if (this.dataRangeOption.text || this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable) {
-                    totalHeight = (this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable ? itemHeight * 10 + itemGap : dataLength * (itemHeight + itemGap)) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[0] != 'undefined' ? this._textGap + textHeight : 0) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[1] != 'undefined' ? this._textGap + textHeight : 0);
+                    totalHeight = (this.dataRangeOption.splitNumber <= 0 || this.dataRangeOption.calculable ? itemHeight * mSize + itemGap : dataLength * (itemHeight + itemGap)) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[0] != 'undefined' ? this._textGap + textHeight : 0) + (this.dataRangeOption.text && typeof this.dataRangeOption.text[1] != 'undefined' ? this._textGap + textHeight : 0);
                     maxWidth = Math.max(zrArea.getTextWidth(this.dataRangeOption.text && this.dataRangeOption.text[0] || '', font), zrArea.getTextWidth(this.dataRangeOption.text && this.dataRangeOption.text[1] || '', font));
                     totalWidth = Math.max(itemWidth, maxWidth);
                 } else {
@@ -2325,7 +2342,8 @@ define('echarts/chart/map', [
         },
         _getTextShape: function (x, y, text) {
             return {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: this.dataRangeOption.orient == 'horizontal' ? x : this._itemGroupLocation.x + this._itemGroupLocation.width / 2,
                     y: this.dataRangeOption.orient == 'horizontal' ? this._itemGroupLocation.y + this._itemGroupLocation.height / 2 : y,
@@ -2340,7 +2358,8 @@ define('echarts/chart/map', [
         },
         _getItemShape: function (x, y, width, height, color) {
             return {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: x,
                     y: y + 1,
@@ -2351,8 +2370,7 @@ define('echarts/chart/map', [
                 highlightStyle: {
                     strokeColor: color,
                     lineWidth: 1
-                },
-                clickable: true
+                }
             };
         },
         __ondrift: function (shape, dx, dy) {
@@ -2526,8 +2544,20 @@ define('echarts/chart/map', [
             }
         },
         __dataRangeSelected: function (param) {
+            if (this.dataRangeOption.selectedMode === 'single') {
+                for (var k in this._selectedMap) {
+                    this._selectedMap[k] = false;
+                }
+            }
             var idx = param.target._idx;
             this._selectedMap[idx] = !this._selectedMap[idx];
+            var valueMax = (this._colorList.length - idx) * this._gap + this.dataRangeOption.min;
+            this.messageCenter.dispatch(ecConfig.EVENT.DATA_RANGE_SELECTED, param.event, {
+                selected: this._selectedMap,
+                target: idx,
+                valueMax: valueMax,
+                valueMin: valueMax - this._gap
+            }, this.myChart);
             this.messageCenter.dispatch(ecConfig.EVENT.REFRESH, null, null, this.myChart);
         },
         __dispatchHoverLink: function (param) {
@@ -2557,7 +2587,7 @@ define('echarts/chart/map', [
         __onhoverlink: function (param) {
             if (this.dataRangeOption.show && this.dataRangeOption.hoverLink && this._indicatorShape && param && param.seriesIndex != null && param.dataIndex != null) {
                 var curValue = param.value;
-                if (isNaN(curValue)) {
+                if (curValue == '' || isNaN(curValue)) {
                     return;
                 }
                 if (curValue < this.dataRangeOption.min) {
@@ -2576,14 +2606,14 @@ define('echarts/chart/map', [
                         (this.dataRangeOption.max - curValue) / (this.dataRangeOption.max - this.dataRangeOption.min) * this._calculableLocation.height
                     ];
                 }
-                this._indicatorShape.style.text = param.value;
+                this._indicatorShape.style.text = this._textFormat(param.value);
                 this._indicatorShape.style.color = this.getColor(curValue);
                 this.zr.addHoverShape(this._indicatorShape);
             }
         },
         _textFormat: function (valueStart, valueEnd) {
             valueStart = valueStart.toFixed(this.dataRangeOption.precision);
-            valueEnd = typeof valueEnd != 'undefined' ? valueEnd.toFixed(this.dataRangeOption.precision) : '';
+            valueEnd = valueEnd != null ? valueEnd.toFixed(this.dataRangeOption.precision) : '';
             if (this.dataRangeOption.formatter) {
                 if (typeof this.dataRangeOption.formatter == 'string') {
                     return this.dataRangeOption.formatter.replace('{value}', valueStart).replace('{value2}', valueEnd);
@@ -2748,7 +2778,8 @@ define('echarts/chart/map', [
             var x = this._itemGroupLocation.x + r;
             var y = this._itemGroupLocation.y + r;
             var sectorShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: x,
                     y: y,
@@ -2810,7 +2841,8 @@ define('echarts/chart/map', [
             var x = this._itemGroupLocation.x + (text === 'scaleDown' ? width - r : r);
             var y = this._itemGroupLocation.y + this._itemGroupLocation.height - r;
             var scaleShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: x,
                     y: y,
@@ -2839,7 +2871,8 @@ define('echarts/chart/map', [
         _buildBackground: function () {
             var padding = this.reformCssArray(this.rcOption.padding);
             this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 hoverable: false,
                 style: {
                     x: this._itemGroupLocation.x - padding[3],

@@ -204,6 +204,10 @@ define('echarts/chart/k', [
                     series[seriesIndex].data[dataIndex],
                     series[seriesIndex]
                 ], 'clickable'),
+                hoverable: this.deepQuery([
+                    series[seriesIndex].data[dataIndex],
+                    series[seriesIndex]
+                ], 'hoverable'),
                 style: {
                     x: x,
                     y: [

@@ -1,6 +1,5 @@
 define('echarts/chart/funnel', [
     'require',
-    '../component/base',
     './base',
     'zrender/shape/Text',
     'zrender/shape/Line',
@@ -13,7 +12,6 @@ define('echarts/chart/funnel', [
     'zrender/tool/area',
     '../chart'
 ], function (require) {
-    var ComponentBase = require('../component/base');
     var ChartBase = require('./base');
     var TextShape = require('zrender/shape/Text');
     var LineShape = require('zrender/shape/Line');
@@ -25,8 +23,7 @@ define('echarts/chart/funnel', [
     var zrColor = require('zrender/tool/color');
     var zrArea = require('zrender/tool/area');
     function Funnel(ecTheme, messageCenter, zr, option, myChart) {
-        ComponentBase.call(this, ecTheme, messageCenter, zr, option, myChart);
-        ChartBase.call(this);
+        ChartBase.call(this, ecTheme, messageCenter, zr, option, myChart);
         this.refresh(option);
     }
     Funnel.prototype = {
@@ -310,7 +307,8 @@ define('echarts/chart/funnel', [
                 break;
             }
             var polygon = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 clickable: this.deepQuery(queryTarget, 'clickable'),
                 style: {
                     pointList: [
@@ -375,7 +373,8 @@ define('echarts/chart/funnel', [
                 textAlign = 'left';
             }
             var textShape = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 style: {
                     x: this._getLabelPoint(labelControl.position, x, location, topWidth, bottomWidth, lineLength, align),
                     y: y + height / 2,
@@ -444,7 +443,8 @@ define('echarts/chart/funnel', [
             var labelControl = itemStyle[status].label;
             labelControl.position = labelControl.position || itemStyle.normal.label.position;
             var lineShape = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 hoverable: false,
                 style: {
                     xStart: this._getLabelLineStartPoint(x, location, topWidth, bottomWidth, align),
@@ -515,7 +515,6 @@ define('echarts/chart/funnel', [
         }
     };
     zrUtil.inherits(Funnel, ChartBase);
-    zrUtil.inherits(Funnel, ComponentBase);
     require('../chart').define('funnel', Funnel);
     return Funnel;
 });

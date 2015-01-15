@@ -13,6 +13,9 @@ var require;
 var esl;
 /* jshint ignore:end */
 
+/* eslint-disable guard-for-in */
+/* eslint-env amd:false */
+
 (function (global) {
     // "mod"开头的变量或函数为内部模块管理函数
     // 为提高压缩率，不使用function或object包装
@@ -25,24 +28,48 @@ var esl;
      */
     var modModules = {};
 
-    /**
-     * 自动定义的模块表
-     *
-     * 模块define factory是用到时才执行，但是以下几种情况需要自动马上执行：
-     * 1. require( [moduleId], callback )
-     * 2. plugin module: require( 'plugin!resource' )
-     *
-     * @inner
-     * @type {Object}
-     */
-    var autoDefineModules = {};
-
-
     // 模块状态枚举量
     var MODULE_PRE_DEFINED = 1;
     var MODULE_ANALYZED = 2;
     var MODULE_PREPARED = 3;
     var MODULE_DEFINED = 4;
+
+    /**
+     * 自动定义的模块表
+     *
+     * 模块define factory是用到时才执行，但是以下几种情况需要自动马上执行：
+     * 1. require([moduleId], callback)
+     * 2. plugin module and plugin resource: require('plugin!resource')
+     * 3. shim module
+     *
+     * @inner
+     * @type {Object}
+     */
+    var modAutoDefineModules = {};
+
+    /**
+     * 标记模块自动进行定义
+     *
+     * @inner
+     * @param {string} id 模块id
+     */
+    function modFlagAutoDefine(id) {
+        if (!modIs(id, MODULE_DEFINED)) {
+            modAutoDefineModules[id] = 1;
+        }
+    }
+
+    /**
+     * 内建module名称集合
+     *
+     * @inner
+     * @type {Object}
+     */
+    var BUILDIN_MODULE = {
+        require: globalRequire,
+        exports: 1,
+        module: 1
+    };
 
     /**
      * 全局require函数
@@ -62,14 +89,37 @@ var esl;
     var waitTimeout;
     // #end-ignore
 
+    /* eslint-disable fecs-key-spacing */
+    /* eslint-disable key-spacing */
+    /**
+     * require配置
+     *
+     * @inner
+     * @type {Object}
+     */
+    var requireConf = {
+        baseUrl    : './',
+        paths      : {},
+        config     : {},
+        map        : {},
+        packages   : [],
+        shim       : {},
+        // #begin-ignore
+        waitSeconds: 0,
+        // #end-ignore
+        bundles    : {},
+        urlArgs    : {}
+    };
+    /* eslint-enable key-spacing */
+
     /**
      * 加载模块
      *
      * @param {string|Array} requireId 模块id或模块id数组，
      * @param {Function=} callback 加载完成的回调函数
-     * @return {*}
+     * @return {*} requireId为string时返回模块暴露对象
      */
-    function require(requireId, callback) {
+    function globalRequire(requireId, callback) {
         // #begin-ignore
         // #begin assertNotContainRelativeId
         // 确定require的模块id不包含相对id。用于global require，提前预防难以跟踪的错误出现
@@ -126,14 +176,14 @@ var esl;
      *
      * @type {string}
      */
-    require.version = '1.8.6';
+    globalRequire.version = '2.0.2';
 
     /**
      * loader名称
      *
      * @type {string}
      */
-    require.loader = 'esl';
+    globalRequire.loader = 'esl';
 
     /**
      * 将模块标识转换成相对的url
@@ -141,7 +191,7 @@ var esl;
      * @param {string} id 模块标识
      * @return {string}
      */
-    require.toUrl = actualGlobalRequire.toUrl;
+    globalRequire.toUrl = actualGlobalRequire.toUrl;
 
     // #begin-ignore
     /**
@@ -161,6 +211,7 @@ var esl;
          *
          * @inner
          * @param {string} id 模块id
+         * @param {boolean} hard 是否装载时依赖
          */
         function checkError(id, hard) {
             if (visited[id] || modIs(id, MODULE_DEFINED)) {
@@ -199,7 +250,7 @@ var esl;
             }
         }
 
-        for (var id in autoDefineModules) {
+        for (var id in modAutoDefineModules) {
             checkError(id, 1);
         }
 
@@ -216,12 +267,33 @@ var esl;
     // #end-ignore
 
     /**
-     * 尝试完成模块定义的定时器
+     * 未预定义的模块集合
+     * 主要存储匿名方式define的模块
      *
      * @inner
-     * @type {number}
+     * @type {Array}
      */
-    var tryDefineTimeout;
+    var wait4PreDefine = [];
+
+    /**
+     * 完成模块预定义，此时处理的模块是匿名define的模块
+     *
+     * @inner
+     * @param {string} currentId 匿名define的模块的id
+     */
+    function modCompletePreDefine(currentId) {
+        // HACK: 这里在IE下有个性能陷阱，不能使用任何变量。
+        //       否则貌似会形成变量引用和修改的读写锁，导致wait4PreDefine释放困难
+        each(wait4PreDefine, function (mod) {
+            modPreDefine(
+                currentId,
+                mod.deps,
+                mod.factory
+            );
+        });
+
+        wait4PreDefine.length = 0;
+    }
 
     /**
      * 定义模块
@@ -230,7 +302,7 @@ var esl;
      * @param {Array=} dependencies 依赖模块列表
      * @param {Function=} factory 创建模块的工厂方法
      */
-    function define(id, dependencies, factory) {
+    function globalDefine(id, dependencies, factory) {
         // define(factory)
         // define(dependencies, factory)
         // define(id, factory)
@@ -254,10 +326,6 @@ var esl;
             return;
         }
 
-        // 出现window不是疏忽
-        // esl设计是做为browser端的loader
-        // 闭包的global更多意义在于：
-        //     define和require方法可以被挂到用户自定义对象中
         var opera = window.opera;
 
         // IE下通过current script的data-require-id获取当前id
@@ -272,24 +340,18 @@ var esl;
 
         if (id) {
             modPreDefine(id, dependencies, factory);
-
-            // 在不远的未来尝试完成define
-            // define可能是在页面中某个地方调用，不一定是在独立的文件被require装载
-            if (tryDefineTimeout) {
-                clearTimeout(tryDefineTimeout);
-            }
         }
         else {
             // 纪录到共享变量中，在load或readystatechange中处理
             // 标准浏览器下，使用匿名define时，将进入这个分支
             wait4PreDefine[0] = {
-                deps    : dependencies,
-                factory : factory
+                deps: dependencies,
+                factory: factory
             };
         }
     }
 
-    define.amd = {};
+    globalDefine.amd = {};
 
     /**
      * 模块配置获取函数
@@ -331,9 +393,9 @@ var esl;
         // depMs: 实际依赖的模块集合，数组形式
         // depMkv: 实际依赖的模块集合，表形式，便于查找
         // depRs: 实际依赖的资源集合
-        // depPMs: 用于加载资源的模块集合，key是模块名，value是1，仅用于快捷查找
         // ------------------------------------
         if (!modModules[id]) {
+            /* eslint-disable key-spacing */
             modModules[id] = {
                 id          : id,
                 depsDec     : dependencies,
@@ -346,25 +408,24 @@ var esl;
                 require     : createLocalRequire(id),
                 depMs       : [],
                 depMkv      : {},
-                depRs       : [],
-                depPMs      : []
+                depRs       : []
             };
+            /* eslint-enable key-spacing */
         }
     }
 
     /**
-     * 预分析模块
+     * 开始执行模块定义前的准备工作
      *
      * 首先，完成对factory中声明依赖的分析提取
      * 然后，尝试加载"资源加载所需模块"
      *
      * 需要先加载模块的原因是：如果模块不存在，无法进行resourceId normalize化
-     * modAnalyse完成后续的依赖分析处理，并进行依赖模块的加载
      *
      * @inner
      * @param {string} id 模块id
      */
-    function modAnalyse(id) {
+    function modPrepare(id) {
         var mod = modModules[id];
         if (!mod || modIs(id, MODULE_ANALYZED)) {
             return;
@@ -391,6 +452,7 @@ var esl;
         }
 
         var requireModules = [];
+        var depResources = [];
         each(deps, function (depId, index) {
             var idInfo = parseId(depId);
             var absId = normalize(idInfo.mod, id);
@@ -416,8 +478,7 @@ var esl;
                         mod: absId,
                         res: idInfo.res
                     };
-                    autoDefineModules[absId] = 1;
-                    mod.depPMs.push(absId);
+                    depResources.push(depId);
                     mod.depRs.push(resInfo);
                 }
 
@@ -425,9 +486,9 @@ var esl;
                 moduleInfo = mod.depMkv[absId];
                 if (!moduleInfo) {
                     moduleInfo = {
-                        id      : idInfo.mod,
-                        absId   : absId,
-                        hard    : index < hardDependsCount
+                        id: idInfo.mod,
+                        absId: absId,
+                        hard: index < hardDependsCount
                     };
                     mod.depMs.push(moduleInfo);
                     mod.depMkv[absId] = moduleInfo;
@@ -448,7 +509,18 @@ var esl;
 
         mod.state = MODULE_ANALYZED;
         modInitFactoryInvoker(id);
-        nativeRequire(requireModules);
+        nativeAsyncRequire(requireModules);
+        depResources.length && mod.require(
+            depResources,
+            function () {
+                each(mod.depRs, function (res) {
+                    if (!res.absId) {
+                        res.absId = normalize(res.id, id);
+                    }
+                });
+                modAutoDefine();
+            }
+        );
     }
 
     /**
@@ -456,8 +528,9 @@ var esl;
      *
      * @inner
      */
-    function modAutoInvoke() {
-        for (var id in autoDefineModules) {
+    function modAutoDefine() {
+        for (var id in modAutoDefineModules) {
+            modPrepare(id);
             modUpdatePreparedState(id);
             modTryInvokeFactory(id);
         }
@@ -474,6 +547,7 @@ var esl;
         update(id);
 
         function update(id) {
+            modPrepare(id);
             if (!modIs(id, MODULE_ANALYZED)) {
                 return false;
             }
@@ -497,7 +571,7 @@ var esl;
             prepared && each(
                 mod.depRs,
                 function (dep) {
-                    prepared = !!(dep.absId && modIs(dep.absId, MODULE_DEFINED));
+                    prepared = !!dep.absId;
                     return prepared;
                 }
             );
@@ -522,24 +596,6 @@ var esl;
         var invoking;
 
         mod.invokeFactory = invokeFactory;
-        each(
-            mod.depPMs,
-            function (pluginModuleId) {
-
-                modAddDefinedListener(
-                    pluginModuleId,
-                    function () {
-                        each(mod.depRs, function (res) {
-                            if (!res.absId && res.mod === pluginModuleId) {
-                                res.absId = normalize(res.id, id);
-                                nativeRequire([res.absId], modAutoInvoke);
-                            }
-                        });
-                    }
-                );
-
-            }
-        );
 
         /**
          * 初始化模块
@@ -555,7 +611,6 @@ var esl;
 
             // 拼接factory invoke所需的arguments
             var factoryReady = 1;
-            var factoryDeps = [];
             each(
                 mod.factoryDeps,
                 function (dep) {
@@ -563,31 +618,24 @@ var esl;
 
                     if (!BUILDIN_MODULE[depId]) {
                         modTryInvokeFactory(depId);
-                        if (!modIs(depId, MODULE_DEFINED)) {
-                            factoryReady = 0;
-                            return false;
-                        }
+                        return (factoryReady = modIs(depId, MODULE_DEFINED));
                     }
-
-                    factoryDeps.push(depId);
                 }
             );
 
             if (factoryReady) {
                 try {
-                    var args = modGetModulesExports(
-                        factoryDeps,
-                        {
-                            require : mod.require,
-                            exports : mod.exports,
-                            module  : mod
-                        }
-                    );
-
                     // 调用factory函数初始化module
                     var factory = mod.factory;
                     var exports = typeof factory === 'function'
-                        ? factory.apply(global, args)
+                        ? factory.apply(global, modGetModulesExports(
+                                mod.factoryDeps,
+                                {
+                                    require: mod.require,
+                                    exports: mod.exports,
+                                    module: mod
+                                }
+                            ))
                         : factory;
 
                     if (exports != null) {
@@ -595,15 +643,17 @@ var esl;
                     }
 
                     mod.invokeFactory = null;
-                    delete autoDefineModules[id];
                 }
                 catch (ex) {
-                    invoking = 0;
                     if (/^\[MODULE_MISS\]"([^"]+)/.test(ex.message)) {
                         // 出错，则说明在factory的运行中，该require的模块是需要的
                         // 所以把它加入强依赖中
                         var hardCirclurDep = mod.depMkv[RegExp.$1];
                         hardCirclurDep && (hardCirclurDep.hard = 1);
+                        
+                        // 如果是模块本身有问题导致的运行错误
+                        // 就不要把invoking置回去了，避免影响autoInvoke其他模块的初始化
+                        invoking = 0;
                         return;
                     }
 
@@ -623,7 +673,7 @@ var esl;
      * @inner
      * @param {string} id 模块标识
      * @param {number} state 状态码，使用时传入相应的枚举变量，比如`MODULE_DEFINED`
-     * @return {boolean}
+     * @return {boolean} 是否完成相应的状态
      */
     function modIs(id, state) {
         return modModules[id] && modModules[id].state >= state;
@@ -650,14 +700,17 @@ var esl;
      * @inner
      * @param {Array} modules 模块id数组
      * @param {Object} buildinModules 内建模块对象
-     * @return {Array}
+     * @return {Array} 模块exports数组
      */
     function modGetModulesExports(modules, buildinModules) {
         var args = [];
         each(
             modules,
             function (id, index) {
-                args[index] = buildinModules[id] || modGetModuleExports(id);
+                if (typeof id === 'object') {
+                    id = id.absId;
+                }
+                args[index] = buildinModules[id] || modModules[id].exports;
             }
         );
 
@@ -699,13 +752,13 @@ var esl;
      *
      * @inner
      * @param {string} id 模块标识
-     * @param {number} state 目标状态
      */
     function modDefined(id) {
-        var listeners = modDefinedListeners[id] || [];
         var mod = modModules[id];
         mod.state = MODULE_DEFINED;
-
+        delete modAutoDefineModules[id];
+        
+        var listeners = modDefinedListeners[id] || [];
         var len = listeners.length;
         while (len--) {
             // 这里不做function类型的检测
@@ -715,109 +768,31 @@ var esl;
 
         // 清理listeners
         listeners.length = 0;
-        delete modDefinedListeners[id];
+        modDefinedListeners[id] = null;
     }
 
     /**
-     * 获取模块的exports
+     * 异步加载模块
+     * 内部使用，模块ID必须是经过normalize的Top-Level ID
      *
      * @inner
-     * @param {string} id 模块标识
-     * @return {*}
-     */
-    function modGetModuleExports(id) {
-        if (modIs(id, MODULE_DEFINED)) {
-            return modModules[id].exports;
-        }
-
-        return null;
-    }
-
-    /**
-     * 内建module名称集合
-     *
-     * @inner
-     * @type {Object}
-     */
-    var BUILDIN_MODULE = {
-        require : require,
-        exports : 1,
-        module  : 1
-    };
-
-    /**
-     * 未预定义的模块集合
-     * 主要存储匿名方式define的模块
-     *
-     * @inner
-     * @type {Array}
-     */
-    var wait4PreDefine = [];
-
-    /**
-     * 完成模块预定义，此时处理的模块是匿名define的模块
-     *
-     * @inner
-     */
-    function completePreDefine(currentId) {
-        // HACK: 这里在IE下有个性能陷阱，不能使用任何变量。
-        //       否则貌似会形成变量引用和修改的读写锁，导致wait4PreDefine释放困难
-        each(wait4PreDefine, function (mod) {
-            modPreDefine(
-                currentId,
-                mod.deps,
-                mod.factory
-            );
-        });
-
-        wait4PreDefine.length = 0;
-        modAnalyse(currentId);
-    }
-
-    /**
-     * 获取模块
-     *
-     * @param {string|Array} ids 模块名称或模块名称列表
+     * @param {Array} ids 模块名称或模块名称列表
      * @param {Function=} callback 获取模块完成时的回调函数
-     * @return {Object}
+     * @param {string} baseId 基础id，用于当ids是relative id时的normalize
      */
-    function nativeRequire(ids, callback, baseId, noRequests) {
-        // 根据 https://github.com/amdjs/amdjs-api/wiki/require
-        // It MUST throw an error if the module has not
-        // already been loaded and evaluated.
-        if (typeof ids === 'string') {
-            modTryInvokeFactory(ids);
-            if (!modIs(ids, MODULE_DEFINED)) {
-                throw new Error('[MODULE_MISS]"' + ids + '" is not exists!');
-            }
-
-            return modGetModuleExports(ids);
-        }
-
-        noRequests = noRequests || {};
+    function nativeAsyncRequire(ids, callback, baseId) {
         var isCallbackCalled = 0;
-        if (ids instanceof Array) {
-            tryFinishRequire();
 
-            if (!isCallbackCalled) {
-                each(ids, function (id) {
-                    if (!(BUILDIN_MODULE[id] || modIs(id, MODULE_DEFINED))) {
-                        modAddDefinedListener(id, tryFinishRequire);
-
-                        if (!noRequests[id]) {
-                            (id.indexOf('!') > 0
-                                ? loadResource
-                                : loadModule
-                            )(id, baseId);
-                        }
-
-                        modAnalyse(id);
-                    }
-                });
-
-                modAutoInvoke();
+        each(ids, function (id) {
+            if (!(BUILDIN_MODULE[id] || modIs(id, MODULE_DEFINED))) {
+                modAddDefinedListener(id, tryFinishRequire);
+                (id.indexOf('!') > 0
+                    ? loadResource
+                    : loadModule
+                )(id, baseId);
             }
-        }
+        });
+        tryFinishRequire();
 
         /**
          * 尝试完成require，调用callback
@@ -826,7 +801,7 @@ var esl;
          * @inner
          */
         function tryFinishRequire() {
-            if (!isCallbackCalled) {
+            if (typeof callback === 'function' && !isCallbackCalled) {
                 var isAllCompleted = 1;
                 each(ids, function (id) {
                     if (!BUILDIN_MODULE[id]) {
@@ -838,7 +813,7 @@ var esl;
                 if (isAllCompleted) {
                     isCallbackCalled = 1;
 
-                    (typeof callback === 'function') && callback.apply(
+                    callback.apply(
                         global,
                         modGetModulesExports(ids, BUILDIN_MODULE)
                     );
@@ -862,49 +837,80 @@ var esl;
      * @param {string} moduleId 模块标识
      */
     function loadModule(moduleId) {
+        // 加载过的模块，就不要再继续了
         if (loadingModules[moduleId] || modModules[moduleId]) {
             return;
         }
-
         loadingModules[moduleId] = 1;
 
-        // 创建script标签
-        //
-        // 这里不挂接onerror的错误处理
-        // 因为高级浏览器在devtool的console面板会报错
-        // 再throw一个Error多此一举了
-        var script = document.createElement('script');
-        script.setAttribute('data-require-id', moduleId);
-        script.src = toUrl(moduleId + '.js') ;
-        script.async = true;
-        if (script.readyState) {
-            script.onreadystatechange = loadedListener;
+        // 初始化相关 shim 的配置
+        var shimConf = requireConf.shim[moduleId];
+        if (shimConf instanceof Array) {
+            requireConf.shim[moduleId] = shimConf = {
+                deps: shimConf
+            };
+        }
+
+        // shim依赖的模块需要自动标识为shim
+        // 无论是纯正的shim模块还是hybird模块
+        var shimDeps = shimConf && (shimConf.deps || []);
+        if (shimDeps) {
+            each(shimDeps, function (dep) {
+                if (!requireConf.shim[dep]) {
+                    requireConf.shim[dep] = {};
+                }
+            });
+            actualGlobalRequire(shimDeps, load);
         }
         else {
-            script.onload = loadedListener;
+            load();
         }
-        appendScript(script);
+
+        /**
+         * 发送请求去加载模块
+         *
+         * @inner
+         */
+        function load() {
+            /* eslint-disable no-use-before-define */
+            var bundleModuleId = bundlesIndex[moduleId];
+            createScript(bundleModuleId || moduleId, loaded);
+            /* eslint-enable no-use-before-define */
+        }
 
         /**
          * script标签加载完成的事件处理函数
          *
          * @inner
          */
-        function loadedListener() {
-            var readyState = script.readyState;
-            if (
-                typeof readyState === 'undefined'
-                || /^(loaded|complete)$/.test(readyState)
-            ) {
-                script.onload = script.onreadystatechange = null;
-                script = null;
-
-                completePreDefine(moduleId);
-                for (var key in autoDefineModules) {
-                    modAnalyse(key);
+        function loaded() {
+            if (shimConf) {
+                var exports;
+                if (typeof shimConf.init === 'function') {
+                    exports = shimConf.init.apply(
+                        global,
+                        modGetModulesExports(shimDeps, BUILDIN_MODULE)
+                    );
                 }
-                modAutoInvoke();
+
+                if (exports == null && shimConf.exports) {
+                    exports = global;
+                    each(
+                        shimConf.exports.split('.'),
+                        function (prop) {
+                            exports = exports[prop];
+                            return !!exports;
+                        }
+                    );
+                }
+
+                globalDefine(moduleId, shimDeps, exports || {});
             }
+            else {
+                modCompletePreDefine(moduleId);
+            }
+
+            modAutoDefine();
         }
     }
 
@@ -919,6 +925,14 @@ var esl;
         if (modModules[pluginAndResource]) {
             return;
         }
+
+        /* eslint-disable no-use-before-define */
+        var bundleModuleId = bundlesIndex[pluginAndResource];
+        if (bundleModuleId) {
+            loadModule(bundleModuleId);
+            return;
+        }
+        /* eslint-enable no-use-before-define */
 
         var idInfo = parseId(pluginAndResource);
         var resource = {
@@ -946,9 +960,8 @@ var esl;
          * @param {string} text 模块声明字符串
          */
         pluginOnload.fromText = function (id, text) {
-            autoDefineModules[id] = 1;
             new Function(text)();
-            completePreDefine(id);
+            modCompletePreDefine(id);
         };
         /* jshint ignore:end */
 
@@ -971,98 +984,46 @@ var esl;
             );
         }
 
-        load(modGetModuleExports(idInfo.mod));
+        load(actualGlobalRequire(idInfo.mod));
     }
-
-    /**
-     * require配置
-     *
-     * @inner
-     * @type {Object}
-     */
-    var requireConf = {
-        baseUrl     : './',
-        paths       : {},
-        config      : {},
-        map         : {},
-        packages    : [],
-        // #begin-ignore
-        waitSeconds : 0,
-        // #end-ignore
-        noRequests  : {},
-        urlArgs     : {}
-    };
 
     /**
      * 配置require
      *
      * @param {Object} conf 配置对象
      */
-    require.config = function (conf) {
-        function mergeArrayItem(item) {
-            oldValue.push(item);
-        }
-
+    globalRequire.config = function (conf) {
         if (conf) {
             for (var key in requireConf) {
                 var newValue = conf[key];
                 var oldValue = requireConf[key];
 
-                if (newValue) {
-                    if (key === 'urlArgs' && typeof newValue === 'string') {
-                        requireConf.urlArgs['*'] = newValue;
+                if (!newValue) {
+                    continue;
+                }
+
+                if (key === 'urlArgs' && typeof newValue === 'string') {
+                    requireConf.urlArgs['*'] = newValue;
+                }
+                else {
+                    // 简单的多处配置还是需要支持，所以配置实现为支持二级mix
+                    if (oldValue instanceof Array) {
+                        oldValue.push.apply(oldValue, newValue);
+                    }
+                    else if (typeof oldValue === 'object') {
+                        for (var k in newValue) {
+                            oldValue[k] = newValue[k];
+                        }
                     }
                     else {
-                        // 简单的多处配置还是需要支持，所以配置实现为支持二级mix
-                        if (oldValue instanceof Array) {
-                            each(newValue, mergeArrayItem);
-                        }
-                        else if (typeof oldValue === 'object') {
-                            for (var key in newValue) {
-                                oldValue[key] = newValue[key];
-                            }
-                        }
-                        else {
-                            requireConf[key] = newValue;
-                        }
+                        requireConf[key] = newValue;
                     }
                 }
             }
 
             createConfIndex();
         }
-
-        // 配置信息对象clone返回，避免返回结果对象被用户程序修改可能导致的问题
-        // return clone(requireConf);
     };
-
-    /**
-     * 对象克隆，支持raw type, Array, raw Object
-     *
-     * @inner
-     * @param {*} source 要克隆的对象
-     * @return {*}
-     */
-    // function clone(source) {
-    //     var result = source;
-
-    //     if (source instanceof Array) {
-    //         result = [];
-    //         each(source, function (item, i) {
-    //             result[i] = clone(item);
-    //         });
-    //     }
-    //     else if (typeof source === 'object') {
-    //         result = {};
-    //         for (var key in source) {
-    //             if (source.hasOwnProperty(key)) {
-    //                 result[key] = clone(source[key]);
-    //             }
-    //         }
-    //     }
-
-    //     return result;
-    // }
 
     // 初始化时需要创建配置索引
     createConfIndex();
@@ -1092,6 +1053,14 @@ var esl;
     var mappingIdIndex;
 
     /**
+     * bundles内部索引
+     *
+     * @inner
+     * @type {Object}
+     */
+    var bundlesIndex;
+
+    /**
      * urlArgs内部索引
      *
      * @inner
@@ -1100,20 +1069,12 @@ var esl;
     var urlArgsIndex;
 
     /**
-     * noRequests内部索引
-     *
-     * @inner
-     * @type {Array}
-     */
-    var noRequestsIndex;
-
-    /**
      * 将key为module id prefix的Object，生成数组形式的索引，并按照长度和字面排序
      *
      * @inner
      * @param {Object} value 源值
      * @param {boolean} allowAsterisk 是否允许*号表示匹配所有
-     * @return {Array}
+     * @return {Array} 索引对象
      */
     function createKVSortedIndex(value, allowAsterisk) {
         var index = kv2List(value, 1, allowAsterisk);
@@ -1166,21 +1127,16 @@ var esl;
         // create urlArgs index
         urlArgsIndex = createKVSortedIndex(requireConf.urlArgs, 1);
 
-        // create noRequests index
-        noRequestsIndex = createKVSortedIndex(requireConf.noRequests);
-        each(noRequestsIndex, function (item) {
-            var value = item.v;
-            var mapIndex = {};
-            item.v = mapIndex;
-
-            if (!(value instanceof Array)) {
-                value = [value];
-            }
-
-            each(value, function (meetId) {
-                mapIndex[meetId] = 1;
-            });
-        });
+        // create bundles index
+        bundlesIndex = {};
+        /* eslint-disable no-use-before-define */
+        function bundlesIterator(id) {
+            bundlesIndex[id] = key;
+        }
+        /* eslint-enable no-use-before-define */
+        for (var key in requireConf.bundles) {
+            each(requireConf.bundles[key], bundlesIterator);
+        }
     }
 
     /**
@@ -1205,7 +1161,7 @@ var esl;
      *
      * @inner
      * @param {string} source 源字符串
-     * @return {string}
+     * @return {string} url
      */
     function toUrl(source) {
         // 分离 模块标识 和 .extension
@@ -1262,22 +1218,31 @@ var esl;
      *
      * @inner
      * @param {number} baseId 当前module id
-     * @return {Function}
+     * @return {Function} local require函数
      */
     function createLocalRequire(baseId) {
         var requiredCache = {};
+
         function req(requireId, callback) {
             if (typeof requireId === 'string') {
                 if (!requiredCache[requireId]) {
-                    requiredCache[requireId] =
-                        nativeRequire(normalize(requireId, baseId));
+                    var topLevelId = normalize(requireId, baseId);
+
+                    // 根据 https://github.com/amdjs/amdjs-api/wiki/require
+                    // It MUST throw an error if the module has not
+                    // already been loaded and evaluated.
+                    modTryInvokeFactory(topLevelId);
+                    if (!modIs(topLevelId, MODULE_DEFINED)) {
+                        throw new Error('[MODULE_MISS]"' + topLevelId + '" is not exists!');
+                    }
+
+                    requiredCache[requireId] = modModules[topLevelId].exports;
                 }
 
                 return requiredCache[requireId];
             }
             else if (requireId instanceof Array) {
                 // 分析是否有resource，取出pluginModule先
-                var pluginModules = [];
                 var pureModules = [];
                 var normalizedIds = [];
 
@@ -1286,65 +1251,47 @@ var esl;
                     function (id, i) {
                         var idInfo = parseId(id);
                         var absId = normalize(idInfo.mod, baseId);
-                        pureModules.push(absId);
-                        autoDefineModules[absId] = 1;
+                        var resId = idInfo.res;
+                        var normalizedId = absId;
 
-                        if (idInfo.res) {
-                            pluginModules.push(absId);
-                            normalizedIds[i] = null;
-                        }
-                        else {
-                            normalizedIds[i] = absId;
-                        }
-                    }
-                );
-
-                var noRequestModules = {};
-                each(
-                    pureModules,
-                    function (id) {
-                        var meet;
-                        indexRetrieve(
-                            id,
-                            noRequestsIndex,
-                            function (value) {
-                                meet = value;
-                            }
-                        );
-
-                        if (meet) {
-                            if (meet['*']) {
-                                noRequestModules[id] = 1;
+                        if (resId) {
+                            var trueResId = absId + '!' + resId;
+                            if (resId.indexOf('.') !== 0 && bundlesIndex[trueResId]) {
+                                absId = normalizedId = trueResId;
                             }
                             else {
-                                each(pureModules, function (meetId) {
-                                    if (meet[meetId]) {
-                                        noRequestModules[id] = 1;
-                                        return false;
-                                    }
-                                });
+                                normalizedId = null;
                             }
                         }
+
+                        normalizedIds[i] = normalizedId;
+                        modFlagAutoDefine(absId);
+                        pureModules.push(absId);
                     }
                 );
 
                 // 加载模块
-                nativeRequire(
+                nativeAsyncRequire(
                     pureModules,
                     function () {
                         /* jshint ignore:start */
                         each(normalizedIds, function (id, i) {
                             if (id == null) {
-                                normalizedIds[i] = normalize(requireId[i], baseId);
+                                id = normalizedIds[i] = normalize(requireId[i], baseId);
+                                modFlagAutoDefine(id);
                             }
                         });
                         /* jshint ignore:end */
 
-                        nativeRequire(normalizedIds, callback, baseId);
+                        // modAutoDefine中，factory invoke可能发生错误
+                        // 从而导致nativeAsyncRequire没有被调用，callback没挂上
+                        // 所以nativeAsyncRequire要先运行
+                        nativeAsyncRequire(normalizedIds, callback, baseId);
+                        modAutoDefine();
                     },
-                    baseId,
-                    noRequestModules
+                    baseId
                 );
+                modAutoDefine();
             }
         }
 
@@ -1353,7 +1300,7 @@ var esl;
          *
          * @inner
          * @param {string} id 符合描述格式的源字符串
-         * @return {string}
+         * @return {string} url
          */
         req.toUrl = function (id) {
             return toUrl(normalize(id, baseId));
@@ -1368,7 +1315,7 @@ var esl;
      * @inner
      * @param {string} id 需要normalize的模块标识
      * @param {string} baseId 当前环境的模块标识
-     * @return {string}
+     * @return {string} normalize结果
      */
     function normalize(id, baseId) {
         if (!id) {
@@ -1400,7 +1347,6 @@ var esl;
             baseId,
             mappingIdIndex,
             function (value) {
-
                 indexRetrieve(
                     moduleId,
                     value,
@@ -1408,13 +1354,12 @@ var esl;
                         moduleId = moduleId.replace(mdKey, mdValue);
                     }
                 );
-
             }
         );
 
         if (resourceId) {
-            var mod = modGetModuleExports(moduleId);
-            resourceId = mod.normalize
+            var mod = modIs(moduleId, MODULE_DEFINED) && actualGlobalRequire(moduleId);
+            resourceId = mod && mod.normalize
                 ? mod.normalize(
                     resourceId,
                     function (resId) {
@@ -1433,9 +1378,9 @@ var esl;
      * 相对id转换成绝对id
      *
      * @inner
-     * @param {string} id 要转换的id
+     * @param {string} id 要转换的相对id
      * @param {string} baseId 当前所在环境id
-     * @return {string}
+     * @return {string} 绝对id
      */
     function relative2absolute(id, baseId) {
         if (id.indexOf('.') === 0) {
@@ -1446,9 +1391,9 @@ var esl;
             var cutBaseTerms = 0;
             var cutNameTerms = 0;
 
+            /* eslint-disable block-scoped-var */
             pathLoop: for (var i = 0; i < nameLen; i++) {
-                var term = namePath[i];
-                switch (term) {
+                switch (namePath[i]) {
                     case '..':
                         if (cutBaseTerms < baseLen) {
                             cutBaseTerms++;
@@ -1465,6 +1410,7 @@ var esl;
                         break pathLoop;
                 }
             }
+            /* eslint-enable block-scoped-var */
 
             basePath.length = baseLen - cutBaseTerms;
             namePath = namePath.slice(cutNameTerms);
@@ -1480,7 +1426,7 @@ var esl;
      *
      * @inner
      * @param {string} id 标识
-     * @return {Object}
+     * @return {Object} id解析结果对象
      */
     function parseId(id) {
         var segs = id.split('!');
@@ -1491,8 +1437,6 @@ var esl;
                 res: segs[1]
             };
         }
-
-        return null;
     }
 
     /**
@@ -1500,7 +1444,9 @@ var esl;
      *
      * @inner
      * @param {Object} source 对象数据
-     * @return {Array.<Object>}
+     * @param {boolean} keyMatchable key是否允许被前缀匹配
+     * @param {boolean} allowAsterisk 是否支持*匹配所有
+     * @return {Array.<Object>} 对象转换数组
      */
     function kv2List(source, keyMatchable, allowAsterisk) {
         var list = [];
@@ -1537,7 +1483,7 @@ var esl;
      * 用于ie下define未指定module id时获取id
      *
      * @inner
-     * @return {HTMLDocument}
+     * @return {HTMLScriptElement} 当前script标签
      */
     function getCurrentScript() {
         if (currentlyAddingScript) {
@@ -1549,15 +1495,14 @@ var esl;
         ) {
             return interactiveScript;
         }
-        else {
-            var scripts = document.getElementsByTagName('script');
-            var scriptLen = scripts.length;
-            while (scriptLen--) {
-                var script = scripts[scriptLen];
-                if (script.readyState === 'interactive') {
-                    interactiveScript = script;
-                    return script;
-                }
+
+        var scripts = document.getElementsByTagName('script');
+        var scriptLen = scripts.length;
+        while (scriptLen--) {
+            var script = scripts[scriptLen];
+            if (script.readyState === 'interactive') {
+                interactiveScript = script;
+                return script;
             }
         }
     }
@@ -1568,13 +1513,35 @@ var esl;
         headElement = baseElement.parentNode;
     }
 
-    /**
-     * 向页面中插入script标签
-     *
-     * @inner
-     * @param {HTMLScriptElement} script script标签
-     */
-    function appendScript(script) {
+    function createScript(moduleId, onload) {
+        // 创建script标签
+        //
+        // 这里不挂接onerror的错误处理
+        // 因为高级浏览器在devtool的console面板会报错
+        // 再throw一个Error多此一举了
+        var script = document.createElement('script');
+        script.setAttribute('data-require-id', moduleId);
+        script.src = toUrl(moduleId + '.js');
+        script.async = true;
+        if (script.readyState) {
+            script.onreadystatechange = innerOnload;
+        }
+        else {
+            script.onload = innerOnload;
+        }
+
+        function innerOnload() {
+            var readyState = script.readyState;
+            if (
+                typeof readyState === 'undefined'
+                || /^(loaded|complete)$/.test(readyState)
+            ) {
+                script.onload = script.onreadystatechange = null;
+                script = null;
+
+                onload();
+            }
+        }
         currentlyAddingScript = script;
 
         // If BASE tag is in play, using appendChild is a problem for IE6.
@@ -1591,7 +1558,7 @@ var esl;
      *
      * @inner
      * @param {string} prefix id前缀
-     * @return {RegExp}
+     * @return {RegExp} 前缀匹配的正则对象
      */
     function createPrefixRegexp(prefix) {
         return new RegExp('^' + prefix + '(/|$)');
@@ -1618,6 +1585,9 @@ var esl;
      * 根据元素的k或name项进行数组字符数逆序的排序函数
      *
      * @inner
+     * @param {Object} a 要比较的对象a
+     * @param {Object} b 要比较的对象b
+     * @return {number} 比较结果
      */
     function descSorterByKOrName(a, b) {
         var aValue = a.k || a.name;
@@ -1635,33 +1605,17 @@ var esl;
     }
 
     // 暴露全局对象
-    //
-    // 如果define已经存在，说明已经有一个amd loader了，避免覆盖
-    // 这里有一个假设，只有amd loader会用define，但是，任何形式的loader可能会用require
-    //
-    // 使用 `global.` 的原因是，让被运行在第三方页面的代码，也能方便的用loader
-    // 第三方页面很可能存在一个loader，就算不存在，可能未来也会有。所以不能在全局用loader
-    // 这时，把esl的代码拿过去，只改全局IIFE最后的 `this`，就能获得namespace上的loader
-    //
-    //  // 声明自己的namespace
-    //  var selfnamespace = {};
-    //
-    //  // 这里是esl的代码
-    //  (function (global){
-    //      // esl的实现
-    //  })(selfnamespace); // 改这里的this
-    //
-    if (!global.define) {
-        global.define = define;
+    if (!define) {
+        define = globalDefine;
 
         // 可能碰到其他形式的loader，所以，不要覆盖人家
-        if (!global.require) {
-            global.require = require;
+        if (!require) {
+            require = globalRequire;
         }
 
         // 如果存在其他版本的esl，在define那里就判断过了，不会进入这个分支
         // 所以这里就不判断了，直接写
-        global.esl = require;
+        esl = globalRequire;
     }
 })(this);
 define('echarts', ['echarts/echarts'], function (main) {return main;});
@@ -1690,7 +1644,8 @@ define('echarts/echarts', [
     'zrender/loadingEffect/Ring',
     'zrender/loadingEffect/Spin',
     'zrender/loadingEffect/Whirling',
-    './theme/default'
+    './theme/macarons',
+    './theme/infographic'
 ], function (require) {
     var ecConfig = require('./config');
     var zrUtil = require('zrender/tool/util');
@@ -1730,6 +1685,7 @@ define('echarts/echarts', [
     }
     zrUtil.merge(MessageCenter.prototype, zrEvent.Dispatcher.prototype, true);
     function Echarts(dom) {
+        dom.innerHTML = '';
         this._themeConfig = zrUtil.clone(ecConfig);
         this.dom = dom;
         this._connected = false;
@@ -2027,8 +1983,26 @@ define('echarts/echarts', [
             }
             return;
         },
+        _noDataCheck: function (magicOption) {
+            var series = magicOption.series;
+            for (var i = 0, l = series.length; i < l; i++) {
+                if (series[i].data && series[i].data.length > 0 || series[i].markPoint && series[i].markPoint.data && series[i].markPoint.data.length > 0 || series[i].markLine && series[i].markLine.data && series[i].markLine.data.length > 0 || series[i].nodes && series[i].nodes.length > 0 || series[i].links && series[i].links.length > 0 || series[i].matrix && series[i].matrix.length > 0 || series[i].eventList && series[i].eventList.length > 0) {
+                    return false;
+                }
+            }
+            this.clear();
+            var loadOption = this._themeConfig.noDataLoadingOption || {
+                text: this._themeConfig.noDataText,
+                effect: this._themeConfig.noDataEffect
+            };
+            this.showLoading(loadOption);
+            return true;
+        },
         _render: function (magicOption) {
             this._mergeGlobalConifg(magicOption);
+            if (this._noDataCheck(magicOption)) {
+                return;
+            }
             var bgColor = magicOption.backgroundColor;
             if (bgColor) {
                 if (!_canvasSupported && bgColor.indexOf('rgba') != -1) {
@@ -2196,6 +2170,7 @@ define('echarts/echarts', [
                 'animation',
                 'animationThreshold',
                 'animationDuration',
+                'animationDurationUpdate',
                 'animationEasing',
                 'addDataAnimation',
                 'symbolList',
@@ -2212,14 +2187,14 @@ define('echarts/echarts', [
             if (!(themeColor && themeColor.length)) {
                 themeColor = this._themeConfig.color;
             }
-            if (!_canvasSupported) {
-                magicOption.animation = false;
-                magicOption.addDataAnimation = false;
-            }
             this._zr.getColor = function (idx) {
                 var zrColor = require('zrender/tool/color');
                 return zrColor.getColor(idx, themeColor);
             };
+            if (!_canvasSupported) {
+                magicOption.animation = false;
+                magicOption.addDataAnimation = false;
+            }
         },
         setOption: function (option, notMerge) {
             if (!option.timeline) {
@@ -2377,7 +2352,7 @@ define('echarts/echarts', [
                     chartList[i].motionlessOnce = magicOption.addDataAnimation && chartList[i].addDataAnimation;
                 }
                 self._messageCenter.dispatch(ecConfig.EVENT.REFRESH, null, { option: magicOption }, self);
-            }, magicOption.addDataAnimation ? 500 : 0);
+            }, magicOption.addDataAnimation ? magicOption.animationDurationUpdate : 0);
             return this;
         },
         addMarkPoint: function (seriesIdx, markData) {
@@ -2630,7 +2605,7 @@ define('echarts/echarts', [
             loadingOption.effectOption.textStyle = textStyle;
             var Effect = loadingOption.effect;
             if (typeof Effect === 'string' || Effect == null) {
-                Effect = effectList[loadingOption.effect || 'spin'];
+                Effect = effectList[loadingOption.effect || this._themeConfig.loadingEffect];
             }
             this._zr.showLoading(new Effect(loadingOption.effectOption));
             return this;
@@ -2643,8 +2618,14 @@ define('echarts/echarts', [
             if (theme) {
                 if (typeof theme === 'string') {
                     switch (theme) {
+                    case 'macarons':
+                        theme = require('./theme/macarons');
+                        break;
+                    case 'infographic':
+                        theme = require('./theme/infographic');
+                        break;
                     default:
-                        theme = require('./theme/default');
+                        theme = {};
                     }
                 } else {
                     theme = theme || {};
@@ -2767,6 +2748,8 @@ define('echarts/echarts', [
             '#30e0e0'
         ],
         title: {
+            zlevel: 0,
+            z: 6,
             text: '',
             subtext: '',
             x: 'left',
@@ -2784,6 +2767,8 @@ define('echarts/echarts', [
             subtextStyle: { color: '#aaa' }
         },
         legend: {
+            zlevel: 0,
+            z: 4,
             show: true,
             orient: 'horizontal',
             x: 'center',
@@ -2799,6 +2784,8 @@ define('echarts/echarts', [
             selectedMode: true
         },
         dataRange: {
+            zlevel: 0,
+            z: 4,
             show: true,
             orient: 'vertical',
             x: 'left',
@@ -2813,6 +2800,7 @@ define('echarts/echarts', [
             precision: 0,
             splitNumber: 5,
             calculable: false,
+            selectedMode: true,
             hoverLink: true,
             realtime: true,
             color: [
@@ -2822,6 +2810,8 @@ define('echarts/echarts', [
             textStyle: { color: '#333' }
         },
         toolbox: {
+            zlevel: 0,
+            z: 6,
             show: false,
             orient: 'horizontal',
             x: 'right',
@@ -2899,6 +2889,8 @@ define('echarts/echarts', [
             }
         },
         tooltip: {
+            zlevel: 1,
+            z: 8,
             show: true,
             showContent: true,
             trigger: 'item',
@@ -2933,16 +2925,21 @@ define('echarts/echarts', [
             textStyle: { color: '#fff' }
         },
         dataZoom: {
+            zlevel: 0,
+            z: 4,
             show: false,
             orient: 'horizontal',
             backgroundColor: 'rgba(0,0,0,0)',
             dataBackgroundColor: '#eee',
             fillerColor: 'rgba(144,197,237,0.2)',
             handleColor: 'rgba(70,130,180,0.8)',
+            handleSize: 8,
             showDetail: true,
             realtime: true
         },
         grid: {
+            zlevel: 0,
+            z: 0,
             x: 80,
             y: 60,
             x2: 80,
@@ -2952,6 +2949,8 @@ define('echarts/echarts', [
             borderColor: '#ccc'
         },
         categoryAxis: {
+            zlevel: 0,
+            z: 0,
             show: true,
             position: 'bottom',
             name: '',
@@ -3003,6 +3002,8 @@ define('echarts/echarts', [
             }
         },
         valueAxis: {
+            zlevel: 0,
+            z: 0,
             show: true,
             position: 'left',
             name: '',
@@ -3055,6 +3056,8 @@ define('echarts/echarts', [
             }
         },
         polar: {
+            zlevel: 0,
+            z: 0,
             center: [
                 '50%',
                 '50%'
@@ -3101,6 +3104,8 @@ define('echarts/echarts', [
             type: 'polygon'
         },
         timeline: {
+            zlevel: 0,
+            z: 4,
             show: true,
             type: 'time',
             notMerge: false,
@@ -3140,6 +3145,8 @@ define('echarts/echarts', [
                 }
             },
             controlStyle: {
+                itemSize: 15,
+                itemGap: 5,
                 normal: { color: '#333' },
                 emphasis: { color: '#1e90ff' }
             },
@@ -3148,6 +3155,8 @@ define('echarts/echarts', [
             currentIndex: 0
         },
         roamController: {
+            zlevel: 0,
+            z: 4,
             show: true,
             x: 'left',
             y: 'top',
@@ -3163,6 +3172,8 @@ define('echarts/echarts', [
             mapTypeControl: null
         },
         bar: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             xAxisIndex: 0,
@@ -3186,6 +3197,8 @@ define('echarts/echarts', [
             }
         },
         line: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             xAxisIndex: 0,
@@ -3208,7 +3221,10 @@ define('echarts/echarts', [
             showAllSymbol: false
         },
         k: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
+            hoverable: true,
             legendHoverLink: false,
             xAxisIndex: 0,
             yAxisIndex: 0,
@@ -3226,6 +3242,8 @@ define('echarts/echarts', [
             }
         },
         scatter: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             xAxisIndex: 0,
@@ -3234,33 +3252,13 @@ define('echarts/echarts', [
             large: false,
             largeThreshold: 2000,
             itemStyle: {
-                normal: {
-                    label: {
-                        show: false,
-                        formatter: function (a, b, c) {
-                            if (typeof c[2] != 'undefined') {
-                                return c[2];
-                            } else {
-                                return c[0] + ' , ' + c[1];
-                            }
-                        }
-                    }
-                },
-                emphasis: {
-                    label: {
-                        show: false,
-                        formatter: function (a, b, c) {
-                            if (typeof c[2] != 'undefined') {
-                                return c[2];
-                            } else {
-                                return c[0] + ' , ' + c[1];
-                            }
-                        }
-                    }
-                }
+                normal: { label: { show: false } },
+                emphasis: { label: { show: false } }
             }
         },
         radar: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             polarIndex: 0,
@@ -3277,6 +3275,8 @@ define('echarts/echarts', [
             symbolSize: 2
         },
         pie: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             center: [
@@ -3324,6 +3324,8 @@ define('echarts/echarts', [
             }
         },
         map: {
+            zlevel: 0,
+            z: 2,
             mapType: 'china',
             mapValuePrecision: 0,
             showLegendSymbol: true,
@@ -3352,6 +3354,8 @@ define('echarts/echarts', [
             }
         },
         force: {
+            zlevel: 1,
+            z: 2,
             center: [
                 '50%',
                 '50%'
@@ -3402,6 +3406,8 @@ define('echarts/echarts', [
             }
         },
         chord: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             radius: [
                 '65%',
@@ -3452,6 +3458,8 @@ define('echarts/echarts', [
             }
         },
         gauge: {
+            zlevel: 0,
+            z: 2,
             center: [
                 '50%',
                 '50%'
@@ -3542,6 +3550,8 @@ define('echarts/echarts', [
             }
         },
         funnel: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             x: 80,
@@ -3581,6 +3591,8 @@ define('echarts/echarts', [
             }
         },
         eventRiver: {
+            zlevel: 0,
+            z: 2,
             clickable: true,
             legendHoverLink: true,
             itemStyle: {
@@ -3601,6 +3613,8 @@ define('echarts/echarts', [
             }
         },
         island: {
+            zlevel: 0,
+            z: 5,
             r: 15,
             calculateStep: 0.1
         },
@@ -3636,7 +3650,9 @@ define('echarts/echarts', [
                 2,
                 4
             ],
+            smoothRadian: 0.2,
             large: false,
+            precision: 2,
             effect: {
                 show: false,
                 loop: true,
@@ -3677,6 +3693,7 @@ define('echarts/echarts', [
             DATA_CHANGED: 'dataChanged',
             DATA_ZOOM: 'dataZoom',
             DATA_RANGE: 'dataRange',
+            DATA_RANGE_SELECTED: 'dataRangeSelected',
             DATA_RANGE_HOVERLINK: 'dataRangeHoverLink',
             LEGEND_SELECTED: 'legendSelected',
             LEGEND_HOVERLINK: 'legendHoverLink',
@@ -3693,7 +3710,7 @@ define('echarts/echarts', [
             ROAMCONTROLLER: 'roamController'
         },
         DRAG_ENABLE_TIME: 120,
-        EFFECT_ZLEVEL: 7,
+        EFFECT_ZLEVEL: 10,
         symbolList: [
             'circle',
             'rectangle',
@@ -3704,7 +3721,10 @@ define('echarts/echarts', [
             'emptyTriangle',
             'emptyDiamond'
         ],
+        loadingEffect: 'spin',
         loadingText: 'Loading...',
+        noDataEffect: 'bubble',
+        noDataText: 'No Data Available.',
         calculable: false,
         calculableColor: 'rgba(255,165,0,0.6)',
         calculableHolderColor: '#ccc',
@@ -3714,6 +3734,7 @@ define('echarts/echarts', [
         addDataAnimation: true,
         animationThreshold: 2000,
         animationDuration: 2000,
+        animationDurationUpdate: 500,
         animationEasing: 'ExponentialOut'
     };
     return config;
@@ -4165,8 +4186,8 @@ define('zrender/zrender', [
         var id = guid();
         return this.painter.shapeToImage(id, e, width, height);
     };
-    ZRender.prototype.on = function (eventName, eventHandler) {
-        this.handler.on(eventName, eventHandler);
+    ZRender.prototype.on = function (eventName, eventHandler, context) {
+        this.handler.on(eventName, eventHandler, context);
         return this;
     };
     ZRender.prototype.un = function (eventName, eventHandler) {
@@ -4214,12 +4235,12 @@ define('zrender/zrender', [
             touchClickDelay: 300
         },
         catchBrushException: false,
-        debugMode: 0
+        debugMode: 0,
+        devicePixelRatio: Math.max(window.devicePixelRatio || 1, 1)
     };
     return config;
 });define('echarts/chart/island', [
     'require',
-    '../component/base',
     './base',
     'zrender/shape/Circle',
     '../config',
@@ -4230,7 +4251,6 @@ define('zrender/zrender', [
     '../util/accMath',
     '../chart'
 ], function (require) {
-    var ComponentBase = require('../component/base');
     var ChartBase = require('./base');
     var CircleShape = require('zrender/shape/Circle');
     var ecConfig = require('../config');
@@ -4238,8 +4258,7 @@ define('zrender/zrender', [
     var zrUtil = require('zrender/tool/util');
     var zrEvent = require('zrender/tool/event');
     function Island(ecTheme, messageCenter, zr, option, myChart) {
-        ComponentBase.call(this, ecTheme, messageCenter, zr, {}, myChart);
-        ChartBase.call(this);
+        ChartBase.call(this, ecTheme, messageCenter, zr, option, myChart);
         this._nameConnector;
         this._valueConnector;
         this._zrHeight = this.zr.getHeight();
@@ -4317,7 +4336,8 @@ define('zrender/zrender', [
             var seriesName = ecData.get(shape, 'series') != null ? ecData.get(shape, 'series').name : '';
             var font = this.getFont(this.option.island.textStyle);
             var islandShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: shape.style.x,
                     y: shape.style.y,
@@ -4383,7 +4403,6 @@ define('zrender/zrender', [
         }
     };
     zrUtil.inherits(Island, ChartBase);
-    zrUtil.inherits(Island, ComponentBase);
     require('../chart').define('island', Island);
     return Island;
 });define('echarts/component/toolbox', [
@@ -4593,7 +4612,8 @@ define('zrender/zrender', [
             for (var i = 0; i < iconLength; i++) {
                 itemShape = {
                     type: 'icon',
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: lastX,
                         y: lastY,
@@ -4692,7 +4712,8 @@ define('zrender/zrender', [
             var toolboxOption = this.option.toolbox;
             var padding = this.reformCssArray(this.option.toolbox.padding);
             this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 hoverable: false,
                 style: {
                     x: this._itemGroupLocation.x - padding[3],
@@ -4773,6 +4794,7 @@ define('zrender/zrender', [
                 this._zoomShape.style.height = zrEvent.getY(param.event) - this._zoomShape.style.y;
                 this.zr.addHoverShape(this._zoomShape);
                 this.dom.style.cursor = 'crosshair';
+                zrEvent.stop(param.event);
             }
             if (this._zoomStart && (this.dom.style.cursor != 'pointer' && this.dom.style.cursor != 'move')) {
                 this.dom.style.cursor = 'crosshair';
@@ -4787,7 +4809,8 @@ define('zrender/zrender', [
             var y = zrEvent.getY(param.event);
             var zoomOption = this.option.dataZoom || {};
             this._zoomShape = new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: x,
                     y: y,
@@ -4842,7 +4865,8 @@ define('zrender/zrender', [
                 var x = zrEvent.getX(param.event);
                 var y = zrEvent.getY(param.event);
                 this._markShape = new LineShape({
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         xStart: x,
                         yStart: y,
@@ -5301,7 +5325,8 @@ define('zrender/zrender', [
             var width = this._itemGroupLocation.width;
             var height = this._itemGroupLocation.height;
             var textShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     y: y,
                     color: this.titleOption.textStyle.color,
@@ -5327,7 +5352,8 @@ define('zrender/zrender', [
                 };
             }
             var subtextShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     y: y + height,
                     color: this.titleOption.subtextStyle.color,
@@ -5380,7 +5406,8 @@ define('zrender/zrender', [
         _buildBackground: function () {
             var padding = this.reformCssArray(this.titleOption.padding);
             this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 hoverable: false,
                 style: {
                     x: this._itemGroupLocation.x - padding[3],
@@ -5521,11 +5548,13 @@ define('zrender/zrender', [
         this._tDom.onmouseout = function () {
             self._mousein = false;
         };
+        this._tDom.className = 'echarts-tooltip';
         this._tDom.style.position = 'absolute';
         this.hasAppend = false;
         this._axisLineShape && this.zr.delShape(this._axisLineShape.id);
         this._axisLineShape = new LineShape({
-            zlevel: this._zlevelBase,
+            zlevel: this.getZlevelBase(),
+            z: this.getZBase(),
             invisible: true,
             hoverable: false
         });
@@ -5533,7 +5562,8 @@ define('zrender/zrender', [
         this.zr.addShape(this._axisLineShape);
         this._axisShadowShape && this.zr.delShape(this._axisShadowShape.id);
         this._axisShadowShape = new LineShape({
-            zlevel: 1,
+            zlevel: this.getZlevelBase(),
+            z: 1,
             invisible: true,
             hoverable: false
         });
@@ -5541,7 +5571,8 @@ define('zrender/zrender', [
         this.zr.addShape(this._axisShadowShape);
         this._axisCrossShape && this.zr.delShape(this._axisCrossShape.id);
         this._axisCrossShape = new CrossShape({
-            zlevel: this._zlevelBase,
+            zlevel: this.getZlevelBase(),
+            z: this.getZBase(),
             invisible: true,
             hoverable: false
         });
@@ -5905,6 +5936,7 @@ define('zrender/zrender', [
                 }
             }
             if (seriesArray.length > 0) {
+                this._lastItemTriggerId = -1;
                 if (this._lastDataIndex != dataIndex || this._lastSeriesIndex != seriesIndex[0]) {
                     this._lastDataIndex = dataIndex;
                     this._lastSeriesIndex = seriesIndex[0];
@@ -5914,7 +5946,7 @@ define('zrender/zrender', [
                         var params = [];
                         for (var i = 0, l = seriesArray.length; i < l; i++) {
                             data = seriesArray[i].data[dataIndex];
-                            value = data != null ? data.value != null ? data.value : data : '-';
+                            value = this.getDataFromOption(data, '-');
                             params.push({
                                 seriesIndex: seriesIndex[i],
                                 seriesName: seriesArray[i].name || '',
@@ -5938,7 +5970,7 @@ define('zrender/zrender', [
                             formatter = formatter.replace('{a' + i + '}', this._encodeHTML(seriesArray[i].name || ''));
                             formatter = formatter.replace('{b' + i + '}', this._encodeHTML(categoryAxis.getNameByIndex(dataIndex)));
                             data = seriesArray[i].data[dataIndex];
-                            data = data != null ? data.value != null ? data.value : data : '-';
+                            data = this.getDataFromOption(data, '-');
                             formatter = formatter.replace('{c' + i + '}', data instanceof Array ? data : this.numAddCommas(data));
                         }
                         this._tDom.innerHTML = formatter;
@@ -5948,7 +5980,7 @@ define('zrender/zrender', [
                         for (var i = 0, l = seriesArray.length; i < l; i++) {
                             formatter += '<br/>' + this._encodeHTML(seriesArray[i].name || '') + ' : ';
                             data = seriesArray[i].data[dataIndex];
-                            data = data != null ? data.value != null ? data.value : data : '-';
+                            data = this.getDataFromOption(data, '-');
                             formatter += data instanceof Array ? data : this.numAddCommas(data);
                         }
                         this._tDom.innerHTML = formatter;
@@ -6017,7 +6049,7 @@ define('zrender/zrender', [
                             name: '',
                             value: { dataIndex: '-' }
                         };
-                        value = data.value[dataIndex].value != null ? data.value[dataIndex].value : data.value[dataIndex];
+                        value = this.getDataFromOption(data.value[dataIndex]);
                         params.push({
                             seriesIndex: seriesIndex[i],
                             seriesName: seriesArray[i].name || '',
@@ -6037,6 +6069,7 @@ define('zrender/zrender', [
                 if (params.length <= 0) {
                     return;
                 }
+                this._lastItemTriggerId = -1;
                 if (this._lastDataIndex != dataIndex || this._lastSeriesIndex != seriesIndex[0]) {
                     this._lastDataIndex = dataIndex;
                     this._lastSeriesIndex = seriesIndex[0];
@@ -6124,6 +6157,8 @@ define('zrender/zrender', [
                     this.option
                 ], 'tooltip.islandPosition');
             }
+            this._lastDataIndex = -1;
+            this._lastSeriesIndex = -1;
             if (this._lastItemTriggerId !== this._curTarget.id) {
                 this._lastItemTriggerId = this._curTarget.id;
                 if (typeof formatter === 'function') {
@@ -6402,7 +6437,8 @@ define('zrender/zrender', [
                     this.shapeList.length = 2;
                 }
                 for (var i = 0, l = tipShape.length; i < l; i++) {
-                    tipShape[i].zlevel = this._zlevelBase;
+                    tipShape[i].zlevel = this.getZlevelBase();
+                    tipShape[i].z = this.getZBase();
                     tipShape[i].style = zrShapeBase.prototype.getHighlightStyle(tipShape[i].style, tipShape[i].highlightStyle);
                     tipShape[i].draggable = false;
                     tipShape[i].hoverable = false;
@@ -6516,7 +6552,7 @@ define('zrender/zrender', [
                 case ecConfig.CHART_TYPE_SCATTER:
                     var dataIndex = params.dataIndex;
                     for (var i = 0, l = shapeList.length; i < l; i++) {
-                        if (ecData.get(shapeList[i], 'seriesIndex') == seriesIndex && ecData.get(shapeList[i], 'dataIndex') == dataIndex) {
+                        if (shapeList[i]._mark == null && ecData.get(shapeList[i], 'seriesIndex') == seriesIndex && ecData.get(shapeList[i], 'dataIndex') == dataIndex) {
                             this._curTarget = shapeList[i];
                             x = shapeList[i].style.x;
                             y = chart.type != ecConfig.CHART_TYPE_K ? shapeList[i].style.y : shapeList[i].style.y[0];
@@ -6772,7 +6808,8 @@ define('zrender/zrender', [
                 itemShape._name = itemName;
                 itemShape = new IconShape(itemShape);
                 textShape = {
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: lastX + itemWidth + 5,
                         y: lastY + itemHeight / 2,
@@ -6856,7 +6893,8 @@ define('zrender/zrender', [
         _buildBackground: function () {
             var padding = this.reformCssArray(this.legendOption.padding);
             this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 hoverable: false,
                 style: {
                     x: this._itemGroupLocation.x - padding[3],
@@ -6890,25 +6928,21 @@ define('zrender/zrender', [
                 for (var i = 0; i < dataLength; i++) {
                     if (this._getName(data[i]) === '') {
                         temp -= itemGap;
-                        if (temp > zrWidth) {
-                            totalWidth = zrWidth;
-                            totalHeight += itemHeight + itemGap;
-                        } else {
-                            totalWidth = Math.max(totalWidth, temp);
-                        }
+                        totalWidth = Math.max(totalWidth, temp);
                         totalHeight += itemHeight + itemGap;
                         temp = 0;
                         continue;
                     }
-                    temp += itemWidth + zrArea.getTextWidth(this._getFormatterNameFromData(data[i]), data[i].textStyle ? this.getFont(zrUtil.merge(data[i].textStyle || {}, textStyle)) : font) + itemGap;
-                }
-                totalHeight = Math.max(totalHeight, itemHeight);
-                temp -= itemGap;
-                if (temp > zrWidth) {
-                    totalWidth = zrWidth;
-                    totalHeight += itemHeight + itemGap;
-                } else {
-                    totalWidth = Math.max(totalWidth, temp);
+                    var tempTextWidth = zrArea.getTextWidth(this._getFormatterNameFromData(data[i]), data[i].textStyle ? this.getFont(zrUtil.merge(data[i].textStyle || {}, textStyle)) : font);
+                    if (temp + itemWidth + tempTextWidth + itemGap > zrWidth) {
+                        temp -= itemGap;
+                        totalWidth = Math.max(totalWidth, temp);
+                        totalHeight += itemHeight + itemGap;
+                        temp = 0;
+                    } else {
+                        temp += itemWidth + tempTextWidth + itemGap;
+                        totalWidth = Math.max(totalWidth, temp - itemGap);
+                    }
                 }
             } else {
                 for (var i = 0; i < dataLength; i++) {
@@ -6918,26 +6952,21 @@ define('zrender/zrender', [
                 totalWidth = maxWidth;
                 for (var i = 0; i < dataLength; i++) {
                     if (this._getName(data[i]) === '') {
-                        temp -= itemGap;
-                        if (temp > zrHeight) {
-                            totalHeight = zrHeight;
-                            totalWidth += maxWidth + itemGap;
-                        } else {
-                            totalHeight = Math.max(totalHeight, temp);
-                        }
                         totalWidth += maxWidth + itemGap;
+                        temp -= itemGap;
+                        totalHeight = Math.max(totalHeight, temp);
                         temp = 0;
                         continue;
                     }
-                    temp += itemHeight + itemGap;
-                }
-                totalWidth = Math.max(totalWidth, maxWidth);
-                temp -= itemGap;
-                if (temp > zrHeight) {
-                    totalHeight = zrHeight;
-                    totalWidth += maxWidth + itemGap;
-                } else {
-                    totalHeight = Math.max(totalHeight, temp);
+                    if (temp + itemHeight + itemGap > zrHeight) {
+                        totalWidth += maxWidth + itemGap;
+                        temp -= itemGap;
+                        totalHeight = Math.max(totalHeight, temp);
+                        temp = 0;
+                    } else {
+                        temp += itemHeight + itemGap;
+                        totalHeight = Math.max(totalHeight, temp - itemGap);
+                    }
                 }
             }
             zrWidth = this.zr.getWidth();
@@ -7019,7 +7048,8 @@ define('zrender/zrender', [
         _getItemShapeByType: function (x, y, width, height, color, itemType, defaultColor) {
             var highlightColor = color === '#ccc' ? defaultColor : color;
             var itemShape = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     iconType: 'legendicon' + itemType,
                     x: x,
@@ -7252,7 +7282,7 @@ define('zrender/zrender', [
             SectorShape.prototype.buildPath(ctx, {
                 x: x + width / 2,
                 y: y + height + 2,
-                r: height + 2,
+                r: height,
                 r0: 6,
                 startAngle: 45,
                 endAngle: 135
@@ -8488,7 +8518,8 @@ define('zrender/zrender', [
             var height = this._location.height;
             if (timelineOption.borderWidth !== 0 || timelineOption.backgroundColor.replace(/\s/g, '') != 'rgba(0,0,0,0)') {
                 this.shapeList.push(new RectangleShape({
-                    zlevel: this._zlevelBase,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     hoverable: false,
                     style: {
                         x: this._location.x - padding[3],
@@ -8511,8 +8542,8 @@ define('zrender/zrender', [
             if (timelineOption.controlPosition === 'none') {
                 return;
             }
-            var iconSize = 15;
-            var iconGap = 5;
+            var iconSize = controlStyle.itemSize;
+            var iconGap = controlStyle.itemGap;
             var x;
             if (timelineOption.controlPosition === 'left') {
                 x = this._location.x;
@@ -8523,7 +8554,8 @@ define('zrender/zrender', [
             }
             var y = this._location.y;
             var iconStyle = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 style: {
                     iconType: 'timelineControl',
                     symbol: 'last',
@@ -8575,7 +8607,8 @@ define('zrender/zrender', [
             var timelineOption = this.timelineOption;
             var lineStyle = timelineOption.lineStyle;
             this._timelineShae = {
-                zlevel: this._zlevelBase,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase(),
                 style: {
                     x: this._location.x,
                     y: this.subPixelOptimize(this._location.y, lineStyle.width),
@@ -8599,7 +8632,8 @@ define('zrender/zrender', [
             var symbolSize = curPoint.symbolSize + 1;
             symbolSize = symbolSize < 5 ? 5 : symbolSize;
             this._handleShape = {
-                zlevel: this._zlevelBase + 1,
+                zlevel: this.getZlevelBase(),
+                z: this.getZBase() + 1,
                 hoverable: false,
                 draggable: true,
                 style: {
@@ -9477,9 +9511,438 @@ define('zrender/zrender', [
         }, effectOption.timeInterval);
     };
     return Whirling;
-});define('echarts/theme/default', [], function () {
-    var config = {};
-    return config;
+});define('echarts/theme/macarons', [], function () {
+    var theme = {
+        color: [
+            '#2ec7c9',
+            '#b6a2de',
+            '#5ab1ef',
+            '#ffb980',
+            '#d87a80',
+            '#8d98b3',
+            '#e5cf0d',
+            '#97b552',
+            '#95706d',
+            '#dc69aa',
+            '#07a2a4',
+            '#9a7fd1',
+            '#588dd5',
+            '#f5994e',
+            '#c05050',
+            '#59678c',
+            '#c9ab00',
+            '#7eb00a',
+            '#6f5553',
+            '#c14089'
+        ],
+        title: {
+            textStyle: {
+                fontWeight: 'normal',
+                color: '#008acd'
+            }
+        },
+        dataRange: {
+            itemWidth: 15,
+            color: [
+                '#5ab1ef',
+                '#e0ffff'
+            ]
+        },
+        toolbox: {
+            color: [
+                '#1e90ff',
+                '#1e90ff',
+                '#1e90ff',
+                '#1e90ff'
+            ],
+            effectiveColor: '#ff4500'
+        },
+        tooltip: {
+            backgroundColor: 'rgba(50,50,50,0.5)',
+            axisPointer: {
+                type: 'line',
+                lineStyle: { color: '#008acd' },
+                crossStyle: { color: '#008acd' },
+                shadowStyle: { color: 'rgba(200,200,200,0.2)' }
+            }
+        },
+        dataZoom: {
+            dataBackgroundColor: '#efefff',
+            fillerColor: 'rgba(182,162,222,0.2)',
+            handleColor: '#008acd'
+        },
+        grid: { borderColor: '#eee' },
+        categoryAxis: {
+            axisLine: { lineStyle: { color: '#008acd' } },
+            splitLine: { lineStyle: { color: ['#eee'] } }
+        },
+        valueAxis: {
+            axisLine: { lineStyle: { color: '#008acd' } },
+            splitArea: {
+                show: true,
+                areaStyle: {
+                    color: [
+                        'rgba(250,250,250,0.1)',
+                        'rgba(200,200,200,0.1)'
+                    ]
+                }
+            },
+            splitLine: { lineStyle: { color: ['#eee'] } }
+        },
+        polar: {
+            axisLine: { lineStyle: { color: '#ddd' } },
+            splitArea: {
+                show: true,
+                areaStyle: {
+                    color: [
+                        'rgba(250,250,250,0.2)',
+                        'rgba(200,200,200,0.2)'
+                    ]
+                }
+            },
+            splitLine: { lineStyle: { color: '#ddd' } }
+        },
+        timeline: {
+            lineStyle: { color: '#008acd' },
+            controlStyle: {
+                normal: { color: '#008acd' },
+                emphasis: { color: '#008acd' }
+            },
+            symbol: 'emptyCircle',
+            symbolSize: 3
+        },
+        bar: {
+            itemStyle: {
+                normal: { barBorderRadius: 5 },
+                emphasis: { barBorderRadius: 5 }
+            }
+        },
+        line: {
+            smooth: true,
+            symbol: 'emptyCircle',
+            symbolSize: 3
+        },
+        k: {
+            itemStyle: {
+                normal: {
+                    color: '#d87a80',
+                    color0: '#2ec7c9',
+                    lineStyle: {
+                        color: '#d87a80',
+                        color0: '#2ec7c9'
+                    }
+                }
+            }
+        },
+        scatter: {
+            symbol: 'circle',
+            symbolSize: 4
+        },
+        radar: {
+            symbol: 'emptyCircle',
+            symbolSize: 3
+        },
+        map: {
+            itemStyle: {
+                normal: {
+                    areaStyle: { color: '#ddd' },
+                    label: { textStyle: { color: '#d87a80' } }
+                },
+                emphasis: { areaStyle: { color: '#fe994e' } }
+            }
+        },
+        force: { itemStyle: { normal: { linkStyle: { color: '#1e90ff' } } } },
+        chord: {
+            itemStyle: {
+                normal: {
+                    borderWidth: 1,
+                    borderColor: 'rgba(128, 128, 128, 0.5)',
+                    chordStyle: { lineStyle: { color: 'rgba(128, 128, 128, 0.5)' } }
+                },
+                emphasis: {
+                    borderWidth: 1,
+                    borderColor: 'rgba(128, 128, 128, 0.5)',
+                    chordStyle: { lineStyle: { color: 'rgba(128, 128, 128, 0.5)' } }
+                }
+            }
+        },
+        gauge: {
+            axisLine: {
+                lineStyle: {
+                    color: [
+                        [
+                            0.2,
+                            '#2ec7c9'
+                        ],
+                        [
+                            0.8,
+                            '#5ab1ef'
+                        ],
+                        [
+                            1,
+                            '#d87a80'
+                        ]
+                    ],
+                    width: 10
+                }
+            },
+            axisTick: {
+                splitNumber: 10,
+                length: 15,
+                lineStyle: { color: 'auto' }
+            },
+            splitLine: {
+                length: 22,
+                lineStyle: { color: 'auto' }
+            },
+            pointer: { width: 5 }
+        },
+        textStyle: { fontFamily: '微软雅黑, Arial, Verdana, sans-serif' }
+    };
+    return theme;
+});define('echarts/theme/infographic', [], function () {
+    var theme = {
+        color: [
+            '#C1232B',
+            '#B5C334',
+            '#FCCE10',
+            '#E87C25',
+            '#27727B',
+            '#FE8463',
+            '#9BCA63',
+            '#FAD860',
+            '#F3A43B',
+            '#60C0DD',
+            '#D7504B',
+            '#C6E579',
+            '#F4E001',
+            '#F0805A',
+            '#26C0C0'
+        ],
+        title: {
+            textStyle: {
+                fontWeight: 'normal',
+                color: '#27727B'
+            }
+        },
+        dataRange: {
+            x: 'right',
+            y: 'center',
+            itemWidth: 5,
+            itemHeight: 25,
+            color: [
+                '#C1232B',
+                '#FCCE10'
+            ]
+        },
+        toolbox: {
+            color: [
+                '#C1232B',
+                '#B5C334',
+                '#FCCE10',
+                '#E87C25',
+                '#27727B',
+                '#FE8463',
+                '#9BCA63',
+                '#FAD860',
+                '#F3A43B',
+                '#60C0DD'
+            ],
+            effectiveColor: '#ff4500'
+        },
+        tooltip: {
+            backgroundColor: 'rgba(50,50,50,0.5)',
+            axisPointer: {
+                type: 'line',
+                lineStyle: {
+                    color: '#27727B',
+                    type: 'dashed'
+                },
+                crossStyle: { color: '#27727B' },
+                shadowStyle: { color: 'rgba(200,200,200,0.3)' }
+            }
+        },
+        dataZoom: {
+            dataBackgroundColor: 'rgba(181,195,52,0.3)',
+            fillerColor: 'rgba(181,195,52,0.2)',
+            handleColor: '#27727B'
+        },
+        grid: { borderWidth: 0 },
+        categoryAxis: {
+            axisLine: { lineStyle: { color: '#27727B' } },
+            splitLine: { show: false }
+        },
+        valueAxis: {
+            axisLine: { show: false },
+            splitArea: { show: false },
+            splitLine: {
+                lineStyle: {
+                    color: ['#ccc'],
+                    type: 'dashed'
+                }
+            }
+        },
+        polar: {
+            axisLine: { lineStyle: { color: '#ddd' } },
+            splitArea: {
+                show: true,
+                areaStyle: {
+                    color: [
+                        'rgba(250,250,250,0.2)',
+                        'rgba(200,200,200,0.2)'
+                    ]
+                }
+            },
+            splitLine: { lineStyle: { color: '#ddd' } }
+        },
+        timeline: {
+            lineStyle: { color: '#27727B' },
+            controlStyle: {
+                normal: { color: '#27727B' },
+                emphasis: { color: '#27727B' }
+            },
+            symbol: 'emptyCircle',
+            symbolSize: 3
+        },
+        line: {
+            itemStyle: {
+                normal: {
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    lineStyle: { width: 3 }
+                },
+                emphasis: { borderWidth: 0 }
+            },
+            symbol: 'circle',
+            symbolSize: 3.5
+        },
+        k: {
+            itemStyle: {
+                normal: {
+                    color: '#C1232B',
+                    color0: '#B5C334',
+                    lineStyle: {
+                        width: 1,
+                        color: '#C1232B',
+                        color0: '#B5C334'
+                    }
+                }
+            }
+        },
+        scatter: {
+            itemdStyle: {
+                normal: {
+                    borderWidth: 1,
+                    borderColor: 'rgba(200,200,200,0.5)'
+                },
+                emphasis: { borderWidth: 0 }
+            },
+            symbol: 'star4',
+            symbolSize: 4
+        },
+        radar: {
+            symbol: 'emptyCircle',
+            symbolSize: 3
+        },
+        map: {
+            itemStyle: {
+                normal: {
+                    areaStyle: { color: '#ddd' },
+                    label: { textStyle: { color: '#C1232B' } }
+                },
+                emphasis: {
+                    areaStyle: { color: '#fe994e' },
+                    label: { textStyle: { color: 'rgb(100,0,0)' } }
+                }
+            }
+        },
+        force: { itemStyle: { normal: { linkStyle: { color: '#27727B' } } } },
+        chord: {
+            itemStyle: {
+                normal: {
+                    borderWidth: 1,
+                    borderColor: 'rgba(128, 128, 128, 0.5)',
+                    chordStyle: { lineStyle: { color: 'rgba(128, 128, 128, 0.5)' } }
+                },
+                emphasis: {
+                    borderWidth: 1,
+                    borderColor: 'rgba(128, 128, 128, 0.5)',
+                    chordStyle: { lineStyle: { color: 'rgba(128, 128, 128, 0.5)' } }
+                }
+            }
+        },
+        gauge: {
+            center: [
+                '50%',
+                '80%'
+            ],
+            radius: '100%',
+            startAngle: 180,
+            endAngle: 0,
+            axisLine: {
+                show: true,
+                lineStyle: {
+                    color: [
+                        [
+                            0.2,
+                            '#B5C334'
+                        ],
+                        [
+                            0.8,
+                            '#27727B'
+                        ],
+                        [
+                            1,
+                            '#C1232B'
+                        ]
+                    ],
+                    width: '40%'
+                }
+            },
+            axisTick: {
+                splitNumber: 2,
+                length: 5,
+                lineStyle: { color: '#fff' }
+            },
+            axisLabel: {
+                textStyle: {
+                    color: '#fff',
+                    fontWeight: 'bolder'
+                }
+            },
+            splitLine: {
+                length: '5%',
+                lineStyle: { color: '#fff' }
+            },
+            pointer: {
+                width: '40%',
+                length: '80%',
+                color: '#fff'
+            },
+            title: {
+                offsetCenter: [
+                    0,
+                    -20
+                ],
+                textStyle: {
+                    color: 'auto',
+                    fontSize: 20
+                }
+            },
+            detail: {
+                offsetCenter: [
+                    0,
+                    0
+                ],
+                textStyle: {
+                    color: 'auto',
+                    fontSize: 40
+                }
+            }
+        },
+        textStyle: { fontFamily: '微软雅黑, Arial, Verdana, sans-serif' }
+    };
+    return theme;
 });define('zrender/dep/excanvas', ['require'], function (require) {
     if (!document.createElement('canvas').getContext) {
         (function () {
@@ -10817,29 +11280,27 @@ define('zrender/zrender', [
             event = this._zrenderEventFixed(event);
             var delta = event.wheelDelta || -event.detail;
             var scale = delta > 0 ? 1.1 : 1 / 1.1;
-            var layers = this.painter.getLayers();
             var needsRefresh = false;
-            for (var z in layers) {
-                if (z !== 'hover') {
-                    var layer = layers[z];
-                    var pos = layer.position;
-                    if (layer.zoomable) {
-                        layer.__zoom = layer.__zoom || 1;
-                        var newZoom = layer.__zoom;
-                        newZoom *= scale;
-                        newZoom = Math.max(Math.min(layer.maxZoom, newZoom), layer.minZoom);
-                        scale = newZoom / layer.__zoom;
-                        layer.__zoom = newZoom;
-                        pos[0] -= (this._mouseX - pos[0]) * (scale - 1);
-                        pos[1] -= (this._mouseY - pos[1]) * (scale - 1);
-                        layer.scale[0] *= scale;
-                        layer.scale[1] *= scale;
-                        layer.dirty = true;
-                        needsRefresh = true;
-                        eventTool.stop(event);
-                    }
+            var mouseX = this._mouseX;
+            var mouseY = this._mouseY;
+            this.painter.eachBuildinLayer(function (layer) {
+                var pos = layer.position;
+                if (layer.zoomable) {
+                    layer.__zoom = layer.__zoom || 1;
+                    var newZoom = layer.__zoom;
+                    newZoom *= scale;
+                    newZoom = Math.max(Math.min(layer.maxZoom, newZoom), layer.minZoom);
+                    scale = newZoom / layer.__zoom;
+                    layer.__zoom = newZoom;
+                    pos[0] -= (mouseX - pos[0]) * (scale - 1);
+                    pos[1] -= (mouseY - pos[1]) * (scale - 1);
+                    layer.scale[0] *= scale;
+                    layer.scale[1] *= scale;
+                    layer.dirty = true;
+                    needsRefresh = true;
+                    eventTool.stop(event);
                 }
-            }
+            });
             if (needsRefresh) {
                 this.painter.refresh();
             }
@@ -10850,7 +11311,6 @@ define('zrender/zrender', [
             if (this.painter.isLoading()) {
                 return;
             }
-            this._clickThreshold++;
             event = this._zrenderEventFixed(event);
             this._lastX = this._mouseX;
             this._lastY = this._mouseY;
@@ -10876,21 +11336,18 @@ define('zrender/zrender', [
                 this.storage.drift(this._draggingTarget.id, dx, dy);
                 this._draggingTarget.modSelf();
                 this.storage.addHover(this._draggingTarget);
+                this._clickThreshold++;
             } else if (this._isMouseDown) {
-                var layers = this.painter.getLayers();
                 var needsRefresh = false;
-                for (var z in layers) {
-                    if (z !== 'hover') {
-                        var layer = layers[z];
-                        if (layer.panable) {
-                            cursor = 'move';
-                            layer.position[0] += dx;
-                            layer.position[1] += dy;
-                            needsRefresh = true;
-                            layer.dirty = true;
-                        }
+                this.painter.eachBuildinLayer(function (layer) {
+                    if (layer.panable) {
+                        cursor = 'move';
+                        layer.position[0] += dx;
+                        layer.position[1] += dy;
+                        needsRefresh = true;
+                        layer.dirty = true;
                     }
-                }
+                });
                 if (needsRefresh) {
                     this.painter.refresh();
                 }
@@ -10948,7 +11405,6 @@ define('zrender/zrender', [
             event = this._zrenderEventFixed(event);
             this.root.style.cursor = 'default';
             this._isMouseDown = 0;
-            this._clickThreshold = 0;
             this._mouseDownTarget = null;
             this._dispatchAgency(this._lastHover, EVENT.MOUSEUP, event);
             this._processDrop(event);
@@ -10957,7 +11413,7 @@ define('zrender/zrender', [
         touchstart: function (event) {
             event = this._zrenderEventFixed(event, true);
             this._lastTouchMoment = new Date();
-            this._mobildFindFixed(event);
+            this._mobileFindFixed(event);
             this._mousedownHandler(event);
         },
         touchmove: function (event) {
@@ -10972,7 +11428,7 @@ define('zrender/zrender', [
             this._mouseupHandler(event);
             var now = new Date();
             if (now - this._lastTouchMoment < EVENT.touchClickDelay) {
-                this._mobildFindFixed(event);
+                this._mobileFindFixed(event);
                 this._clickHandler(event);
                 if (now - this._lastClickMoment < EVENT.touchClickDelay / 2) {
                     this._dblclickHandler(event);
@@ -11038,8 +11494,8 @@ define('zrender/zrender', [
             root.attachEvent('onmouseup', this._mouseupHandler);
         }
     };
-    Handler.prototype.on = function (eventName, handler) {
-        this.bind(eventName, handler);
+    Handler.prototype.on = function (eventName, handler, context) {
+        this.bind(eventName, handler, context);
         return this;
     };
     Handler.prototype.un = function (eventName, handler) {
@@ -11168,9 +11624,18 @@ define('zrender/zrender', [
                 this.dispatch(eventName, eventPacket);
             }
         } else if (!draggedShape) {
-            this.dispatch(eventName, {
+            var eveObj = {
                 type: eventName,
                 event: event
+            };
+            this.dispatch(eventName, eveObj);
+            this.painter.eachOtherLayer(function (layer) {
+                if (typeof layer[eventHandler] == 'function') {
+                    layer[eventHandler](eveObj);
+                }
+                if (layer.dispatch) {
+                    layer.dispatch(eventName, eveObj);
+                }
             });
         }
     };
@@ -11210,7 +11675,7 @@ define('zrender/zrender', [
         },
         { y: -20 }
     ];
-    Handler.prototype._mobildFindFixed = function (event) {
+    Handler.prototype._mobileFindFixed = function (event) {
         this._lastHover = null;
         this._mouseX = event.zrenderX;
         this._mouseY = event.zrenderY;
@@ -11219,7 +11684,7 @@ define('zrender/zrender', [
         for (var i = 0; !this._lastHover && i < MOBILE_TOUCH_OFFSETS.length; i++) {
             var offset = MOBILE_TOUCH_OFFSETS[i];
             offset.x && (this._mouseX += offset.x);
-            offset.y && (this._mouseX += offset.y);
+            offset.y && (this._mouseY += offset.y);
             this._iterateAndFindHover();
         }
         if (this._lastHover) {
@@ -11270,7 +11735,7 @@ define('zrender/zrender', [
         } else {
             var touch = event.type != 'touchend' ? event.targetTouches[0] : event.changedTouches[0];
             if (touch) {
-                var rBounding = this.root.getBoundingClientRect();
+                var rBounding = this.painter._domRoot.getBoundingClientRect();
                 event.zrenderX = touch.clientX - rBounding.left;
                 event.zrenderY = touch.clientY - rBounding.top;
             }
@@ -11287,7 +11752,7 @@ define('zrender/zrender', [
     './tool/log',
     './tool/matrix',
     './loadingEffect/Base',
-    './mixin/Transformable',
+    './Layer',
     './shape/Image'
 ], function (require) {
     'use strict';
@@ -11296,14 +11761,23 @@ define('zrender/zrender', [
     var log = require('./tool/log');
     var matrix = require('./tool/matrix');
     var BaseLoadingEffect = require('./loadingEffect/Base');
-    var Transformable = require('./mixin/Transformable');
-    var devicePixelRatio = window.devicePixelRatio || 1;
-    devicePixelRatio = Math.max(devicePixelRatio, 1);
-    var vmlCanvasManager = window['G_vmlCanvasManager'];
+    var Layer = require('./Layer');
     function returnFalse() {
         return false;
     }
     function doNothing() {
+    }
+    function isLayerValid(layer) {
+        if (!layer) {
+            return false;
+        }
+        if (layer.isBuildin) {
+            return true;
+        }
+        if (typeof layer.resize !== 'function' || typeof layer.refresh !== 'function') {
+            return false;
+        }
+        return true;
     }
     var Painter = function (root, storage) {
         this.root = root;
@@ -11323,12 +11797,18 @@ define('zrender/zrender', [
         this._layerConfig = {};
         this._loadingEffect = new BaseLoadingEffect({});
         this.shapeToImage = this._createShapeToImageProcessor();
-        this._bgDom = createDom('bg', 'div', this);
+        this._bgDom = document.createElement('div');
+        this._bgDom.style.cssText = [
+            'position:absolute;left:0px;top:0px;width:',
+            this._width,
+            'px;height:',
+            this._height + 'px;',
+            '-webkit-user-select:none;user-select;none;',
+            '-webkit-touch-callout:none;'
+        ].join('');
+        this._bgDom.setAttribute('data-zr-dom-id', 'bg');
         domRoot.appendChild(this._bgDom);
         this._bgDom.onselectstart = returnFalse;
-        this._bgDom.style['-webkit-user-select'] = 'none';
-        this._bgDom.style['user-select'] = 'none';
-        this._bgDom.style['-webkit-touch-callout'] = 'none';
         var hoverLayer = new Layer('_zrender_hover_', this);
         this._layers['hover'] = hoverLayer;
         domRoot.appendChild(hoverLayer.dom);
@@ -11349,10 +11829,27 @@ define('zrender/zrender', [
     Painter.prototype.refresh = function (callback, paintAll) {
         var list = this.storage.getShapeList(true);
         this._paintList(list, paintAll);
+        for (var i = 0; i < this._zlevelList.length; i++) {
+            var z = this._zlevelList[i];
+            var layer = this._layers[z];
+            if (!layer.isBuildin && layer.refresh) {
+                layer.refresh();
+            }
+        }
         if (typeof callback == 'function') {
             callback();
         }
         return this;
+    };
+    Painter.prototype._preProcessLayer = function (layer) {
+        layer.unusedCount++;
+        layer.updateTransform();
+    };
+    Painter.prototype._postProcessLayer = function (layer) {
+        layer.dirty = false;
+        if (layer.unusedCount == 1) {
+            layer.clear();
+        }
     };
     Painter.prototype._paintList = function (list, paintAll) {
         if (typeof paintAll == 'undefined') {
@@ -11362,12 +11859,7 @@ define('zrender/zrender', [
         var currentLayer;
         var currentZLevel;
         var ctx;
-        for (var id in this._layers) {
-            if (id !== 'hover') {
-                this._layers[id].unusedCount++;
-                this._layers[id].updateTransform();
-            }
-        }
+        this.eachBuildinLayer(this._preProcessLayer);
         var invTransform = [];
         for (var i = 0, l = list.length; i < l; i++) {
             var shape = list[i];
@@ -11378,9 +11870,12 @@ define('zrender/zrender', [
                     }
                     ctx.flush && ctx.flush();
                 }
-                currentLayer = this.getLayer(shape.zlevel);
-                ctx = currentLayer.ctx;
                 currentZLevel = shape.zlevel;
+                currentLayer = this.getLayer(currentZLevel);
+                if (!currentLayer.isBuildin) {
+                    log('ZLevel ' + currentZLevel + ' has been used by unkown layer ' + currentLayer.id);
+                }
+                ctx = currentLayer.ctx;
                 currentLayer.unusedCount = 0;
                 if (currentLayer.dirty || paintAll) {
                     currentLayer.clear();
@@ -11390,7 +11885,7 @@ define('zrender/zrender', [
                     currentLayer.setTransform(ctx);
                 }
             }
-            if (shape.__startClip && !vmlCanvasManager) {
+            if (shape.__startClip && window['G_vmlCanvasManager']) {
                 var clipShape = shape.__startClip;
                 ctx.save();
                 if (clipShape.needTransform) {
@@ -11419,7 +11914,7 @@ define('zrender/zrender', [
                     }
                 }
             }
-            if (shape.__stopClip && !vmlCanvasManager) {
+            if (shape.__stopClip && window['G_vmlCanvasManager']) {
                 ctx.restore();
             }
             shape.__dirty = false;
@@ -11430,46 +11925,74 @@ define('zrender/zrender', [
             }
             ctx.flush && ctx.flush();
         }
-        for (var id in this._layers) {
-            if (id !== 'hover') {
-                var layer = this._layers[id];
-                layer.dirty = false;
-                if (layer.unusedCount == 1) {
-                    layer.clear();
+        this.eachBuildinLayer(this._postProcessLayer);
+    };
+    Painter.prototype.getLayer = function (zlevel) {
+        var layer = this._layers[zlevel];
+        if (!layer) {
+            layer = new Layer(zlevel, this);
+            layer.isBuildin = true;
+            if (this._layerConfig[zlevel]) {
+                util.merge(layer, this._layerConfig[zlevel], true);
+            }
+            layer.updateTransform();
+            this.insertLayer(zlevel, layer);
+            layer.initContext();
+        }
+        return layer;
+    };
+    Painter.prototype.insertLayer = function (zlevel, layer) {
+        if (this._layers[zlevel]) {
+            log('ZLevel ' + zlevel + ' has been used already');
+            return;
+        }
+        if (!isLayerValid(layer)) {
+            log('Layer of zlevel ' + zlevel + ' is not valid');
+            return;
+        }
+        var len = this._zlevelList.length;
+        var prevLayer = null;
+        var i = -1;
+        if (len > 0 && zlevel > this._zlevelList[0]) {
+            for (i = 0; i < len - 1; i++) {
+                if (this._zlevelList[i] < zlevel && this._zlevelList[i + 1] > zlevel) {
+                    break;
                 }
+            }
+            prevLayer = this._layers[this._zlevelList[i]];
+        }
+        this._zlevelList.splice(i + 1, 0, zlevel);
+        var prevDom = prevLayer ? prevLayer.dom : this._bgDom;
+        if (prevDom.nextSibling) {
+            prevDom.parentNode.insertBefore(layer.dom, prevDom.nextSibling);
+        } else {
+            prevDom.parentNode.appendChild(layer.dom);
+        }
+        this._layers[zlevel] = layer;
+    };
+    Painter.prototype.eachLayer = function (cb, context) {
+        for (var i = 0; i < this._zlevelList.length; i++) {
+            var z = this._zlevelList[i];
+            cb.call(context, this._layers[z], z);
+        }
+    };
+    Painter.prototype.eachBuildinLayer = function (cb, context) {
+        for (var i = 0; i < this._zlevelList.length; i++) {
+            var z = this._zlevelList[i];
+            var layer = this._layers[z];
+            if (layer.isBuildin) {
+                cb.call(context, layer, z);
             }
         }
     };
-    Painter.prototype.getLayer = function (zlevel) {
-        var currentLayer = this._layers[zlevel];
-        if (!currentLayer) {
-            var len = this._zlevelList.length;
-            var prevLayer = null;
-            var i = -1;
-            if (len > 0 && zlevel > this._zlevelList[0]) {
-                for (i = 0; i < len - 1; i++) {
-                    if (this._zlevelList[i] < zlevel && this._zlevelList[i + 1] > zlevel) {
-                        break;
-                    }
-                }
-                prevLayer = this._layers[this._zlevelList[i]];
+    Painter.prototype.eachOtherLayer = function (cb, context) {
+        for (var i = 0; i < this._zlevelList.length; i++) {
+            var z = this._zlevelList[i];
+            var layer = this._layers[z];
+            if (!layer.isBuildin) {
+                cb.call(context, layer, z);
             }
-            this._zlevelList.splice(i + 1, 0, zlevel);
-            currentLayer = new Layer(zlevel, this);
-            var prevDom = prevLayer ? prevLayer.dom : this._bgDom;
-            if (prevDom.nextSibling) {
-                prevDom.parentNode.insertBefore(currentLayer.dom, prevDom.nextSibling);
-            } else {
-                prevDom.parentNode.appendChild(currentLayer.dom);
-            }
-            currentLayer.initContext();
-            this._layers[zlevel] = currentLayer;
-            if (this._layerConfig[zlevel]) {
-                util.merge(currentLayer, this._layerConfig[zlevel], true);
-            }
-            currentLayer.updateTransform();
         }
-        return currentLayer;
     };
     Painter.prototype.getLayers = function () {
         return this._layers;
@@ -11477,12 +12000,10 @@ define('zrender/zrender', [
     Painter.prototype._updateLayerStatus = function (list) {
         var layers = this._layers;
         var elCounts = {};
-        for (var z in layers) {
-            if (z !== 'hover') {
-                elCounts[z] = layers[z].elCount;
-                layers[z].elCount = 0;
-            }
-        }
+        this.eachBuildinLayer(function (layer, z) {
+            elCounts[z] = layer.elCount;
+            layer.elCount = 0;
+        });
         for (var i = 0, l = list.length; i < l; i++) {
             var shape = list[i];
             var zlevel = shape.zlevel;
@@ -11495,13 +12016,11 @@ define('zrender/zrender', [
                 layer.dirty = shape.__dirty;
             }
         }
-        for (var z in layers) {
-            if (z !== 'hover') {
-                if (elCounts[z] !== layers[z].elCount) {
-                    layers[z].dirty = true;
-                }
+        this.eachBuildinLayer(function (layer, z) {
+            if (elCounts[z] !== layer.elCount) {
+                layer.dirty = true;
             }
-        }
+        });
     };
     Painter.prototype.refreshShapes = function (shapeList, callback) {
         for (var i = 0, l = shapeList.length; i < l; i++) {
@@ -11516,13 +12035,11 @@ define('zrender/zrender', [
         return this;
     };
     Painter.prototype.clear = function () {
-        for (var k in this._layers) {
-            if (k == 'hover') {
-                continue;
-            }
-            this._layers[k].clear();
-        }
+        this.eachBuildinLayer(this._clearLayer);
         return this;
+    };
+    Painter.prototype._clearLayer = function (layer) {
+        layer.clear();
     };
     Painter.prototype.modLayer = function (zlevel, config) {
         if (config) {
@@ -11618,16 +12135,15 @@ define('zrender/zrender', [
         return this._layers.hover.dom;
     };
     Painter.prototype.toDataURL = function (type, backgroundColor, args) {
-        if (vmlCanvasManager) {
+        if (window['G_vmlCanvasManager']) {
             return null;
         }
-        var imageDom = createDom('image', 'canvas', this);
-        this._bgDom.appendChild(imageDom);
-        var ctx = imageDom.getContext('2d');
-        devicePixelRatio != 1 && ctx.scale(devicePixelRatio, devicePixelRatio);
-        ctx.fillStyle = backgroundColor || '#fff';
-        ctx.rect(0, 0, this._width * devicePixelRatio, this._height * devicePixelRatio);
-        ctx.fill();
+        var imageLayer = new Layer('image', this);
+        this._bgDom.appendChild(imageLayer.dom);
+        imageLayer.initContext();
+        var ctx = imageLayer.ctx;
+        imageLayer.clearColor = backgroundColor || '#fff';
+        imageLayer.clear();
         var self = this;
         this.storage.iterShape(function (shape) {
             if (!shape.invisible) {
@@ -11647,9 +12163,9 @@ define('zrender/zrender', [
             normal: 'up',
             update: true
         });
-        var image = imageDom.toDataURL(type, args);
+        var image = imageLayer.dom.toDataURL(type, args);
         ctx = null;
-        this._bgDom.removeChild(imageDom);
+        this._bgDom.removeChild(imageLayer.dom);
         return image;
     };
     Painter.prototype.getWidth = function () {
@@ -11693,7 +12209,6 @@ define('zrender/zrender', [
     Painter.prototype._shapeToImage = function (id, shape, width, height, devicePixelRatio) {
         var canvas = document.createElement('canvas');
         var ctx = canvas.getContext('2d');
-        var devicePixelRatio = window.devicePixelRatio || 1;
         canvas.style.width = width + 'px';
         canvas.style.height = height + 'px';
         canvas.setAttribute('width', width * devicePixelRatio);
@@ -11738,115 +12253,14 @@ define('zrender/zrender', [
         return imgShape;
     };
     Painter.prototype._createShapeToImageProcessor = function () {
-        if (vmlCanvasManager) {
+        if (window['G_vmlCanvasManager']) {
             return doNothing;
         }
         var me = this;
         return function (id, e, width, height) {
-            return me._shapeToImage(id, e, width, height, devicePixelRatio);
+            return me._shapeToImage(id, e, width, height, config.devicePixelRatio);
         };
     };
-    function createDom(id, type, painter) {
-        var newDom = document.createElement(type);
-        var width = painter._width;
-        var height = painter._height;
-        newDom.style.position = 'absolute';
-        newDom.style.left = 0;
-        newDom.style.top = 0;
-        newDom.style.width = width + 'px';
-        newDom.style.height = height + 'px';
-        newDom.setAttribute('width', width * devicePixelRatio);
-        newDom.setAttribute('height', height * devicePixelRatio);
-        newDom.setAttribute('data-zr-dom-id', id);
-        return newDom;
-    }
-    var Layer = function (id, painter) {
-        this.dom = createDom(id, 'canvas', painter);
-        this.dom.onselectstart = returnFalse;
-        this.dom.style['-webkit-user-select'] = 'none';
-        this.dom.style['user-select'] = 'none';
-        this.dom.style['-webkit-touch-callout'] = 'none';
-        vmlCanvasManager && vmlCanvasManager.initElement(this.dom);
-        this.domBack = null;
-        this.ctxBack = null;
-        this.painter = painter;
-        this.unusedCount = 0;
-        this.config = null;
-        this.dirty = true;
-        this.elCount = 0;
-        this.clearColor = 0;
-        this.motionBlur = false;
-        this.lastFrameAlpha = 0.7;
-        this.zoomable = false;
-        this.panable = false;
-        this.maxZoom = Infinity;
-        this.minZoom = 0;
-        Transformable.call(this);
-    };
-    Layer.prototype.initContext = function () {
-        this.ctx = this.dom.getContext('2d');
-        if (devicePixelRatio != 1) {
-            this.ctx.scale(devicePixelRatio, devicePixelRatio);
-        }
-    };
-    Layer.prototype.createBackBuffer = function () {
-        if (vmlCanvasManager) {
-            return;
-        }
-        this.domBack = createDom('back-' + this.id, 'canvas', this.painter);
-        this.ctxBack = this.domBack.getContext('2d');
-        if (devicePixelRatio != 1) {
-            this.ctxBack.scale(devicePixelRatio, devicePixelRatio);
-        }
-    };
-    Layer.prototype.resize = function (width, height) {
-        this.dom.style.width = width + 'px';
-        this.dom.style.height = height + 'px';
-        this.dom.setAttribute('width', width * devicePixelRatio);
-        this.dom.setAttribute('height', height * devicePixelRatio);
-        if (devicePixelRatio != 1) {
-            this.ctx.scale(devicePixelRatio, devicePixelRatio);
-        }
-        if (this.domBack) {
-            this.domBack.setAttribute('width', width * devicePixelRatio);
-            this.domBack.setAttribute('height', height * devicePixelRatio);
-            if (devicePixelRatio != 1) {
-                this.ctxBack.scale(devicePixelRatio, devicePixelRatio);
-            }
-        }
-    };
-    Layer.prototype.clear = function () {
-        var dom = this.dom;
-        var ctx = this.ctx;
-        var width = dom.width;
-        var height = dom.height;
-        var haveClearColor = this.clearColor && !vmlCanvasManager;
-        var haveMotionBLur = this.motionBlur && !vmlCanvasManager;
-        var lastFrameAlpha = this.lastFrameAlpha;
-        if (haveMotionBLur) {
-            if (!this.domBack) {
-                this.createBackBuffer();
-            }
-            this.ctxBack.globalCompositeOperation = 'copy';
-            this.ctxBack.drawImage(dom, 0, 0, width / devicePixelRatio, height / devicePixelRatio);
-        }
-        if (haveClearColor) {
-            ctx.save();
-            ctx.fillStyle = this.config.clearColor;
-            ctx.fillRect(0, 0, width / devicePixelRatio, height / devicePixelRatio);
-            ctx.restore();
-        } else {
-            ctx.clearRect(0, 0, width / devicePixelRatio, height / devicePixelRatio);
-        }
-        if (haveMotionBLur) {
-            var domBack = this.domBack;
-            ctx.save();
-            ctx.globalAlpha = lastFrameAlpha;
-            ctx.drawImage(domBack, 0, 0, width / devicePixelRatio, height / devicePixelRatio);
-            ctx.restore();
-        }
-    };
-    util.merge(Layer.prototype, Transformable.prototype);
     return Painter;
 });define('zrender/Storage', [
     'require',
@@ -12150,9 +12564,6 @@ define('zrender/zrender', [
                     deferredClips.push(clip);
                 }
             }
-            if (this.stage.update) {
-                this.stage.update();
-            }
             for (var i = 0; i < len;) {
                 if (clips[i]._needsRemove) {
                     clips[i] = clips[len - 1];
@@ -12169,6 +12580,9 @@ define('zrender/zrender', [
             this._time = time;
             this.onframe(delta);
             this.dispatch('frame', delta);
+            if (this.stage.update) {
+                this.stage.update();
+            }
         },
         start: function () {
             var self = this;
@@ -12785,168 +13199,126 @@ define('zrender/zrender', [
         };
     };
     return Base;
-});define('zrender/mixin/Transformable', [
+});define('zrender/Layer', [
     'require',
-    '../tool/matrix',
-    '../tool/vector'
+    './mixin/Transformable',
+    './tool/util',
+    './config'
 ], function (require) {
-    'use strict';
-    var matrix = require('../tool/matrix');
-    var vector = require('../tool/vector');
-    var origin = [
-        0,
-        0
-    ];
-    var EPSILON = 0.00005;
-    function isAroundZero(val) {
-        return val > -EPSILON && val < EPSILON;
+    var Transformable = require('./mixin/Transformable');
+    var util = require('./tool/util');
+    var vmlCanvasManager = window['G_vmlCanvasManager'];
+    var config = require('./config');
+    function returnFalse() {
+        return false;
     }
-    function isNotAroundZero(val) {
-        return val > EPSILON || val < -EPSILON;
+    function createDom(id, type, painter) {
+        var newDom = document.createElement(type);
+        var width = painter.getWidth();
+        var height = painter.getHeight();
+        newDom.style.position = 'absolute';
+        newDom.style.left = 0;
+        newDom.style.top = 0;
+        newDom.style.width = width + 'px';
+        newDom.style.height = height + 'px';
+        newDom.width = width * config.devicePixelRatio;
+        newDom.height = height * config.devicePixelRatio;
+        newDom.setAttribute('data-zr-dom-id', id);
+        return newDom;
     }
-    var Transformable = function () {
-        if (!this.position) {
-            this.position = [
-                0,
-                0
-            ];
-        }
-        if (typeof this.rotation == 'undefined') {
-            this.rotation = [
-                0,
-                0,
-                0
-            ];
-        }
-        if (!this.scale) {
-            this.scale = [
-                1,
-                1,
-                0,
-                0
-            ];
-        }
-        this.needLocalTransform = false;
-        this.needTransform = false;
+    var Layer = function (id, painter) {
+        this.id = id;
+        this.dom = createDom(id, 'canvas', painter);
+        this.dom.onselectstart = returnFalse;
+        this.dom.style['-webkit-user-select'] = 'none';
+        this.dom.style['user-select'] = 'none';
+        this.dom.style['-webkit-touch-callout'] = 'none';
+        vmlCanvasManager && vmlCanvasManager.initElement(this.dom);
+        this.domBack = null;
+        this.ctxBack = null;
+        this.painter = painter;
+        this.unusedCount = 0;
+        this.config = null;
+        this.dirty = true;
+        this.elCount = 0;
+        this.clearColor = 0;
+        this.motionBlur = false;
+        this.lastFrameAlpha = 0.7;
+        this.zoomable = false;
+        this.panable = false;
+        this.maxZoom = Infinity;
+        this.minZoom = 0;
+        Transformable.call(this);
     };
-    Transformable.prototype = {
-        constructor: Transformable,
-        updateNeedTransform: function () {
-            this.needLocalTransform = isNotAroundZero(this.rotation[0]) || isNotAroundZero(this.position[0]) || isNotAroundZero(this.position[1]) || isNotAroundZero(this.scale[0] - 1) || isNotAroundZero(this.scale[1] - 1);
-        },
-        updateTransform: function () {
-            this.updateNeedTransform();
-            if (this.parent) {
-                this.needTransform = this.needLocalTransform || this.parent.needTransform;
-            } else {
-                this.needTransform = this.needLocalTransform;
-            }
-            if (!this.needTransform) {
-                return;
-            }
-            var m = this.transform || matrix.create();
-            matrix.identity(m);
-            if (this.needLocalTransform) {
-                if (isNotAroundZero(this.scale[0]) || isNotAroundZero(this.scale[1])) {
-                    origin[0] = -this.scale[2] || 0;
-                    origin[1] = -this.scale[3] || 0;
-                    var haveOrigin = isNotAroundZero(origin[0]) || isNotAroundZero(origin[1]);
-                    if (haveOrigin) {
-                        matrix.translate(m, m, origin);
-                    }
-                    matrix.scale(m, m, this.scale);
-                    if (haveOrigin) {
-                        origin[0] = -origin[0];
-                        origin[1] = -origin[1];
-                        matrix.translate(m, m, origin);
-                    }
-                }
-                if (this.rotation instanceof Array) {
-                    if (this.rotation[0] !== 0) {
-                        origin[0] = -this.rotation[1] || 0;
-                        origin[1] = -this.rotation[2] || 0;
-                        var haveOrigin = isNotAroundZero(origin[0]) || isNotAroundZero(origin[1]);
-                        if (haveOrigin) {
-                            matrix.translate(m, m, origin);
-                        }
-                        matrix.rotate(m, m, this.rotation[0]);
-                        if (haveOrigin) {
-                            origin[0] = -origin[0];
-                            origin[1] = -origin[1];
-                            matrix.translate(m, m, origin);
-                        }
-                    }
-                } else {
-                    if (this.rotation !== 0) {
-                        matrix.rotate(m, m, this.rotation);
-                    }
-                }
-                if (isNotAroundZero(this.position[0]) || isNotAroundZero(this.position[1])) {
-                    matrix.translate(m, m, this.position);
-                }
-            }
-            this.transform = m;
-            if (this.parent && this.parent.needTransform) {
-                if (this.needLocalTransform) {
-                    matrix.mul(this.transform, this.parent.transform, this.transform);
-                } else {
-                    matrix.copy(this.transform, this.parent.transform);
-                }
-            }
-        },
-        setTransform: function (ctx) {
-            if (this.needTransform) {
-                var m = this.transform;
-                ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
-            }
-        },
-        lookAt: function () {
-            var v = vector.create();
-            return function (target) {
-                if (!this.transform) {
-                    this.transform = matrix.create();
-                }
-                var m = this.transform;
-                vector.sub(v, target, this.position);
-                if (isAroundZero(v[0]) && isAroundZero(v[1])) {
-                    return;
-                }
-                vector.normalize(v, v);
-                m[2] = v[0] * this.scale[1];
-                m[3] = v[1] * this.scale[1];
-                m[0] = v[1] * this.scale[0];
-                m[1] = -v[0] * this.scale[0];
-                m[4] = this.position[0];
-                m[5] = this.position[1];
-                this.decomposeTransform();
-            };
-        }(),
-        decomposeTransform: function () {
-            if (!this.transform) {
-                return;
-            }
-            var m = this.transform;
-            var sx = m[0] * m[0] + m[1] * m[1];
-            var position = this.position;
-            var scale = this.scale;
-            var rotation = this.rotation;
-            if (isNotAroundZero(sx - 1)) {
-                sx = Math.sqrt(sx);
-            }
-            var sy = m[2] * m[2] + m[3] * m[3];
-            if (isNotAroundZero(sy - 1)) {
-                sy = Math.sqrt(sy);
-            }
-            position[0] = m[4];
-            position[1] = m[5];
-            scale[0] = sx;
-            scale[1] = sy;
-            scale[2] = scale[3] = 0;
-            rotation[0] = Math.atan2(-m[1] / sy, m[0] / sx);
-            rotation[1] = rotation[2] = 0;
+    Layer.prototype.initContext = function () {
+        this.ctx = this.dom.getContext('2d');
+        var dpr = config.devicePixelRatio;
+        if (dpr != 1) {
+            this.ctx.scale(dpr, dpr);
         }
     };
-    return Transformable;
+    Layer.prototype.createBackBuffer = function () {
+        if (vmlCanvasManager) {
+            return;
+        }
+        this.domBack = createDom('back-' + this.id, 'canvas', this.painter);
+        this.ctxBack = this.domBack.getContext('2d');
+        var dpr = config.devicePixelRatio;
+        if (dpr != 1) {
+            this.ctxBack.scale(dpr, dpr);
+        }
+    };
+    Layer.prototype.resize = function (width, height) {
+        var dpr = config.devicePixelRatio;
+        this.dom.style.width = width + 'px';
+        this.dom.style.height = height + 'px';
+        this.dom.setAttribute('width', width * dpr);
+        this.dom.setAttribute('height', height * dpr);
+        if (dpr != 1) {
+            this.ctx.scale(dpr, dpr);
+        }
+        if (this.domBack) {
+            this.domBack.setAttribute('width', width * dpr);
+            this.domBack.setAttribute('height', height * dpr);
+            if (dpr != 1) {
+                this.ctxBack.scale(dpr, dpr);
+            }
+        }
+    };
+    Layer.prototype.clear = function () {
+        var dom = this.dom;
+        var ctx = this.ctx;
+        var width = dom.width;
+        var height = dom.height;
+        var haveClearColor = this.clearColor && !vmlCanvasManager;
+        var haveMotionBLur = this.motionBlur && !vmlCanvasManager;
+        var lastFrameAlpha = this.lastFrameAlpha;
+        var dpr = config.devicePixelRatio;
+        if (haveMotionBLur) {
+            if (!this.domBack) {
+                this.createBackBuffer();
+            }
+            this.ctxBack.globalCompositeOperation = 'copy';
+            this.ctxBack.drawImage(dom, 0, 0, width / dpr, height / dpr);
+        }
+        if (haveClearColor) {
+            ctx.save();
+            ctx.fillStyle = this.clearColor;
+            ctx.fillRect(0, 0, width / dpr, height / dpr);
+            ctx.restore();
+        } else {
+            ctx.clearRect(0, 0, width / dpr, height / dpr);
+        }
+        if (haveMotionBLur) {
+            var domBack = this.domBack;
+            ctx.save();
+            ctx.globalAlpha = lastFrameAlpha;
+            ctx.drawImage(domBack, 0, 0, width / dpr, height / dpr);
+            ctx.restore();
+        }
+    };
+    util.merge(Layer.prototype, Transformable.prototype);
+    return Layer;
 });define('zrender/shape/Text', [
     'require',
     '../tool/area',
@@ -13221,7 +13593,7 @@ define('zrender/zrender', [
             return isInsideCubicStroke(area.xStart, area.yStart, area.cpX1, area.cpY1, area.cpX2, area.cpY2, area.xEnd, area.yEnd, area.lineWidth, x, y);
         case 'line':
             return isInsideLine(area.xStart, area.yStart, area.xEnd, area.yEnd, area.lineWidth, x, y);
-        case 'broken-line':
+        case 'polyline':
             return isInsideBrokenLine(area.pointList, area.lineWidth, x, y);
         case 'ring':
             return isInsideRing(area.x, area.y, area.r0, area.r, x, y);
@@ -14034,60 +14406,63 @@ define('zrender/zrender', [
             break;
         case 'start':
         case 'end':
+            var pointList = style.pointList || [
+                [
+                    style.xStart || 0,
+                    style.yStart || 0
+                ],
+                [
+                    style.xEnd || 0,
+                    style.yEnd || 0
+                ]
+            ];
+            var length = pointList.length;
+            if (length < 2) {
+                return;
+            }
             var xStart;
             var xEnd;
             var yStart;
             var yEnd;
-            if (typeof style.pointList != 'undefined') {
-                var pointList = style.pointList;
-                if (pointList.length < 2) {
-                    return;
-                }
-                var length = pointList.length;
-                switch (textPosition) {
-                case 'start':
-                    xStart = pointList[0][0];
-                    xEnd = pointList[1][0];
-                    yStart = pointList[0][1];
-                    yEnd = pointList[1][1];
-                    break;
-                case 'end':
-                    xStart = pointList[length - 2][0];
-                    xEnd = pointList[length - 1][0];
-                    yStart = pointList[length - 2][1];
-                    yEnd = pointList[length - 1][1];
-                    break;
-                }
-            } else {
-                xStart = style.xStart || 0;
-                xEnd = style.xEnd || 0;
-                yStart = style.yStart || 0;
-                yEnd = style.yEnd || 0;
-            }
             switch (textPosition) {
             case 'start':
-                al = xStart < xEnd ? 'end' : 'start';
-                bl = yStart < yEnd ? 'bottom' : 'top';
-                tx = xStart;
-                ty = yStart;
+                xStart = pointList[1][0];
+                xEnd = pointList[0][0];
+                yStart = pointList[1][1];
+                yEnd = pointList[0][1];
                 break;
             case 'end':
-                al = xStart < xEnd ? 'start' : 'end';
-                bl = yStart < yEnd ? 'top' : 'bottom';
-                tx = xEnd;
-                ty = yEnd;
+                xStart = pointList[length - 2][0];
+                xEnd = pointList[length - 1][0];
+                yStart = pointList[length - 2][1];
+                yEnd = pointList[length - 1][1];
                 break;
             }
-            dd -= 4;
-            if (xStart != xEnd) {
-                tx -= al == 'end' ? dd : -dd;
-            } else {
-                al = 'center';
+            tx = xEnd;
+            ty = yEnd;
+            var angle = Math.atan((yStart - yEnd) / (xEnd - xStart)) / Math.PI * 180;
+            if (xEnd - xStart < 0) {
+                angle += 180;
+            } else if (yStart - yEnd < 0) {
+                angle += 360;
             }
-            if (yStart != yEnd) {
-                ty -= bl == 'bottom' ? dd : -dd;
-            } else {
+            dd = 5;
+            if (angle >= 30 && angle <= 150) {
+                al = 'center';
+                bl = 'bottom';
+                ty -= dd;
+            } else if (angle > 150 && angle < 210) {
+                al = 'right';
                 bl = 'middle';
+                tx -= dd;
+            } else if (angle >= 210 && angle <= 330) {
+                al = 'center';
+                bl = 'top';
+                ty += dd;
+            } else {
+                al = 'left';
+                bl = 'middle';
+                tx += dd;
             }
             break;
         case 'specific':
@@ -14410,6 +14785,168 @@ define('zrender/zrender', [
         quadraticExtremum: quadraticExtremum,
         quadraticProjectPoint: quadraticProjectPoint
     };
+});define('zrender/mixin/Transformable', [
+    'require',
+    '../tool/matrix',
+    '../tool/vector'
+], function (require) {
+    'use strict';
+    var matrix = require('../tool/matrix');
+    var vector = require('../tool/vector');
+    var origin = [
+        0,
+        0
+    ];
+    var EPSILON = 0.00005;
+    function isAroundZero(val) {
+        return val > -EPSILON && val < EPSILON;
+    }
+    function isNotAroundZero(val) {
+        return val > EPSILON || val < -EPSILON;
+    }
+    var Transformable = function () {
+        if (!this.position) {
+            this.position = [
+                0,
+                0
+            ];
+        }
+        if (typeof this.rotation == 'undefined') {
+            this.rotation = [
+                0,
+                0,
+                0
+            ];
+        }
+        if (!this.scale) {
+            this.scale = [
+                1,
+                1,
+                0,
+                0
+            ];
+        }
+        this.needLocalTransform = false;
+        this.needTransform = false;
+    };
+    Transformable.prototype = {
+        constructor: Transformable,
+        updateNeedTransform: function () {
+            this.needLocalTransform = isNotAroundZero(this.rotation[0]) || isNotAroundZero(this.position[0]) || isNotAroundZero(this.position[1]) || isNotAroundZero(this.scale[0] - 1) || isNotAroundZero(this.scale[1] - 1);
+        },
+        updateTransform: function () {
+            this.updateNeedTransform();
+            if (this.parent) {
+                this.needTransform = this.needLocalTransform || this.parent.needTransform;
+            } else {
+                this.needTransform = this.needLocalTransform;
+            }
+            if (!this.needTransform) {
+                return;
+            }
+            var m = this.transform || matrix.create();
+            matrix.identity(m);
+            if (this.needLocalTransform) {
+                if (isNotAroundZero(this.scale[0]) || isNotAroundZero(this.scale[1])) {
+                    origin[0] = -this.scale[2] || 0;
+                    origin[1] = -this.scale[3] || 0;
+                    var haveOrigin = isNotAroundZero(origin[0]) || isNotAroundZero(origin[1]);
+                    if (haveOrigin) {
+                        matrix.translate(m, m, origin);
+                    }
+                    matrix.scale(m, m, this.scale);
+                    if (haveOrigin) {
+                        origin[0] = -origin[0];
+                        origin[1] = -origin[1];
+                        matrix.translate(m, m, origin);
+                    }
+                }
+                if (this.rotation instanceof Array) {
+                    if (this.rotation[0] !== 0) {
+                        origin[0] = -this.rotation[1] || 0;
+                        origin[1] = -this.rotation[2] || 0;
+                        var haveOrigin = isNotAroundZero(origin[0]) || isNotAroundZero(origin[1]);
+                        if (haveOrigin) {
+                            matrix.translate(m, m, origin);
+                        }
+                        matrix.rotate(m, m, this.rotation[0]);
+                        if (haveOrigin) {
+                            origin[0] = -origin[0];
+                            origin[1] = -origin[1];
+                            matrix.translate(m, m, origin);
+                        }
+                    }
+                } else {
+                    if (this.rotation !== 0) {
+                        matrix.rotate(m, m, this.rotation);
+                    }
+                }
+                if (isNotAroundZero(this.position[0]) || isNotAroundZero(this.position[1])) {
+                    matrix.translate(m, m, this.position);
+                }
+            }
+            this.transform = m;
+            if (this.parent && this.parent.needTransform) {
+                if (this.needLocalTransform) {
+                    matrix.mul(this.transform, this.parent.transform, this.transform);
+                } else {
+                    matrix.copy(this.transform, this.parent.transform);
+                }
+            }
+        },
+        setTransform: function (ctx) {
+            if (this.needTransform) {
+                var m = this.transform;
+                ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+            }
+        },
+        lookAt: function () {
+            var v = vector.create();
+            return function (target) {
+                if (!this.transform) {
+                    this.transform = matrix.create();
+                }
+                var m = this.transform;
+                vector.sub(v, target, this.position);
+                if (isAroundZero(v[0]) && isAroundZero(v[1])) {
+                    return;
+                }
+                vector.normalize(v, v);
+                m[2] = v[0] * this.scale[1];
+                m[3] = v[1] * this.scale[1];
+                m[0] = v[1] * this.scale[0];
+                m[1] = -v[0] * this.scale[0];
+                m[4] = this.position[0];
+                m[5] = this.position[1];
+                this.decomposeTransform();
+            };
+        }(),
+        decomposeTransform: function () {
+            if (!this.transform) {
+                return;
+            }
+            var m = this.transform;
+            var sx = m[0] * m[0] + m[1] * m[1];
+            var position = this.position;
+            var scale = this.scale;
+            var rotation = this.rotation;
+            if (isNotAroundZero(sx - 1)) {
+                sx = Math.sqrt(sx);
+            }
+            var sy = m[2] * m[2] + m[3] * m[3];
+            if (isNotAroundZero(sy - 1)) {
+                sy = Math.sqrt(sy);
+            }
+            position[0] = m[4];
+            position[1] = m[5];
+            scale[0] = sx;
+            scale[1] = sy;
+            scale[2] = scale[3] = 0;
+            rotation[0] = Math.atan2(-m[1] / sy, m[0] / sx);
+            rotation[1] = rotation[2] = 0;
+        }
+    };
+    return Transformable;
 });define('zrender/Group', [
     'require',
     './tool/guid',
@@ -14472,6 +15009,18 @@ define('zrender/zrender', [
             }
         }
     };
+    Group.prototype.clearChildren = function () {
+        for (var i = 0; i < this._children.length; i++) {
+            var child = this._children[i];
+            if (this._storage) {
+                this._storage.delFromMap(child.id);
+                if (child instanceof Group) {
+                    child.delChildrenFromStorage(this._storage);
+                }
+            }
+        }
+        this._children.length = 0;
+    };
     Group.prototype.eachChild = function (cb, context) {
         var haveContext = !!context;
         for (var i = 0; i < this._children.length; i++) {
@@ -14501,7 +15050,7 @@ define('zrender/zrender', [
         for (var i = 0; i < this._children.length; i++) {
             var child = this._children[i];
             storage.addToMap(child);
-            if (child.type === 'group') {
+            if (child instanceof Group) {
                 child.addChildrenToStorage(storage);
             }
         }
@@ -14510,7 +15059,7 @@ define('zrender/zrender', [
         for (var i = 0; i < this._children.length; i++) {
             var child = this._children[i];
             storage.delFromMap(child.id);
-            if (child.type === 'group') {
+            if (child instanceof Group) {
                 child.delChildrenFromStorage(storage);
             }
         }
@@ -14764,189 +15313,6 @@ define('zrender/zrender', [
         }
     };
     return easing;
-});define('echarts/component/base', [
-    'require',
-    '../config',
-    '../util/ecData',
-    '../util/ecQuery',
-    '../util/number',
-    'zrender/tool/util',
-    'zrender/tool/env'
-], function (require) {
-    var ecConfig = require('../config');
-    var ecData = require('../util/ecData');
-    var ecQuery = require('../util/ecQuery');
-    var number = require('../util/number');
-    var zrUtil = require('zrender/tool/util');
-    function Base(ecTheme, messageCenter, zr, option, myChart) {
-        this.ecTheme = ecTheme;
-        this.messageCenter = messageCenter;
-        this.zr = zr;
-        this.option = option;
-        this.series = option.series;
-        this.myChart = myChart;
-        this.component = myChart.component;
-        this._zlevelBase = this.getZlevelBase();
-        this.shapeList = [];
-        this.effectList = [];
-        var self = this;
-        self._onlegendhoverlink = function (param) {
-            if (self.legendHoverLink) {
-                var targetName = param.target;
-                var name;
-                for (var i = self.shapeList.length - 1; i >= 0; i--) {
-                    name = self.type == ecConfig.CHART_TYPE_PIE || self.type == ecConfig.CHART_TYPE_FUNNEL ? ecData.get(self.shapeList[i], 'name') : (ecData.get(self.shapeList[i], 'series') || {}).name;
-                    if (name == targetName && !self.shapeList[i].invisible) {
-                        self.zr.addHoverShape(self.shapeList[i]);
-                    }
-                }
-            }
-        };
-        messageCenter && messageCenter.bind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
-    }
-    Base.prototype = {
-        canvasSupported: require('zrender/tool/env').canvasSupported,
-        getZlevelBase: function (contentType) {
-            contentType = contentType || this.type + '';
-            switch (contentType) {
-            case ecConfig.COMPONENT_TYPE_GRID:
-            case ecConfig.COMPONENT_TYPE_AXIS_CATEGORY:
-            case ecConfig.COMPONENT_TYPE_AXIS_VALUE:
-            case ecConfig.COMPONENT_TYPE_POLAR:
-                return 0;
-            case ecConfig.CHART_TYPE_LINE:
-            case ecConfig.CHART_TYPE_BAR:
-            case ecConfig.CHART_TYPE_SCATTER:
-            case ecConfig.CHART_TYPE_PIE:
-            case ecConfig.CHART_TYPE_RADAR:
-            case ecConfig.CHART_TYPE_MAP:
-            case ecConfig.CHART_TYPE_K:
-            case ecConfig.CHART_TYPE_CHORD:
-            case ecConfig.CHART_TYPE_GUAGE:
-            case ecConfig.CHART_TYPE_FUNNEL:
-            case ecConfig.CHART_TYPE_EVENTRIVER:
-                return 2;
-            case ecConfig.COMPONENT_TYPE_LEGEND:
-            case ecConfig.COMPONENT_TYPE_DATARANGE:
-            case ecConfig.COMPONENT_TYPE_DATAZOOM:
-            case ecConfig.COMPONENT_TYPE_TIMELINE:
-            case ecConfig.COMPONENT_TYPE_ROAMCONTROLLER:
-                return 4;
-            case ecConfig.CHART_TYPE_ISLAND:
-                return 5;
-            case ecConfig.COMPONENT_TYPE_TOOLBOX:
-            case ecConfig.COMPONENT_TYPE_TITLE:
-                return 6;
-            case ecConfig.COMPONENT_TYPE_TOOLTIP:
-                return 8;
-            default:
-                return 0;
-            }
-        },
-        reformOption: function (opt) {
-            return zrUtil.merge(opt || {}, zrUtil.clone(this.ecTheme[this.type] || {}));
-        },
-        reformCssArray: function (p) {
-            if (p instanceof Array) {
-                switch (p.length + '') {
-                case '4':
-                    return p;
-                case '3':
-                    return [
-                        p[0],
-                        p[1],
-                        p[2],
-                        p[1]
-                    ];
-                case '2':
-                    return [
-                        p[0],
-                        p[1],
-                        p[0],
-                        p[1]
-                    ];
-                case '1':
-                    return [
-                        p[0],
-                        p[0],
-                        p[0],
-                        p[0]
-                    ];
-                case '0':
-                    return [
-                        0,
-                        0,
-                        0,
-                        0
-                    ];
-                }
-            } else {
-                return [
-                    p,
-                    p,
-                    p,
-                    p
-                ];
-            }
-        },
-        getShapeById: function (id) {
-            for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                if (this.shapeList[i].id === id) {
-                    return this.shapeList[i];
-                }
-            }
-            return null;
-        },
-        getFont: function (textStyle) {
-            var finalTextStyle = zrUtil.merge(zrUtil.clone(textStyle) || {}, this.ecTheme.textStyle);
-            return finalTextStyle.fontStyle + ' ' + finalTextStyle.fontWeight + ' ' + finalTextStyle.fontSize + 'px ' + finalTextStyle.fontFamily;
-        },
-        getItemStyleColor: function (itemColor, seriesIndex, dataIndex, data) {
-            return typeof itemColor === 'function' ? itemColor.call(this.myChart, {
-                seriesIndex: seriesIndex,
-                series: this.series[seriesIndex],
-                dataIndex: dataIndex,
-                data: data
-            }) : itemColor;
-        },
-        subPixelOptimize: function (position, lineWidth) {
-            if (lineWidth % 2 === 1) {
-                position = Math.floor(position) + 0.5;
-            } else {
-                position = Math.round(position);
-            }
-            return position;
-        },
-        resize: function () {
-            this.refresh && this.refresh();
-            this.clearEffectShape && this.clearEffectShape(true);
-            var self = this;
-            setTimeout(function () {
-                self.animationEffect && self.animationEffect();
-            }, 200);
-        },
-        clear: function () {
-            this.clearEffectShape && this.clearEffectShape();
-            this.zr && this.zr.delShape(this.shapeList);
-            this.shapeList = [];
-        },
-        dispose: function () {
-            this.onbeforDispose && this.onbeforDispose();
-            this.clear();
-            this.shapeList = null;
-            this.effectList = null;
-            this.messageCenter && this.messageCenter.unbind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
-            this.onafterDispose && this.onafterDispose();
-        },
-        query: ecQuery.query,
-        deepQuery: ecQuery.deepQuery,
-        deepMerge: ecQuery.deepMerge,
-        parsePercent: number.parsePercent,
-        parseCenter: number.parseCenter,
-        parseRadius: number.parseRadius,
-        numAddCommas: number.addCommas
-    };
-    return Base;
 });define('echarts/chart/base', [
     'require',
     'zrender/shape/Image',
@@ -14958,6 +15324,7 @@ define('zrender/zrender', [
     '../util/ecAnimation',
     '../util/ecEffect',
     '../util/accMath',
+    '../component/Base',
     'zrender/tool/util',
     'zrender/tool/area'
 ], function (require) {
@@ -14970,9 +15337,11 @@ define('zrender/zrender', [
     var ecAnimation = require('../util/ecAnimation');
     var ecEffect = require('../util/ecEffect');
     var accMath = require('../util/accMath');
+    var ComponentBase = require('../component/Base');
     var zrUtil = require('zrender/tool/util');
     var zrArea = require('zrender/tool/area');
-    function Base() {
+    function Base(ecTheme, messageCenter, zr, option, myChart) {
+        ComponentBase.call(this, ecTheme, messageCenter, zr, option, myChart);
         var self = this;
         this.selectedMap = {};
         this.lastShapeList = [];
@@ -15112,7 +15481,7 @@ define('zrender/zrender', [
             }
             return;
         },
-        _bulidPosition: function () {
+        _buildPosition: function () {
             this._symbol = this.option.symbolList;
             this._sIndex2ShapeMap = {};
             this._sIndex2ColorMap = {};
@@ -15242,7 +15611,7 @@ define('zrender/zrender', [
                     var valueIndex = xy == 'xy' ? 0 : '';
                     if (xy.indexOf('x') != '-1') {
                         if (xMarkMap[seriesIndex]['counter' + valueIndex] > 0) {
-                            xMarkMap[seriesIndex]['average' + valueIndex] = (xMarkMap[seriesIndex]['sum' + valueIndex] / xMarkMap[seriesIndex]['counter' + valueIndex]).toFixed(2) - 0;
+                            xMarkMap[seriesIndex]['average' + valueIndex] = xMarkMap[seriesIndex]['sum' + valueIndex] / xMarkMap[seriesIndex]['counter' + valueIndex];
                         }
                         var x = this.component.xAxis.getAxis(series[seriesIndex].xAxisIndex || 0).getCoord(xMarkMap[seriesIndex]['average' + valueIndex]);
                         xMarkMap[seriesIndex]['averageLine' + valueIndex] = [
@@ -15280,7 +15649,7 @@ define('zrender/zrender', [
                     valueIndex = xy == 'xy' ? 1 : '';
                     if (xy.indexOf('y') != '-1') {
                         if (xMarkMap[seriesIndex]['counter' + valueIndex] > 0) {
-                            xMarkMap[seriesIndex]['average' + valueIndex] = (xMarkMap[seriesIndex]['sum' + valueIndex] / xMarkMap[seriesIndex]['counter' + valueIndex]).toFixed(2) - 0;
+                            xMarkMap[seriesIndex]['average' + valueIndex] = xMarkMap[seriesIndex]['sum' + valueIndex] / xMarkMap[seriesIndex]['counter' + valueIndex];
                         }
                         var y = this.component.yAxis.getAxis(series[seriesIndex].yAxisIndex || 0).getCoord(xMarkMap[seriesIndex]['average' + valueIndex]);
                         xMarkMap[seriesIndex]['averageLine' + valueIndex] = [
@@ -15332,12 +15701,16 @@ define('zrender/zrender', [
                 tarShape.style.textPosition = nLabel.position == null ? orient === 'horizontal' ? 'right' : 'top' : nLabel.position;
                 tarShape.style.textColor = nTextStyle.color;
                 tarShape.style.textFont = this.getFont(nTextStyle);
+                tarShape.style.textAlign = nTextStyle.align;
+                tarShape.style.textBaseline = nTextStyle.baseline;
             }
             if (eLabel.show) {
                 tarShape.highlightStyle.text = this._getLabelText(serie, data, name, 'emphasis');
                 tarShape.highlightStyle.textPosition = nLabel.show ? tarShape.style.textPosition : eLabel.position == null ? orient === 'horizontal' ? 'right' : 'top' : eLabel.position;
                 tarShape.highlightStyle.textColor = eTextStyle.color;
                 tarShape.highlightStyle.textFont = this.getFont(eTextStyle);
+                tarShape.highlightStyle.textAlign = eTextStyle.align;
+                tarShape.highlightStyle.textBaseline = eTextStyle.baseline;
             }
             return tarShape;
         },
@@ -15352,30 +15725,44 @@ define('zrender/zrender', [
                     serie
                 ], 'itemStyle.normal.label.formatter');
             }
-            var value = data != null ? data.value != null ? data.value : data : '-';
+            var value = this.getDataFromOption(data, '-');
             if (formatter) {
                 if (typeof formatter === 'function') {
-                    return formatter.call(this.myChart, serie.name, name, value);
+                    return formatter.call(this.myChart, {
+                        seriesName: serie.name,
+                        series: serie,
+                        name: name,
+                        value: value,
+                        data: data,
+                        status: status
+                    });
                 } else if (typeof formatter === 'string') {
                     formatter = formatter.replace('{a}', '{a0}').replace('{b}', '{b0}').replace('{c}', '{c0}');
                     formatter = formatter.replace('{a0}', serie.name).replace('{b0}', name).replace('{c0}', this.numAddCommas(value));
                     return formatter;
                 }
             } else {
-                return this.numAddCommas(value);
+                if (value instanceof Array) {
+                    if (value[2] != null) {
+                        return this.numAddCommas(value[2]);
+                    } else {
+                        return value[0] + ' , ' + value[1];
+                    }
+                } else {
+                    return this.numAddCommas(value);
+                }
             }
         },
         buildMark: function (seriesIndex) {
             var serie = this.series[seriesIndex];
             if (this.selectedMap[serie.name]) {
-                serie.markPoint && this._buildMarkPoint(seriesIndex);
                 serie.markLine && this._buildMarkLine(seriesIndex);
+                serie.markPoint && this._buildMarkPoint(seriesIndex);
             }
         },
         _buildMarkPoint: function (seriesIndex) {
             var attachStyle = (this.markAttachStyle || {})[seriesIndex];
             var serie = this.series[seriesIndex];
-            var _zlevelBase = this.getZlevelBase();
             var mpData;
             var pos;
             var markPoint = zrUtil.clone(serie.markPoint);
@@ -15392,7 +15779,8 @@ define('zrender/zrender', [
             }
             var shapeList = this._markPoint(seriesIndex, markPoint);
             for (var i = 0, l = shapeList.length; i < l; i++) {
-                shapeList[i].zlevel = _zlevelBase + 1;
+                shapeList[i].zlevel = this.getZlevelBase();
+                shapeList[i].z = this.getZBase() + 1;
                 for (var key in attachStyle) {
                     shapeList[i][key] = zrUtil.clone(attachStyle[key]);
                 }
@@ -15407,7 +15795,6 @@ define('zrender/zrender', [
         _buildMarkLine: function (seriesIndex) {
             var attachStyle = (this.markAttachStyle || {})[seriesIndex];
             var serie = this.series[seriesIndex];
-            var _zlevelBase = this.getZlevelBase();
             var mlData;
             var pos;
             var markLine = zrUtil.clone(serie.markLine);
@@ -15420,7 +15807,7 @@ define('zrender/zrender', [
                         {}
                     ];
                     markLine.data[i][0].name = mlData.name || mlData.type;
-                    markLine.data[i][0].value = pos[3];
+                    markLine.data[i][0].value = mlData.type !== 'average' ? pos[3] : pos[3].toFixed(markLine.precision != null ? markLine.precision : this.ecTheme.markLine.precision) - 0;
                     pos = pos[2];
                     mlData = [
                         {},
@@ -15442,7 +15829,8 @@ define('zrender/zrender', [
             }
             var shapeList = this._markLine(seriesIndex, markLine);
             for (var i = 0, l = shapeList.length; i < l; i++) {
-                shapeList[i].zlevel = _zlevelBase + 1;
+                shapeList[i].zlevel = this.getZlevelBase();
+                shapeList[i].z = this.getZBase() + 1;
                 for (var key in attachStyle) {
                     shapeList[i][key] = zrUtil.clone(attachStyle[key]);
                 }
@@ -15477,7 +15865,7 @@ define('zrender/zrender', [
                     if (data[i].x == null || data[i].y == null) {
                         continue;
                     }
-                    value = data[i] != null && data[i].value != null ? data[i].value : '';
+                    value = data[i].value != null ? data[i].value : '';
                     if (legend) {
                         color = legend.getColor(serie.name);
                     }
@@ -15565,7 +15953,7 @@ define('zrender/zrender', [
                 }
                 color = legend ? legend.getColor(serie.name) : this.zr.getColor(seriesIndex);
                 mergeData = this.deepMerge(data[i]);
-                value = mergeData != null && mergeData.value != null ? mergeData.value : '';
+                value = mergeData.value != null ? mergeData.value : '';
                 if (dataRange) {
                     color = isNaN(value) ? color : dataRange.getColor(value);
                     queryTarget = [
@@ -15578,10 +15966,10 @@ define('zrender/zrender', [
                         continue;
                     }
                 }
-                data[i][0].tooltip = mergeData.tooltip || { trigger: 'item' };
+                data[i][0].tooltip = mergeData.tooltip || mlOption.tooltip || { trigger: 'item' };
                 data[i][0].name = data[i][0].name != null ? data[i][0].name : '';
                 data[i][1].name = data[i][1].name != null ? data[i][1].name : '';
-                data[i][0].value = data[i][0].value != null ? data[i][0].value : '';
+                data[i][0].value = value;
                 itemShape = this.getLineMarkShape(mlOption, seriesIndex, data[i], i, this.parsePercent(data[i][0].x, zrWidth), this.parsePercent(data[i][0].y, zrHeight), this.parsePercent(data[i][1].x, zrWidth), this.parsePercent(data[i][1].y, zrHeight), color);
                 itemShape._mark = 'line';
                 effect = this.deepMerge([
@@ -15613,7 +16001,7 @@ define('zrender/zrender', [
                 data,
                 serie
             ];
-            var value = data != null ? data.value != null ? data.value : data : '-';
+            var value = this.getDataFromOption(data, '-');
             symbol = this.deepQuery(queryTarget, 'symbol') || symbol;
             var symbolSize = this.deepQuery(queryTarget, 'symbolSize');
             symbolSize = typeof symbolSize === 'function' ? symbolSize(value) : symbolSize;
@@ -15687,8 +16075,8 @@ define('zrender/zrender', [
             return itemShape;
         },
         getLineMarkShape: function (mlOption, seriesIndex, data, dataIndex, xStart, yStart, xEnd, yEnd, color) {
-            var value0 = data[0] != null ? data[0].value != null ? data[0].value : data[0] : '-';
-            var value1 = data[1] != null ? data[1].value != null ? data[1].value : data[1] : '-';
+            var value0 = data[0].value != null ? data[0].value : '-';
+            var value1 = data[1].value != null ? data[1].value : '-';
             var symbol = [
                 this.query(data[0], 'symbol') || mlOption.symbol[0],
                 this.query(data[1], 'symbol') || mlOption.symbol[1]
@@ -15705,6 +16093,7 @@ define('zrender/zrender', [
             ];
             var queryTarget = [
                 data[0],
+                data[1],
                 mlOption
             ];
             var normal = this.deepMerge(queryTarget, 'itemStyle.normal');
@@ -15723,7 +16112,16 @@ define('zrender/zrender', [
             }
             var itemShape = new MarkLineShape({
                 style: {
-                    smooth: mlOption.smooth ? 'spline' : false,
+                    smooth: this.deepQuery([
+                        data[0],
+                        data[1],
+                        mlOption
+                    ], 'smooth') ? 'spline' : false,
+                    smoothRadian: this.deepQuery([
+                        data[0],
+                        data[1],
+                        mlOption
+                    ], 'smoothRadian'),
                     symbol: symbol,
                     symbolSize: symbolSize,
                     symbolRotate: symbolRotate,
@@ -15781,7 +16179,7 @@ define('zrender/zrender', [
                 color = legend.getColor(serie.name);
             }
             if (dataRange) {
-                value = data[0] != null ? data[0].value != null ? data[0].value : data[0] : '-';
+                value = data[0].value != null ? data[0].value : '';
                 color = isNaN(value) ? color : dataRange.getColor(value);
                 nColor = this.deepQuery(queryTarget, 'itemStyle.normal.color') || color;
                 eColor = this.deepQuery(queryTarget, 'itemStyle.emphasis.color') || nColor;
@@ -15829,7 +16227,8 @@ define('zrender/zrender', [
             var maxLenth = this.option.animationThreshold / (this.canvasSupported ? 2 : 4);
             var lastShapeList = this.lastShapeList;
             var shapeList = this.shapeList;
-            var duration = lastShapeList.length > 0 ? 500 : this.query(this.option, 'animationDuration');
+            var isUpdate = lastShapeList.length > 0;
+            var duration = isUpdate ? this.query(this.option, 'animationDurationUpdate') : this.query(this.option, 'animationDuration');
             var easing = this.query(this.option, 'animationEasing');
             var delay;
             var key;
@@ -15862,10 +16261,10 @@ define('zrender/zrender', [
                 for (key in newMap) {
                     if (oldMap[key]) {
                         this.zr.delShape(oldMap[key].id);
-                        this._animateMod(oldMap[key], newMap[key], duration, easing);
+                        this._animateMod(oldMap[key], newMap[key], duration, easing, 0, isUpdate);
                     } else {
                         delay = (this.type == ecConfig.CHART_TYPE_LINE || this.type == ecConfig.CHART_TYPE_RADAR) && key.indexOf('icon') !== 0 ? duration / 2 : 0;
-                        this._animateMod(false, newMap[key], duration, easing, delay);
+                        this._animateMod(false, newMap[key], duration, easing, delay, isUpdate);
                     }
                 }
                 this.zr.refresh();
@@ -15885,9 +16284,9 @@ define('zrender/zrender', [
                 return ecData.get(shape, 'seriesIndex') + '_' + ecData.get(shape, 'dataIndex') + (shape._mark ? shape._mark : 'undefined');
             }
         },
-        _animateMod: function (oldShape, newShape, duration, easing, delay) {
+        _animateMod: function (oldShape, newShape, duration, easing, delay, isUpdate) {
             switch (newShape.type) {
-            case 'broken-line':
+            case 'polyline':
             case 'half-smooth-polygon':
                 ecAnimation.pointList(this.zr, oldShape, newShape, duration, easing);
                 break;
@@ -15898,7 +16297,7 @@ define('zrender/zrender', [
                 ecAnimation.icon(this.zr, oldShape, newShape, duration, easing, delay);
                 break;
             case 'candle':
-                if (duration > 500) {
+                if (!isUpdate) {
                     ecAnimation.candle(this.zr, oldShape, newShape, duration, easing);
                 } else {
                     this.zr.addShape(newShape);
@@ -15907,7 +16306,7 @@ define('zrender/zrender', [
             case 'ring':
             case 'sector':
             case 'circle':
-                if (duration > 500) {
+                if (!isUpdate) {
                     ecAnimation.ring(this.zr, oldShape, newShape, duration + (ecData.get(newShape, 'dataIndex') || 0) % 20 * 100, easing);
                 } else if (newShape.type === 'sector') {
                     ecAnimation.sector(this.zr, oldShape, newShape, duration, easing);
@@ -15919,7 +16318,7 @@ define('zrender/zrender', [
                 ecAnimation.text(this.zr, oldShape, newShape, duration, easing);
                 break;
             case 'polygon':
-                if (duration > 500) {
+                if (!isUpdate) {
                     ecAnimation.polygon(this.zr, oldShape, newShape, duration, easing);
                 } else {
                     ecAnimation.pointList(this.zr, oldShape, newShape, duration, easing);
@@ -15949,7 +16348,7 @@ define('zrender/zrender', [
                 if (!shapeList[i]._mark) {
                     continue;
                 }
-                this._animateMod(false, shapeList[i], duration, easing);
+                this._animateMod(false, shapeList[i], duration, easing, 0, true);
             }
             this.animationEffect(addShapeList);
         },
@@ -15986,7 +16385,7 @@ define('zrender/zrender', [
         addMark: function (seriesIndex, markData, markType) {
             var serie = this.series[seriesIndex];
             if (this.selectedMap[serie.name]) {
-                var duration = 500;
+                var duration = this.query(this.option, 'animationDurationUpdate');
                 var easing = this.query(this.option, 'animationEasing');
                 var oriMarkData = serie[markType].data;
                 var lastLength = this.shapeList.length;
@@ -16027,6 +16426,7 @@ define('zrender/zrender', [
             }
         }
     };
+    zrUtil.inherits(Base, ComponentBase);
     return Base;
 });define('zrender/shape/Circle', [
     'require',
@@ -16116,104 +16516,6 @@ define('zrender/zrender', [
         accMul: accMul,
         accAdd: accAdd,
         accSub: accSub
-    };
-});define('echarts/util/ecQuery', [
-    'require',
-    'zrender/tool/util'
-], function (require) {
-    var zrUtil = require('zrender/tool/util');
-    function query(optionTarget, optionLocation) {
-        if (typeof optionTarget == 'undefined') {
-            return;
-        }
-        if (!optionLocation) {
-            return optionTarget;
-        }
-        optionLocation = optionLocation.split('.');
-        var length = optionLocation.length;
-        var curIdx = 0;
-        while (curIdx < length) {
-            optionTarget = optionTarget[optionLocation[curIdx]];
-            if (typeof optionTarget == 'undefined') {
-                return;
-            }
-            curIdx++;
-        }
-        return optionTarget;
-    }
-    function deepQuery(ctrList, optionLocation) {
-        var finalOption;
-        for (var i = 0, l = ctrList.length; i < l; i++) {
-            finalOption = query(ctrList[i], optionLocation);
-            if (typeof finalOption != 'undefined') {
-                return finalOption;
-            }
-        }
-    }
-    function deepMerge(ctrList, optionLocation) {
-        var finalOption;
-        var len = ctrList.length;
-        while (len--) {
-            var tempOption = query(ctrList[len], optionLocation);
-            if (typeof tempOption != 'undefined') {
-                if (typeof finalOption == 'undefined') {
-                    finalOption = zrUtil.clone(tempOption);
-                } else {
-                    zrUtil.merge(finalOption, tempOption, true);
-                }
-            }
-        }
-        return finalOption;
-    }
-    return {
-        query: query,
-        deepQuery: deepQuery,
-        deepMerge: deepMerge
-    };
-});define('echarts/util/number', [], function () {
-    function _trim(str) {
-        return str.replace(/^\s+/, '').replace(/\s+$/, '');
-    }
-    function parsePercent(value, maxValue) {
-        if (typeof value === 'string') {
-            if (_trim(value).match(/%$/)) {
-                return parseFloat(value) / 100 * maxValue;
-            }
-            return parseFloat(value);
-        }
-        return value;
-    }
-    function parseCenter(zr, center) {
-        return [
-            parsePercent(center[0], zr.getWidth()),
-            parsePercent(center[1], zr.getHeight())
-        ];
-    }
-    function parseRadius(zr, radius) {
-        if (!(radius instanceof Array)) {
-            radius = [
-                0,
-                radius
-            ];
-        }
-        var zrSize = Math.min(zr.getWidth(), zr.getHeight()) / 2;
-        return [
-            parsePercent(radius[0], zrSize),
-            parsePercent(radius[1], zrSize)
-        ];
-    }
-    function addCommas(x) {
-        if (isNaN(x)) {
-            return '-';
-        }
-        x = (x + '').split('.');
-        return x[0].replace(/(\d{1,3})(?=(?:\d{3})+(?!\d))/g, '$1,') + (x.length > 1 ? '.' + x[1] : '');
-    }
-    return {
-        parsePercent: parsePercent,
-        parseCenter: parseCenter,
-        parseRadius: parseRadius,
-        addCommas: addCommas
     };
 });define('echarts/util/shape/Icon', [
     'require',
@@ -16445,9 +16747,10 @@ define('zrender/zrender', [
         var width = style.width;
         var height = style.height;
         var dy = Math.round(height / 3);
+        var delta = Math.round((dy - 2) / 2);
         var len = 3;
         while (len--) {
-            ctx.rect(x, y + dy * len + 2, width, 2);
+            ctx.rect(x, y + dy * len + delta, width, 2);
         }
     }
     function _iconTiledChart(ctx, style) {
@@ -16456,9 +16759,10 @@ define('zrender/zrender', [
         var width = style.width;
         var height = style.height;
         var dx = Math.round(width / 3);
+        var delta = Math.round((dx - 2) / 2);
         var len = 3;
         while (len--) {
-            ctx.rect(x + dx * len, y, 2, height);
+            ctx.rect(x + dx * len + delta, y, 2, height);
         }
     }
     function _iconDataView(ctx, style) {
@@ -16711,7 +17015,7 @@ define('zrender/zrender', [
     'zrender/shape/Base',
     './Icon',
     'zrender/shape/Line',
-    'zrender/shape/BrokenLine',
+    'zrender/shape/Polyline',
     'zrender/tool/matrix',
     'zrender/tool/area',
     'zrender/shape/util/dashedLineTo',
@@ -16722,8 +17026,8 @@ define('zrender/zrender', [
     var IconShape = require('./Icon');
     var LineShape = require('zrender/shape/Line');
     var lineInstance = new LineShape({});
-    var BrokenLineShape = require('zrender/shape/BrokenLine');
-    var brokenLineInstance = new BrokenLineShape({});
+    var PolylineShape = require('zrender/shape/Polyline');
+    var polylineInstance = new PolylineShape({});
     var matrix = require('zrender/tool/matrix');
     var area = require('zrender/tool/area');
     var dashedLineTo = require('zrender/shape/util/dashedLineTo');
@@ -16834,7 +17138,7 @@ define('zrender/zrender', [
             var yEnd = style.pointList[len - 1][1];
             var delta = 0;
             if (style.smooth === 'spline') {
-                delta = 0.2;
+                delta = style.smoothRadian * (xStart <= xEnd ? 1 : -1);
             }
             var rotate = Math.atan(Math.abs((yEnd - yStart) / (xStart - xEnd)));
             if (idx === 0) {
@@ -16903,12 +17207,21 @@ define('zrender/zrender', [
             if (style.smooth === 'spline') {
                 var lastPointX = pointList[1][0];
                 var lastPointY = pointList[1][1];
-                pointList[3] = [
-                    lastPointX,
-                    lastPointY
-                ];
-                pointList[1] = this.getOffetPoint(pointList[0], pointList[3]);
-                pointList[2] = this.getOffetPoint(pointList[3], pointList[0]);
+                if (style.smoothRadian <= 0.8) {
+                    pointList[3] = [
+                        lastPointX,
+                        lastPointY
+                    ];
+                    var isReverse = pointList[0][0] <= pointList[3][0];
+                    pointList[1] = this.getOffetPoint(pointList[0], pointList[3], isReverse, style.smoothRadian);
+                    pointList[2] = this.getOffetPoint(pointList[3], pointList[0], isReverse, style.smoothRadian);
+                } else {
+                    pointList[2] = [
+                        lastPointX,
+                        lastPointY
+                    ];
+                    pointList[1] = this.getOffetPoint(pointList[0], pointList[2], pointList[0][0] <= pointList[2][0], style.smoothRadian);
+                }
                 pointList = smoothSpline(pointList, false);
                 pointList[pointList.length - 1] = [
                     lastPointX,
@@ -16917,14 +17230,14 @@ define('zrender/zrender', [
             }
             return pointList;
         },
-        getOffetPoint: function (sp, ep) {
-            var distance = Math.sqrt(Math.round((sp[0] - ep[0]) * (sp[0] - ep[0]) + (sp[1] - ep[1]) * (sp[1] - ep[1]))) / 3;
+        getOffetPoint: function (sp, ep, isReverse, deltaAngle) {
+            var split = (2 - Math.abs(deltaAngle)) / 0.6;
+            var distance = Math.sqrt(Math.round((sp[0] - ep[0]) * (sp[0] - ep[0]) + (sp[1] - ep[1]) * (sp[1] - ep[1]))) / split;
             var mp = [
                 sp[0],
                 sp[1]
             ];
             var angle;
-            var deltaAngle = 0.2;
             if (sp[0] != ep[0] && sp[1] != ep[1]) {
                 var k = (ep[1] - sp[1]) / (ep[0] - sp[0]);
                 angle = Math.atan(k);
@@ -16936,13 +17249,13 @@ define('zrender/zrender', [
             var dX;
             var dY;
             if (sp[0] <= ep[0]) {
-                angle -= deltaAngle;
+                angle -= deltaAngle * (isReverse ? 1 : -1);
                 dX = Math.round(Math.cos(angle) * distance);
                 dY = Math.round(Math.sin(angle) * distance);
                 mp[0] += dX;
                 mp[1] += dY;
             } else {
-                angle += deltaAngle;
+                angle += deltaAngle * (isReverse ? 1 : -1);
                 dX = Math.round(Math.cos(angle) * distance);
                 dY = Math.round(Math.sin(angle) * distance);
                 mp[0] -= dX;
@@ -16972,7 +17285,7 @@ define('zrender/zrender', [
                 rect = this.style.__rect = this.getRect(this.style);
             }
             if (x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height) {
-                return this.style.smooth !== 'spline' ? area.isInside(lineInstance, this.style, x, y) : area.isInside(brokenLineInstance, this.style, x, y);
+                return this.style.smooth !== 'spline' ? area.isInside(lineInstance, this.style, x, y) : area.isInside(polylineInstance, this.style, x, y);
             }
             return false;
         }
@@ -17610,6 +17923,162 @@ define('zrender/zrender', [
         largePoint: largePoint,
         line: line
     };
+});define('echarts/component/Base', [
+    'require',
+    '../config',
+    '../util/ecData',
+    '../util/ecQuery',
+    '../util/number',
+    'zrender/tool/util',
+    'zrender/tool/env'
+], function (require) {
+    var ecConfig = require('../config');
+    var ecData = require('../util/ecData');
+    var ecQuery = require('../util/ecQuery');
+    var number = require('../util/number');
+    var zrUtil = require('zrender/tool/util');
+    function Base(ecTheme, messageCenter, zr, option, myChart) {
+        this.ecTheme = ecTheme;
+        this.messageCenter = messageCenter;
+        this.zr = zr;
+        this.option = option;
+        this.series = option.series;
+        this.myChart = myChart;
+        this.component = myChart.component;
+        this._zlevelBase = (this.ecTheme[this.type] || {}).zlevel;
+        this._zBase = (this.ecTheme[this.type] || {}).z;
+        this.shapeList = [];
+        this.effectList = [];
+        var self = this;
+        self._onlegendhoverlink = function (param) {
+            if (self.legendHoverLink) {
+                var targetName = param.target;
+                var name;
+                for (var i = self.shapeList.length - 1; i >= 0; i--) {
+                    name = self.type == ecConfig.CHART_TYPE_PIE || self.type == ecConfig.CHART_TYPE_FUNNEL ? ecData.get(self.shapeList[i], 'name') : (ecData.get(self.shapeList[i], 'series') || {}).name;
+                    if (name == targetName && !self.shapeList[i].invisible) {
+                        self.zr.addHoverShape(self.shapeList[i]);
+                    }
+                }
+            }
+        };
+        messageCenter && messageCenter.bind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
+    }
+    Base.prototype = {
+        canvasSupported: require('zrender/tool/env').canvasSupported,
+        getZlevelBase: function () {
+            return this._zlevelBase;
+        },
+        getZBase: function () {
+            return this._zBase;
+        },
+        reformOption: function (opt) {
+            return zrUtil.merge(opt || {}, zrUtil.clone(this.ecTheme[this.type] || {}));
+        },
+        reformCssArray: function (p) {
+            if (p instanceof Array) {
+                switch (p.length + '') {
+                case '4':
+                    return p;
+                case '3':
+                    return [
+                        p[0],
+                        p[1],
+                        p[2],
+                        p[1]
+                    ];
+                case '2':
+                    return [
+                        p[0],
+                        p[1],
+                        p[0],
+                        p[1]
+                    ];
+                case '1':
+                    return [
+                        p[0],
+                        p[0],
+                        p[0],
+                        p[0]
+                    ];
+                case '0':
+                    return [
+                        0,
+                        0,
+                        0,
+                        0
+                    ];
+                }
+            } else {
+                return [
+                    p,
+                    p,
+                    p,
+                    p
+                ];
+            }
+        },
+        getShapeById: function (id) {
+            for (var i = 0, l = this.shapeList.length; i < l; i++) {
+                if (this.shapeList[i].id === id) {
+                    return this.shapeList[i];
+                }
+            }
+            return null;
+        },
+        getFont: function (textStyle) {
+            var finalTextStyle = zrUtil.merge(zrUtil.clone(textStyle) || {}, this.ecTheme.textStyle);
+            return finalTextStyle.fontStyle + ' ' + finalTextStyle.fontWeight + ' ' + finalTextStyle.fontSize + 'px ' + finalTextStyle.fontFamily;
+        },
+        getItemStyleColor: function (itemColor, seriesIndex, dataIndex, data) {
+            return typeof itemColor === 'function' ? itemColor.call(this.myChart, {
+                seriesIndex: seriesIndex,
+                series: this.series[seriesIndex],
+                dataIndex: dataIndex,
+                data: data
+            }) : itemColor;
+        },
+        getDataFromOption: function (data, defaultData) {
+            return data != null ? data.value != null ? data.value : data : defaultData;
+        },
+        subPixelOptimize: function (position, lineWidth) {
+            if (lineWidth % 2 === 1) {
+                position = Math.floor(position) + 0.5;
+            } else {
+                position = Math.round(position);
+            }
+            return position;
+        },
+        resize: function () {
+            this.refresh && this.refresh();
+            this.clearEffectShape && this.clearEffectShape(true);
+            var self = this;
+            setTimeout(function () {
+                self.animationEffect && self.animationEffect();
+            }, 200);
+        },
+        clear: function () {
+            this.clearEffectShape && this.clearEffectShape();
+            this.zr && this.zr.delShape(this.shapeList);
+            this.shapeList = [];
+        },
+        dispose: function () {
+            this.onbeforDispose && this.onbeforDispose();
+            this.clear();
+            this.shapeList = null;
+            this.effectList = null;
+            this.messageCenter && this.messageCenter.unbind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
+            this.onafterDispose && this.onafterDispose();
+        },
+        query: ecQuery.query,
+        deepQuery: ecQuery.deepQuery,
+        deepMerge: ecQuery.deepMerge,
+        parsePercent: number.parsePercent,
+        parseCenter: number.parseCenter,
+        parseRadius: number.parseRadius,
+        numAddCommas: number.addCommas
+    };
+    return Base;
 });define('zrender/shape/Star', [
     'require',
     '../tool/math',
@@ -17999,7 +18468,7 @@ define('zrender/zrender', [
     };
     require('../tool/util').inherits(Line, Base);
     return Line;
-});define('zrender/shape/BrokenLine', [
+});define('zrender/shape/Polyline', [
     'require',
     './Base',
     './util/smoothSpline',
@@ -18012,13 +18481,13 @@ define('zrender/zrender', [
     var smoothSpline = require('./util/smoothSpline');
     var smoothBezier = require('./util/smoothBezier');
     var dashedLineTo = require('./util/dashedLineTo');
-    var BrokenLine = function (options) {
+    var Polyline = function (options) {
         this.brushTypeOnly = 'stroke';
         this.textPosition = 'end';
         Base.call(this, options);
     };
-    BrokenLine.prototype = {
-        type: 'broken-line',
+    Polyline.prototype = {
+        type: 'polyline',
         buildPath: function (ctx, style) {
             var pointList = style.pointList;
             if (pointList.length < 2) {
@@ -18061,8 +18530,8 @@ define('zrender/zrender', [
             return require('./Polygon').prototype.getRect(style);
         }
     };
-    require('../tool/util').inherits(BrokenLine, Base);
-    return BrokenLine;
+    require('../tool/util').inherits(Polyline, Base);
+    return Polyline;
 });define('zrender/shape/util/dashedLineTo', [], function () {
     var dashPattern = [
         5,
@@ -18230,42 +18699,6 @@ define('zrender/zrender', [
     };
     Polygon.prototype = {
         type: 'polygon',
-        brush: function (ctx, isHighlight) {
-            var style = this.style;
-            if (isHighlight) {
-                style = this.getHighlightStyle(style, this.highlightStyle || {});
-            }
-            ctx.save();
-            this.setContext(ctx, style);
-            this.setTransform(ctx);
-            var hasPath = false;
-            if (style.brushType == 'fill' || style.brushType == 'both' || typeof style.brushType == 'undefined') {
-                ctx.beginPath();
-                if (style.lineType == 'dashed' || style.lineType == 'dotted') {
-                    this.buildPath(ctx, {
-                        lineType: 'solid',
-                        lineWidth: style.lineWidth,
-                        pointList: style.pointList
-                    });
-                    hasPath = false;
-                } else {
-                    this.buildPath(ctx, style);
-                    hasPath = true;
-                }
-                ctx.closePath();
-                ctx.fill();
-            }
-            if (style.lineWidth > 0 && (style.brushType == 'stroke' || style.brushType == 'both')) {
-                if (!hasPath) {
-                    ctx.beginPath();
-                    this.buildPath(ctx, style);
-                }
-                ctx.stroke();
-            }
-            this.drawText(ctx, style, this.style);
-            ctx.restore();
-            return;
-        },
         buildPath: function (ctx, style) {
             var pointList = style.pointList;
             if (pointList.length < 2) {
@@ -18304,6 +18737,7 @@ define('zrender/zrender', [
                     dashedLineTo(ctx, pointList[pointList.length - 1][0], pointList[pointList.length - 1][1], pointList[0][0], pointList[0][1], dashLength);
                 }
             }
+            ctx.closePath();
             return;
         },
         getRect: function (style) {
@@ -18357,6 +18791,260 @@ define('zrender/zrender', [
         }
         return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
     };
+});define('echarts/util/ecQuery', [
+    'require',
+    'zrender/tool/util'
+], function (require) {
+    var zrUtil = require('zrender/tool/util');
+    function query(optionTarget, optionLocation) {
+        if (typeof optionTarget == 'undefined') {
+            return;
+        }
+        if (!optionLocation) {
+            return optionTarget;
+        }
+        optionLocation = optionLocation.split('.');
+        var length = optionLocation.length;
+        var curIdx = 0;
+        while (curIdx < length) {
+            optionTarget = optionTarget[optionLocation[curIdx]];
+            if (typeof optionTarget == 'undefined') {
+                return;
+            }
+            curIdx++;
+        }
+        return optionTarget;
+    }
+    function deepQuery(ctrList, optionLocation) {
+        var finalOption;
+        for (var i = 0, l = ctrList.length; i < l; i++) {
+            finalOption = query(ctrList[i], optionLocation);
+            if (typeof finalOption != 'undefined') {
+                return finalOption;
+            }
+        }
+    }
+    function deepMerge(ctrList, optionLocation) {
+        var finalOption;
+        var len = ctrList.length;
+        while (len--) {
+            var tempOption = query(ctrList[len], optionLocation);
+            if (typeof tempOption != 'undefined') {
+                if (typeof finalOption == 'undefined') {
+                    finalOption = zrUtil.clone(tempOption);
+                } else {
+                    zrUtil.merge(finalOption, tempOption, true);
+                }
+            }
+        }
+        return finalOption;
+    }
+    return {
+        query: query,
+        deepQuery: deepQuery,
+        deepMerge: deepMerge
+    };
+});define('echarts/util/number', [], function () {
+    function _trim(str) {
+        return str.replace(/^\s+/, '').replace(/\s+$/, '');
+    }
+    function parsePercent(value, maxValue) {
+        if (typeof value === 'string') {
+            if (_trim(value).match(/%$/)) {
+                return parseFloat(value) / 100 * maxValue;
+            }
+            return parseFloat(value);
+        }
+        return value;
+    }
+    function parseCenter(zr, center) {
+        return [
+            parsePercent(center[0], zr.getWidth()),
+            parsePercent(center[1], zr.getHeight())
+        ];
+    }
+    function parseRadius(zr, radius) {
+        if (!(radius instanceof Array)) {
+            radius = [
+                0,
+                radius
+            ];
+        }
+        var zrSize = Math.min(zr.getWidth(), zr.getHeight()) / 2;
+        return [
+            parsePercent(radius[0], zrSize),
+            parsePercent(radius[1], zrSize)
+        ];
+    }
+    function addCommas(x) {
+        if (isNaN(x)) {
+            return '-';
+        }
+        x = (x + '').split('.');
+        return x[0].replace(/(\d{1,3})(?=(?:\d{3})+(?!\d))/g, '$1,') + (x.length > 1 ? '.' + x[1] : '');
+    }
+    return {
+        parsePercent: parsePercent,
+        parseCenter: parseCenter,
+        parseRadius: parseRadius,
+        addCommas: addCommas
+    };
+});define('echarts/component/base', [
+    'require',
+    '../config',
+    '../util/ecData',
+    '../util/ecQuery',
+    '../util/number',
+    'zrender/tool/util',
+    'zrender/tool/env'
+], function (require) {
+    var ecConfig = require('../config');
+    var ecData = require('../util/ecData');
+    var ecQuery = require('../util/ecQuery');
+    var number = require('../util/number');
+    var zrUtil = require('zrender/tool/util');
+    function Base(ecTheme, messageCenter, zr, option, myChart) {
+        this.ecTheme = ecTheme;
+        this.messageCenter = messageCenter;
+        this.zr = zr;
+        this.option = option;
+        this.series = option.series;
+        this.myChart = myChart;
+        this.component = myChart.component;
+        this._zlevelBase = (this.ecTheme[this.type] || {}).zlevel;
+        this._zBase = (this.ecTheme[this.type] || {}).z;
+        this.shapeList = [];
+        this.effectList = [];
+        var self = this;
+        self._onlegendhoverlink = function (param) {
+            if (self.legendHoverLink) {
+                var targetName = param.target;
+                var name;
+                for (var i = self.shapeList.length - 1; i >= 0; i--) {
+                    name = self.type == ecConfig.CHART_TYPE_PIE || self.type == ecConfig.CHART_TYPE_FUNNEL ? ecData.get(self.shapeList[i], 'name') : (ecData.get(self.shapeList[i], 'series') || {}).name;
+                    if (name == targetName && !self.shapeList[i].invisible) {
+                        self.zr.addHoverShape(self.shapeList[i]);
+                    }
+                }
+            }
+        };
+        messageCenter && messageCenter.bind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
+    }
+    Base.prototype = {
+        canvasSupported: require('zrender/tool/env').canvasSupported,
+        getZlevelBase: function () {
+            return this._zlevelBase;
+        },
+        getZBase: function () {
+            return this._zBase;
+        },
+        reformOption: function (opt) {
+            return zrUtil.merge(opt || {}, zrUtil.clone(this.ecTheme[this.type] || {}));
+        },
+        reformCssArray: function (p) {
+            if (p instanceof Array) {
+                switch (p.length + '') {
+                case '4':
+                    return p;
+                case '3':
+                    return [
+                        p[0],
+                        p[1],
+                        p[2],
+                        p[1]
+                    ];
+                case '2':
+                    return [
+                        p[0],
+                        p[1],
+                        p[0],
+                        p[1]
+                    ];
+                case '1':
+                    return [
+                        p[0],
+                        p[0],
+                        p[0],
+                        p[0]
+                    ];
+                case '0':
+                    return [
+                        0,
+                        0,
+                        0,
+                        0
+                    ];
+                }
+            } else {
+                return [
+                    p,
+                    p,
+                    p,
+                    p
+                ];
+            }
+        },
+        getShapeById: function (id) {
+            for (var i = 0, l = this.shapeList.length; i < l; i++) {
+                if (this.shapeList[i].id === id) {
+                    return this.shapeList[i];
+                }
+            }
+            return null;
+        },
+        getFont: function (textStyle) {
+            var finalTextStyle = zrUtil.merge(zrUtil.clone(textStyle) || {}, this.ecTheme.textStyle);
+            return finalTextStyle.fontStyle + ' ' + finalTextStyle.fontWeight + ' ' + finalTextStyle.fontSize + 'px ' + finalTextStyle.fontFamily;
+        },
+        getItemStyleColor: function (itemColor, seriesIndex, dataIndex, data) {
+            return typeof itemColor === 'function' ? itemColor.call(this.myChart, {
+                seriesIndex: seriesIndex,
+                series: this.series[seriesIndex],
+                dataIndex: dataIndex,
+                data: data
+            }) : itemColor;
+        },
+        getDataFromOption: function (data, defaultData) {
+            return data != null ? data.value != null ? data.value : data : defaultData;
+        },
+        subPixelOptimize: function (position, lineWidth) {
+            if (lineWidth % 2 === 1) {
+                position = Math.floor(position) + 0.5;
+            } else {
+                position = Math.round(position);
+            }
+            return position;
+        },
+        resize: function () {
+            this.refresh && this.refresh();
+            this.clearEffectShape && this.clearEffectShape(true);
+            var self = this;
+            setTimeout(function () {
+                self.animationEffect && self.animationEffect();
+            }, 200);
+        },
+        clear: function () {
+            this.clearEffectShape && this.clearEffectShape();
+            this.zr && this.zr.delShape(this.shapeList);
+            this.shapeList = [];
+        },
+        dispose: function () {
+            this.onbeforDispose && this.onbeforDispose();
+            this.clear();
+            this.shapeList = null;
+            this.effectList = null;
+            this.messageCenter && this.messageCenter.unbind(ecConfig.EVENT.LEGEND_HOVERLINK, this._onlegendhoverlink);
+            this.onafterDispose && this.onafterDispose();
+        },
+        query: ecQuery.query,
+        deepQuery: ecQuery.deepQuery,
+        deepMerge: ecQuery.deepMerge,
+        parsePercent: number.parsePercent,
+        parseCenter: number.parseCenter,
+        parseRadius: number.parseRadius,
+        numAddCommas: number.addCommas
+    };
+    return Base;
 });define('echarts/component/dataView', [
     'require',
     './base',
@@ -18377,7 +19065,8 @@ define('zrender/zrender', [
         this._hasShow = false;
         this._zrHeight = zr.getHeight();
         this._zrWidth = zr.getWidth();
-        this._tDom.className = 'echarts-dataview', this.hide();
+        this._tDom.className = 'echarts-dataview';
+        this.hide();
         this.dom.firstChild.appendChild(this._tDom);
         if (window.addEventListener) {
             this._tDom.addEventListener('click', this._stop);
@@ -18463,8 +19152,7 @@ define('zrender/zrender', [
                     if ((axisList[i].type || 'category') == 'category') {
                         valueList = [];
                         for (j = 0, k = axisList[i].data.length; j < k; j++) {
-                            data = axisList[i].data[j];
-                            valueList.push(typeof data.value != 'undefined' ? data.value : data);
+                            valueList.push(this.getDataFromOption(axisList[i].data[j]));
                         }
                         content += valueList.join(', ') + '\n\n';
                     }
@@ -18480,8 +19168,7 @@ define('zrender/zrender', [
                     if (axisList[i].type == 'category') {
                         valueList = [];
                         for (j = 0, k = axisList[i].data.length; j < k; j++) {
-                            data = axisList[i].data[j];
-                            valueList.push(typeof data.value != 'undefined' ? data.value : data);
+                            valueList.push(this.getDataFromOption(axisList[i].data[j]));
                         }
                         content += valueList.join(', ') + '\n\n';
                     }
@@ -18499,10 +19186,9 @@ define('zrender/zrender', [
                         itemName = '';
                     }
                     if (series[i].type == ecConfig.CHART_TYPE_SCATTER) {
-                        data = typeof data.value != 'undefined' ? data.value : data;
-                        data = data.join(', ');
+                        data = this.getDataFromOption(data).join(', ');
                     }
-                    valueList.push(itemName + (typeof data.value != 'undefined' ? data.value : data));
+                    valueList.push(itemName + this.getDataFromOption(data));
                 }
                 content += (series[i].name || '-') + ' : \n';
                 content += valueList.join(series[i].type == ecConfig.CHART_TYPE_SCATTER ? '\n' : ', ');
@@ -18908,6 +19594,13 @@ define('zrender/zrender', [
     var end = vec2.create();
     var extremity = vec2.create();
     var computeArcBoundingBox = function (x, y, r, startAngle, endAngle, anticlockwise, min, max) {
+        if (Math.abs(startAngle - endAngle) >= Math.PI * 2) {
+            min[0] = x - r;
+            min[1] = y - r;
+            max[0] = x + r;
+            max[1] = y + r;
+            return;
+        }
         start[0] = Math.cos(startAngle) * r + x;
         start[1] = Math.sin(startAngle) * r + y;
         end[0] = Math.cos(endAngle) * r + x;
@@ -19108,2837 +19801,4 @@ define('zrender/zrender', [
     };
     require('../tool/util').inherits(Ring, Base);
     return Ring;
-});define('echarts/component/axis', [
-    'require',
-    './base',
-    'zrender/shape/Line',
-    '../config',
-    '../util/ecData',
-    'zrender/tool/util',
-    'zrender/tool/color',
-    './categoryAxis',
-    './valueAxis',
-    '../component'
-], function (require) {
-    var Base = require('./base');
-    var LineShape = require('zrender/shape/Line');
-    var ecConfig = require('../config');
-    var ecData = require('../util/ecData');
-    var zrUtil = require('zrender/tool/util');
-    var zrColor = require('zrender/tool/color');
-    function Axis(ecTheme, messageCenter, zr, option, myChart, axisType) {
-        Base.call(this, ecTheme, messageCenter, zr, option, myChart);
-        this.axisType = axisType;
-        this._axisList = [];
-        this.refresh(option);
-    }
-    Axis.prototype = {
-        type: ecConfig.COMPONENT_TYPE_AXIS,
-        axisBase: {
-            _buildAxisLine: function () {
-                var lineWidth = this.option.axisLine.lineStyle.width;
-                var halfLineWidth = lineWidth / 2;
-                var axShape = {
-                    _axisShape: 'axisLine',
-                    zlevel: this._zlevelBase + 1,
-                    hoverable: false
-                };
-                switch (this.option.position) {
-                case 'left':
-                    axShape.style = {
-                        xStart: this.grid.getX() - halfLineWidth,
-                        yStart: this.grid.getYend(),
-                        xEnd: this.grid.getX() - halfLineWidth,
-                        yEnd: this.grid.getY(),
-                        lineCap: 'round'
-                    };
-                    break;
-                case 'right':
-                    axShape.style = {
-                        xStart: this.grid.getXend() + halfLineWidth,
-                        yStart: this.grid.getYend(),
-                        xEnd: this.grid.getXend() + halfLineWidth,
-                        yEnd: this.grid.getY(),
-                        lineCap: 'round'
-                    };
-                    break;
-                case 'bottom':
-                    axShape.style = {
-                        xStart: this.grid.getX(),
-                        yStart: this.grid.getYend() + halfLineWidth,
-                        xEnd: this.grid.getXend(),
-                        yEnd: this.grid.getYend() + halfLineWidth,
-                        lineCap: 'round'
-                    };
-                    break;
-                case 'top':
-                    axShape.style = {
-                        xStart: this.grid.getX(),
-                        yStart: this.grid.getY() - halfLineWidth,
-                        xEnd: this.grid.getXend(),
-                        yEnd: this.grid.getY() - halfLineWidth,
-                        lineCap: 'round'
-                    };
-                    break;
-                }
-                if (this.option.name !== '') {
-                    axShape.style.text = this.option.name;
-                    axShape.style.textPosition = this.option.nameLocation;
-                    axShape.style.textFont = this.getFont(this.option.nameTextStyle);
-                    if (this.option.nameTextStyle.align) {
-                        axShape.style.textAlign = this.option.nameTextStyle.align;
-                    }
-                    if (this.option.nameTextStyle.baseline) {
-                        axShape.style.textBaseline = this.option.nameTextStyle.baseline;
-                    }
-                    if (this.option.nameTextStyle.color) {
-                        axShape.style.textColor = this.option.nameTextStyle.color;
-                    }
-                }
-                axShape.style.strokeColor = this.option.axisLine.lineStyle.color;
-                axShape.style.lineWidth = lineWidth;
-                if (this.isHorizontal()) {
-                    axShape.style.yStart = axShape.style.yEnd = this.subPixelOptimize(axShape.style.yEnd, lineWidth);
-                } else {
-                    axShape.style.xStart = axShape.style.xEnd = this.subPixelOptimize(axShape.style.xEnd, lineWidth);
-                }
-                axShape.style.lineType = this.option.axisLine.lineStyle.type;
-                axShape = new LineShape(axShape);
-                this.shapeList.push(axShape);
-            },
-            _axisLabelClickable: function (clickable, axShape) {
-                if (clickable) {
-                    ecData.pack(axShape, undefined, -1, undefined, -1, axShape.style.text);
-                    axShape.hoverable = true;
-                    axShape.clickable = true;
-                    axShape.highlightStyle = {
-                        color: zrColor.lift(axShape.style.color, 1),
-                        brushType: 'fill'
-                    };
-                    return axShape;
-                } else {
-                    return axShape;
-                }
-            },
-            refixAxisShape: function (zeroX, zeroY) {
-                if (!this.option.axisLine.onZero) {
-                    return;
-                }
-                var tickLength;
-                if (this.isHorizontal() && zeroY != null) {
-                    for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                        if (this.shapeList[i]._axisShape === 'axisLine') {
-                            this.shapeList[i].style.yStart = this.shapeList[i].style.yEnd = this.subPixelOptimize(zeroY, this.shapeList[i].stylelineWidth);
-                            this.zr.modShape(this.shapeList[i].id);
-                        } else if (this.shapeList[i]._axisShape === 'axisTick') {
-                            tickLength = this.shapeList[i].style.yEnd - this.shapeList[i].style.yStart;
-                            this.shapeList[i].style.yStart = zeroY - tickLength;
-                            this.shapeList[i].style.yEnd = zeroY;
-                            this.zr.modShape(this.shapeList[i].id);
-                        }
-                    }
-                }
-                if (!this.isHorizontal() && zeroX != null) {
-                    for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                        if (this.shapeList[i]._axisShape === 'axisLine') {
-                            this.shapeList[i].style.xStart = this.shapeList[i].style.xEnd = this.subPixelOptimize(zeroX, this.shapeList[i].stylelineWidth);
-                            this.zr.modShape(this.shapeList[i].id);
-                        } else if (this.shapeList[i]._axisShape === 'axisTick') {
-                            tickLength = this.shapeList[i].style.xEnd - this.shapeList[i].style.xStart;
-                            this.shapeList[i].style.xStart = zeroX;
-                            this.shapeList[i].style.xEnd = zeroX + tickLength;
-                            this.zr.modShape(this.shapeList[i].id);
-                        }
-                    }
-                }
-            },
-            getPosition: function () {
-                return this.option.position;
-            },
-            isHorizontal: function () {
-                return this.option.position === 'bottom' || this.option.position === 'top';
-            }
-        },
-        reformOption: function (opt) {
-            if (!opt || opt instanceof Array && opt.length === 0) {
-                opt = [{ type: ecConfig.COMPONENT_TYPE_AXIS_VALUE }];
-            } else if (!(opt instanceof Array)) {
-                opt = [opt];
-            }
-            if (opt.length > 2) {
-                opt = [
-                    opt[0],
-                    opt[1]
-                ];
-            }
-            if (this.axisType === 'xAxis') {
-                if (!opt[0].position || opt[0].position != 'bottom' && opt[0].position != 'top') {
-                    opt[0].position = 'bottom';
-                }
-                if (opt.length > 1) {
-                    opt[1].position = opt[0].position === 'bottom' ? 'top' : 'bottom';
-                }
-                for (var i = 0, l = opt.length; i < l; i++) {
-                    opt[i].type = opt[i].type || 'category';
-                    opt[i].xAxisIndex = i;
-                    opt[i].yAxisIndex = -1;
-                }
-            } else {
-                if (!opt[0].position || opt[0].position != 'left' && opt[0].position != 'right') {
-                    opt[0].position = 'left';
-                }
-                if (opt.length > 1) {
-                    opt[1].position = opt[0].position === 'left' ? 'right' : 'left';
-                }
-                for (var i = 0, l = opt.length; i < l; i++) {
-                    opt[i].type = opt[i].type || 'value';
-                    opt[i].xAxisIndex = -1;
-                    opt[i].yAxisIndex = i;
-                }
-            }
-            return opt;
-        },
-        refresh: function (newOption) {
-            var axisOption;
-            if (newOption) {
-                this.option = newOption;
-                if (this.axisType === 'xAxis') {
-                    this.option.xAxis = this.reformOption(newOption.xAxis);
-                    axisOption = this.option.xAxis;
-                } else {
-                    this.option.yAxis = this.reformOption(newOption.yAxis);
-                    axisOption = this.option.yAxis;
-                }
-                this.series = newOption.series;
-            }
-            var CategoryAxis = require('./categoryAxis');
-            var ValueAxis = require('./valueAxis');
-            var len = Math.max(axisOption && axisOption.length || 0, this._axisList.length);
-            for (var i = 0; i < len; i++) {
-                if (this._axisList[i] && newOption && (!axisOption[i] || this._axisList[i].type != axisOption[i].type)) {
-                    this._axisList[i].dispose && this._axisList[i].dispose();
-                    this._axisList[i] = false;
-                }
-                if (this._axisList[i]) {
-                    this._axisList[i].refresh && this._axisList[i].refresh(axisOption ? axisOption[i] : false, this.series);
-                } else if (axisOption && axisOption[i]) {
-                    this._axisList[i] = axisOption[i].type === 'category' ? new CategoryAxis(this.ecTheme, this.messageCenter, this.zr, axisOption[i], this.myChart, this.axisBase) : new ValueAxis(this.ecTheme, this.messageCenter, this.zr, axisOption[i], this.myChart, this.axisBase, this.series);
-                }
-            }
-        },
-        getAxis: function (idx) {
-            return this._axisList[idx];
-        },
-        clear: function () {
-            for (var i = 0, l = this._axisList.length; i < l; i++) {
-                this._axisList[i].dispose && this._axisList[i].dispose();
-            }
-            this._axisList = [];
-        }
-    };
-    zrUtil.inherits(Axis, Base);
-    require('../component').define('axis', Axis);
-    return Axis;
-});define('echarts/component/grid', [
-    'require',
-    './base',
-    'zrender/shape/Rectangle',
-    '../config',
-    'zrender/tool/util',
-    '../component'
-], function (require) {
-    var Base = require('./base');
-    var RectangleShape = require('zrender/shape/Rectangle');
-    var ecConfig = require('../config');
-    var zrUtil = require('zrender/tool/util');
-    function Grid(ecTheme, messageCenter, zr, option, myChart) {
-        Base.call(this, ecTheme, messageCenter, zr, option, myChart);
-        this.refresh(option);
-    }
-    Grid.prototype = {
-        type: ecConfig.COMPONENT_TYPE_GRID,
-        getX: function () {
-            return this._x;
-        },
-        getY: function () {
-            return this._y;
-        },
-        getWidth: function () {
-            return this._width;
-        },
-        getHeight: function () {
-            return this._height;
-        },
-        getXend: function () {
-            return this._x + this._width;
-        },
-        getYend: function () {
-            return this._y + this._height;
-        },
-        getArea: function () {
-            return {
-                x: this._x,
-                y: this._y,
-                width: this._width,
-                height: this._height
-            };
-        },
-        getBbox: function () {
-            return [
-                [
-                    this._x,
-                    this._y
-                ],
-                [
-                    this.getXend(),
-                    this.getYend()
-                ]
-            ];
-        },
-        refixAxisShape: function (component) {
-            var zeroX;
-            var zeroY;
-            var axisList = component.xAxis._axisList.concat(component.yAxis ? component.yAxis._axisList : []);
-            var len = axisList.length;
-            var axis;
-            while (len--) {
-                axis = axisList[len];
-                if (axis.type == ecConfig.COMPONENT_TYPE_AXIS_VALUE && axis._min < 0 && axis._max >= 0) {
-                    axis.isHorizontal() ? zeroX = axis.getCoord(0) : zeroY = axis.getCoord(0);
-                }
-            }
-            if (typeof zeroX != 'undefined' || typeof zeroY != 'undefined') {
-                len = axisList.length;
-                while (len--) {
-                    axisList[len].refixAxisShape(zeroX, zeroY);
-                }
-            }
-        },
-        refresh: function (newOption) {
-            if (newOption || this._zrWidth != this.zr.getWidth() || this._zrHeight != this.zr.getHeight()) {
-                this.clear();
-                this.option = newOption || this.option;
-                this.option.grid = this.reformOption(this.option.grid);
-                var gridOption = this.option.grid;
-                this._zrWidth = this.zr.getWidth();
-                this._zrHeight = this.zr.getHeight();
-                this._x = this.parsePercent(gridOption.x, this._zrWidth);
-                this._y = this.parsePercent(gridOption.y, this._zrHeight);
-                var x2 = this.parsePercent(gridOption.x2, this._zrWidth);
-                var y2 = this.parsePercent(gridOption.y2, this._zrHeight);
-                if (typeof gridOption.width == 'undefined') {
-                    this._width = this._zrWidth - this._x - x2;
-                } else {
-                    this._width = this.parsePercent(gridOption.width, this._zrWidth);
-                }
-                this._width = this._width <= 0 ? 10 : this._width;
-                if (typeof gridOption.height == 'undefined') {
-                    this._height = this._zrHeight - this._y - y2;
-                } else {
-                    this._height = this.parsePercent(gridOption.height, this._zrHeight);
-                }
-                this._height = this._height <= 0 ? 10 : this._height;
-                this._x = this.subPixelOptimize(this._x, gridOption.borderWidth);
-                this._y = this.subPixelOptimize(this._y, gridOption.borderWidth);
-                this.shapeList.push(new RectangleShape({
-                    zlevel: this._zlevelBase,
-                    hoverable: false,
-                    style: {
-                        x: this._x,
-                        y: this._y,
-                        width: this._width,
-                        height: this._height,
-                        brushType: gridOption.borderWidth > 0 ? 'both' : 'fill',
-                        color: gridOption.backgroundColor,
-                        strokeColor: gridOption.borderColor,
-                        lineWidth: gridOption.borderWidth
-                    }
-                }));
-                this.zr.addShape(this.shapeList[0]);
-            }
-        }
-    };
-    zrUtil.inherits(Grid, Base);
-    require('../component').define('grid', Grid);
-    return Grid;
-});define('echarts/component/dataZoom', [
-    'require',
-    './base',
-    'zrender/shape/Rectangle',
-    'zrender/shape/Polygon',
-    '../util/shape/Icon',
-    '../config',
-    '../util/date',
-    'zrender/tool/util',
-    '../component'
-], function (require) {
-    var Base = require('./base');
-    var RectangleShape = require('zrender/shape/Rectangle');
-    var PolygonShape = require('zrender/shape/Polygon');
-    var IconShape = require('../util/shape/Icon');
-    var ecConfig = require('../config');
-    var ecDate = require('../util/date');
-    var zrUtil = require('zrender/tool/util');
-    function DataZoom(ecTheme, messageCenter, zr, option, myChart) {
-        Base.call(this, ecTheme, messageCenter, zr, option, myChart);
-        var self = this;
-        self._ondrift = function (dx, dy) {
-            return self.__ondrift(this, dx, dy);
-        };
-        self._ondragend = function () {
-            return self.__ondragend();
-        };
-        this._fillerSize = 28;
-        this._handleSize = 8;
-        this._isSilence = false;
-        this._zoom = {};
-        this.option.dataZoom = this.reformOption(this.option.dataZoom);
-        this.zoomOption = this.option.dataZoom;
-        if (!this.myChart.canvasSupported) {
-            this.zoomOption.realtime = false;
-        }
-        this._location = this._getLocation();
-        this._zoom = this._getZoom();
-        this._backupData();
-        if (this.option.dataZoom.show) {
-            this._buildShape();
-        }
-        this._syncData();
-    }
-    DataZoom.prototype = {
-        type: ecConfig.COMPONENT_TYPE_DATAZOOM,
-        _buildShape: function () {
-            this._buildBackground();
-            this._buildFiller();
-            this._buildHandle();
-            this._buildFrame();
-            for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                this.zr.addShape(this.shapeList[i]);
-            }
-            this._syncFrameShape();
-        },
-        _getLocation: function () {
-            var x;
-            var y;
-            var width;
-            var height;
-            var grid = this.component.grid;
-            if (this.zoomOption.orient == 'horizontal') {
-                width = this.zoomOption.width || grid.getWidth();
-                height = this.zoomOption.height || this._fillerSize;
-                x = this.zoomOption.x != null ? this.zoomOption.x : grid.getX();
-                y = this.zoomOption.y != null ? this.zoomOption.y : this.zr.getHeight() - height - 2;
-            } else {
-                width = this.zoomOption.width || this._fillerSize;
-                height = this.zoomOption.height || grid.getHeight();
-                x = this.zoomOption.x != null ? this.zoomOption.x : 2;
-                y = this.zoomOption.y != null ? this.zoomOption.y : grid.getY();
-            }
-            return {
-                x: x,
-                y: y,
-                width: width,
-                height: height
-            };
-        },
-        _getZoom: function () {
-            var series = this.option.series;
-            var xAxis = this.option.xAxis;
-            if (xAxis && !(xAxis instanceof Array)) {
-                xAxis = [xAxis];
-                this.option.xAxis = xAxis;
-            }
-            var yAxis = this.option.yAxis;
-            if (yAxis && !(yAxis instanceof Array)) {
-                yAxis = [yAxis];
-                this.option.yAxis = yAxis;
-            }
-            var zoomSeriesIndex = [];
-            var xAxisIndex;
-            var yAxisIndex;
-            var zOptIdx = this.zoomOption.xAxisIndex;
-            if (xAxis && zOptIdx == null) {
-                xAxisIndex = [];
-                for (var i = 0, l = xAxis.length; i < l; i++) {
-                    if (xAxis[i].type == 'category' || xAxis[i].type == null) {
-                        xAxisIndex.push(i);
-                    }
-                }
-            } else {
-                if (zOptIdx instanceof Array) {
-                    xAxisIndex = zOptIdx;
-                } else if (zOptIdx != null) {
-                    xAxisIndex = [zOptIdx];
-                } else {
-                    xAxisIndex = [];
-                }
-            }
-            zOptIdx = this.zoomOption.yAxisIndex;
-            if (yAxis && zOptIdx == null) {
-                yAxisIndex = [];
-                for (var i = 0, l = yAxis.length; i < l; i++) {
-                    if (yAxis[i].type == 'category') {
-                        yAxisIndex.push(i);
-                    }
-                }
-            } else {
-                if (zOptIdx instanceof Array) {
-                    yAxisIndex = zOptIdx;
-                } else if (zOptIdx != null) {
-                    yAxisIndex = [zOptIdx];
-                } else {
-                    yAxisIndex = [];
-                }
-            }
-            var serie;
-            for (var i = 0, l = series.length; i < l; i++) {
-                serie = series[i];
-                if (serie.type != ecConfig.CHART_TYPE_LINE && serie.type != ecConfig.CHART_TYPE_BAR && serie.type != ecConfig.CHART_TYPE_SCATTER && serie.type != ecConfig.CHART_TYPE_K) {
-                    continue;
-                }
-                for (var j = 0, k = xAxisIndex.length; j < k; j++) {
-                    if (xAxisIndex[j] == (serie.xAxisIndex || 0)) {
-                        zoomSeriesIndex.push(i);
-                        break;
-                    }
-                }
-                for (var j = 0, k = yAxisIndex.length; j < k; j++) {
-                    if (yAxisIndex[j] == (serie.yAxisIndex || 0)) {
-                        zoomSeriesIndex.push(i);
-                        break;
-                    }
-                }
-                if (this.zoomOption.xAxisIndex == null && this.zoomOption.yAxisIndex == null && serie.data && serie.data[0] && serie.data[0] instanceof Array && (serie.type == ecConfig.CHART_TYPE_SCATTER || serie.type == ecConfig.CHART_TYPE_LINE || serie.type == ecConfig.CHART_TYPE_BAR)) {
-                    zoomSeriesIndex.push(i);
-                }
-            }
-            var start = this._zoom.start != null ? this._zoom.start : this.zoomOption.start != null ? this.zoomOption.start : 0;
-            var end = this._zoom.end != null ? this._zoom.end : this.zoomOption.end != null ? this.zoomOption.end : 100;
-            if (start > end) {
-                start = start + end;
-                end = start - end;
-                start = start - end;
-            }
-            var size = Math.round((end - start) / 100 * (this.zoomOption.orient == 'horizontal' ? this._location.width : this._location.height));
-            return {
-                start: start,
-                end: end,
-                start2: 0,
-                end2: 100,
-                size: size,
-                xAxisIndex: xAxisIndex,
-                yAxisIndex: yAxisIndex,
-                seriesIndex: zoomSeriesIndex,
-                scatterMap: this._zoom.scatterMap || {}
-            };
-        },
-        _backupData: function () {
-            this._originalData = {
-                xAxis: {},
-                yAxis: {},
-                series: {}
-            };
-            var xAxis = this.option.xAxis;
-            var xAxisIndex = this._zoom.xAxisIndex;
-            for (var i = 0, l = xAxisIndex.length; i < l; i++) {
-                this._originalData.xAxis[xAxisIndex[i]] = xAxis[xAxisIndex[i]].data;
-            }
-            var yAxis = this.option.yAxis;
-            var yAxisIndex = this._zoom.yAxisIndex;
-            for (var i = 0, l = yAxisIndex.length; i < l; i++) {
-                this._originalData.yAxis[yAxisIndex[i]] = yAxis[yAxisIndex[i]].data;
-            }
-            var series = this.option.series;
-            var seriesIndex = this._zoom.seriesIndex;
-            var serie;
-            for (var i = 0, l = seriesIndex.length; i < l; i++) {
-                serie = series[seriesIndex[i]];
-                this._originalData.series[seriesIndex[i]] = serie.data;
-                if (serie.data && serie.data[0] && serie.data[0] instanceof Array && (serie.type == ecConfig.CHART_TYPE_SCATTER || serie.type == ecConfig.CHART_TYPE_LINE || serie.type == ecConfig.CHART_TYPE_BAR)) {
-                    this._backupScale();
-                    this._calculScatterMap(seriesIndex[i]);
-                }
-            }
-        },
-        _calculScatterMap: function (seriesIndex) {
-            this._zoom.scatterMap = this._zoom.scatterMap || {};
-            this._zoom.scatterMap[seriesIndex] = this._zoom.scatterMap[seriesIndex] || {};
-            var componentLibrary = require('../component');
-            var Axis = componentLibrary.get('axis');
-            var axisOption = zrUtil.clone(this.option.xAxis);
-            if (axisOption[0].type == 'category') {
-                axisOption[0].type = 'value';
-            }
-            if (axisOption[1] && axisOption[1].type == 'category') {
-                axisOption[1].type = 'value';
-            }
-            var vAxis = new Axis(this.ecTheme, null, false, {
-                xAxis: axisOption,
-                series: this.option.series
-            }, this, 'xAxis');
-            var axisIndex = this.option.series[seriesIndex].xAxisIndex || 0;
-            this._zoom.scatterMap[seriesIndex].x = vAxis.getAxis(axisIndex).getExtremum();
-            vAxis.dispose();
-            axisOption = zrUtil.clone(this.option.yAxis);
-            if (axisOption[0].type == 'category') {
-                axisOption[0].type = 'value';
-            }
-            if (axisOption[1] && axisOption[1].type == 'category') {
-                axisOption[1].type = 'value';
-            }
-            vAxis = new Axis(this.ecTheme, null, false, {
-                yAxis: axisOption,
-                series: this.option.series
-            }, this, 'yAxis');
-            axisIndex = this.option.series[seriesIndex].yAxisIndex || 0;
-            this._zoom.scatterMap[seriesIndex].y = vAxis.getAxis(axisIndex).getExtremum();
-            vAxis.dispose();
-        },
-        _buildBackground: function () {
-            var width = this._location.width;
-            var height = this._location.height;
-            this.shapeList.push(new RectangleShape({
-                zlevel: this._zlevelBase,
-                hoverable: false,
-                style: {
-                    x: this._location.x,
-                    y: this._location.y,
-                    width: width,
-                    height: height,
-                    color: this.zoomOption.backgroundColor
-                }
-            }));
-            var maxLength = 0;
-            var xAxis = this._originalData.xAxis;
-            var xAxisIndex = this._zoom.xAxisIndex;
-            for (var i = 0, l = xAxisIndex.length; i < l; i++) {
-                maxLength = Math.max(maxLength, xAxis[xAxisIndex[i]].length);
-            }
-            var yAxis = this._originalData.yAxis;
-            var yAxisIndex = this._zoom.yAxisIndex;
-            for (var i = 0, l = yAxisIndex.length; i < l; i++) {
-                maxLength = Math.max(maxLength, yAxis[yAxisIndex[i]].length);
-            }
-            var seriesIndex = this._zoom.seriesIndex[0];
-            var data = this._originalData.series[seriesIndex];
-            var maxValue = Number.MIN_VALUE;
-            var minValue = Number.MAX_VALUE;
-            var value;
-            for (var i = 0, l = data.length; i < l; i++) {
-                value = data[i] != null ? data[i].value != null ? data[i].value : data[i] : 0;
-                if (this.option.series[seriesIndex].type == ecConfig.CHART_TYPE_K) {
-                    value = value[1];
-                }
-                if (isNaN(value)) {
-                    value = 0;
-                }
-                maxValue = Math.max(maxValue, value);
-                minValue = Math.min(minValue, value);
-            }
-            var valueRange = maxValue - minValue;
-            var pointList = [];
-            var x = width / (maxLength - (maxLength > 1 ? 1 : 0));
-            var y = height / (maxLength - (maxLength > 1 ? 1 : 0));
-            var step = 1;
-            if (this.zoomOption.orient == 'horizontal' && x < 1) {
-                step = Math.floor(maxLength * 3 / width);
-            } else if (this.zoomOption.orient == 'vertical' && y < 1) {
-                step = Math.floor(maxLength * 3 / height);
-            }
-            for (var i = 0, l = maxLength; i < l; i += step) {
-                value = data[i] != null ? data[i].value != null ? data[i].value : data[i] : 0;
-                if (this.option.series[seriesIndex].type == ecConfig.CHART_TYPE_K) {
-                    value = value[1];
-                }
-                if (isNaN(value)) {
-                    value = 0;
-                }
-                if (this.zoomOption.orient == 'horizontal') {
-                    pointList.push([
-                        this._location.x + x * i,
-                        this._location.y + height - 1 - Math.round((value - minValue) / valueRange * (height - 10))
-                    ]);
-                } else {
-                    pointList.push([
-                        this._location.x + 1 + Math.round((value - minValue) / valueRange * (width - 10)),
-                        this._location.y + y * i
-                    ]);
-                }
-            }
-            if (this.zoomOption.orient == 'horizontal') {
-                pointList.push([
-                    this._location.x + width,
-                    this._location.y + height
-                ]);
-                pointList.push([
-                    this._location.x,
-                    this._location.y + height
-                ]);
-            } else {
-                pointList.push([
-                    this._location.x,
-                    this._location.y + height
-                ]);
-                pointList.push([
-                    this._location.x,
-                    this._location.y
-                ]);
-            }
-            this.shapeList.push(new PolygonShape({
-                zlevel: this._zlevelBase,
-                style: {
-                    pointList: pointList,
-                    color: this.zoomOption.dataBackgroundColor
-                },
-                hoverable: false
-            }));
-        },
-        _buildFiller: function () {
-            this._fillerShae = {
-                zlevel: this._zlevelBase,
-                draggable: true,
-                ondrift: this._ondrift,
-                ondragend: this._ondragend,
-                _type: 'filler'
-            };
-            if (this.zoomOption.orient == 'horizontal') {
-                this._fillerShae.style = {
-                    x: this._location.x + Math.round(this._zoom.start / 100 * this._location.width) + this._handleSize,
-                    y: this._location.y,
-                    width: this._zoom.size - this._handleSize * 2,
-                    height: this._location.height,
-                    color: this.zoomOption.fillerColor,
-                    text: ':::',
-                    textPosition: 'inside'
-                };
-            } else {
-                this._fillerShae.style = {
-                    x: this._location.x,
-                    y: this._location.y + Math.round(this._zoom.start / 100 * this._location.height) + this._handleSize,
-                    width: this._location.width,
-                    height: this._zoom.size - this._handleSize * 2,
-                    color: this.zoomOption.fillerColor,
-                    text: '::',
-                    textPosition: 'inside'
-                };
-            }
-            this._fillerShae.highlightStyle = {
-                brushType: 'fill',
-                color: 'rgba(0,0,0,0)'
-            };
-            this._fillerShae = new RectangleShape(this._fillerShae);
-            this.shapeList.push(this._fillerShae);
-        },
-        _buildHandle: function () {
-            this._startShape = {
-                zlevel: this._zlevelBase,
-                draggable: true,
-                style: {
-                    iconType: 'rectangle',
-                    x: this._location.x,
-                    y: this._location.y,
-                    width: this._handleSize,
-                    height: this._handleSize,
-                    color: this.zoomOption.handleColor,
-                    text: '=',
-                    textPosition: 'inside'
-                },
-                highlightStyle: {
-                    text: '',
-                    brushType: 'fill',
-                    textPosition: 'left'
-                },
-                ondrift: this._ondrift,
-                ondragend: this._ondragend
-            };
-            if (this.zoomOption.orient == 'horizontal') {
-                this._startShape.style.height = this._location.height;
-                this._endShape = zrUtil.clone(this._startShape);
-                this._startShape.style.x = this._fillerShae.style.x - this._handleSize, this._endShape.style.x = this._fillerShae.style.x + this._fillerShae.style.width;
-                this._endShape.highlightStyle.textPosition = 'right';
-            } else {
-                this._startShape.style.width = this._location.width;
-                this._endShape = zrUtil.clone(this._startShape);
-                this._startShape.style.y = this._fillerShae.style.y - this._handleSize;
-                this._startShape.highlightStyle.textPosition = 'top';
-                this._endShape.style.y = this._fillerShae.style.y + this._fillerShae.style.height;
-                this._endShape.highlightStyle.textPosition = 'bottom';
-            }
-            this._startShape = new IconShape(this._startShape);
-            this._endShape = new IconShape(this._endShape);
-            this.shapeList.push(this._startShape);
-            this.shapeList.push(this._endShape);
-        },
-        _buildFrame: function () {
-            var x = this.subPixelOptimize(this._location.x, 1);
-            var y = this.subPixelOptimize(this._location.y, 1);
-            this._startFrameShape = {
-                zlevel: this._zlevelBase,
-                hoverable: false,
-                style: {
-                    x: x,
-                    y: y,
-                    width: this._location.width - (x > this._location.x ? 1 : 0),
-                    height: this._location.height - (y > this._location.y ? 1 : 0),
-                    lineWidth: 1,
-                    brushType: 'stroke',
-                    strokeColor: this.zoomOption.handleColor
-                }
-            };
-            this._endFrameShape = zrUtil.clone(this._startFrameShape);
-            this._startFrameShape = new RectangleShape(this._startFrameShape);
-            this._endFrameShape = new RectangleShape(this._endFrameShape);
-            this.shapeList.push(this._startFrameShape);
-            this.shapeList.push(this._endFrameShape);
-            return;
-        },
-        _syncHandleShape: function () {
-            if (this.zoomOption.orient == 'horizontal') {
-                this._startShape.style.x = this._fillerShae.style.x - this._handleSize;
-                this._endShape.style.x = this._fillerShae.style.x + this._fillerShae.style.width;
-                this._zoom.start = Math.floor((this._startShape.style.x - this._location.x) / this._location.width * 100);
-                this._zoom.end = Math.ceil((this._endShape.style.x + this._handleSize - this._location.x) / this._location.width * 100);
-            } else {
-                this._startShape.style.y = this._fillerShae.style.y - this._handleSize;
-                this._endShape.style.y = this._fillerShae.style.y + this._fillerShae.style.height;
-                this._zoom.start = Math.floor((this._startShape.style.y - this._location.y) / this._location.height * 100);
-                this._zoom.end = Math.ceil((this._endShape.style.y + this._handleSize - this._location.y) / this._location.height * 100);
-            }
-            this.zr.modShape(this._startShape.id);
-            this.zr.modShape(this._endShape.id);
-            this._syncFrameShape();
-            this.zr.refresh();
-        },
-        _syncFillerShape: function () {
-            var a;
-            var b;
-            if (this.zoomOption.orient == 'horizontal') {
-                a = this._startShape.style.x;
-                b = this._endShape.style.x;
-                this._fillerShae.style.x = Math.min(a, b) + this._handleSize;
-                this._fillerShae.style.width = Math.abs(a - b) - this._handleSize;
-                this._zoom.start = Math.floor((Math.min(a, b) - this._location.x) / this._location.width * 100);
-                this._zoom.end = Math.ceil((Math.max(a, b) + this._handleSize - this._location.x) / this._location.width * 100);
-            } else {
-                a = this._startShape.style.y;
-                b = this._endShape.style.y;
-                this._fillerShae.style.y = Math.min(a, b) + this._handleSize;
-                this._fillerShae.style.height = Math.abs(a - b) - this._handleSize;
-                this._zoom.start = Math.floor((Math.min(a, b) - this._location.y) / this._location.height * 100);
-                this._zoom.end = Math.ceil((Math.max(a, b) + this._handleSize - this._location.y) / this._location.height * 100);
-            }
-            this.zr.modShape(this._fillerShae.id);
-            this._syncFrameShape();
-            this.zr.refresh();
-        },
-        _syncFrameShape: function () {
-            if (this.zoomOption.orient == 'horizontal') {
-                this._startFrameShape.style.width = this._fillerShae.style.x - this._location.x;
-                this._endFrameShape.style.x = this._fillerShae.style.x + this._fillerShae.style.width;
-                this._endFrameShape.style.width = this._location.x + this._location.width - this._endFrameShape.style.x;
-            } else {
-                this._startFrameShape.style.height = this._fillerShae.style.y - this._location.y;
-                this._endFrameShape.style.y = this._fillerShae.style.y + this._fillerShae.style.height;
-                this._endFrameShape.style.height = this._location.y + this._location.height - this._endFrameShape.style.y;
-            }
-            this.zr.modShape(this._startFrameShape.id);
-            this.zr.modShape(this._endFrameShape.id);
-        },
-        _syncShape: function () {
-            if (!this.zoomOption.show) {
-                return;
-            }
-            if (this.zoomOption.orient == 'horizontal') {
-                this._startShape.style.x = this._location.x + this._zoom.start / 100 * this._location.width;
-                this._endShape.style.x = this._location.x + this._zoom.end / 100 * this._location.width - this._handleSize;
-                this._fillerShae.style.x = this._startShape.style.x + this._handleSize;
-                this._fillerShae.style.width = this._endShape.style.x - this._startShape.style.x - this._handleSize;
-            } else {
-                this._startShape.style.y = this._location.y + this._zoom.start / 100 * this._location.height;
-                this._endShape.style.y = this._location.y + this._zoom.end / 100 * this._location.height - this._handleSize;
-                this._fillerShae.style.y = this._startShape.style.y + this._handleSize;
-                this._fillerShae.style.height = this._endShape.style.y - this._startShape.style.y - this._handleSize;
-            }
-            this.zr.modShape(this._startShape.id);
-            this.zr.modShape(this._endShape.id);
-            this.zr.modShape(this._fillerShae.id);
-            this._syncFrameShape();
-            this.zr.refresh();
-        },
-        _syncData: function (dispatchNow) {
-            var target;
-            var start;
-            var end;
-            var length;
-            var data;
-            for (var key in this._originalData) {
-                target = this._originalData[key];
-                for (var idx in target) {
-                    data = target[idx];
-                    if (data == null) {
-                        continue;
-                    }
-                    length = data.length;
-                    start = Math.floor(this._zoom.start / 100 * length);
-                    end = Math.ceil(this._zoom.end / 100 * length);
-                    if (!(this.option[key][idx].data[0] instanceof Array) || this.option[key][idx].type == ecConfig.CHART_TYPE_K) {
-                        this.option[key][idx].data = data.slice(start, end);
-                    } else {
-                        this._setScale();
-                        this.option[key][idx].data = this._synScatterData(idx, data);
-                    }
-                }
-            }
-            if (!this._isSilence && (this.zoomOption.realtime || dispatchNow)) {
-                this.messageCenter.dispatch(ecConfig.EVENT.DATA_ZOOM, null, { zoom: this._zoom }, this.myChart);
-            }
-        },
-        _synScatterData: function (seriesIndex, data) {
-            if (this._zoom.start === 0 && this._zoom.end == 100 && this._zoom.start2 === 0 && this._zoom.end2 == 100) {
-                return data;
-            }
-            var newData = [];
-            var scale = this._zoom.scatterMap[seriesIndex];
-            var total;
-            var xStart;
-            var xEnd;
-            var yStart;
-            var yEnd;
-            if (this.zoomOption.orient == 'horizontal') {
-                total = scale.x.max - scale.x.min;
-                xStart = this._zoom.start / 100 * total + scale.x.min;
-                xEnd = this._zoom.end / 100 * total + scale.x.min;
-                total = scale.y.max - scale.y.min;
-                yStart = this._zoom.start2 / 100 * total + scale.y.min;
-                yEnd = this._zoom.end2 / 100 * total + scale.y.min;
-            } else {
-                total = scale.x.max - scale.x.min;
-                xStart = this._zoom.start2 / 100 * total + scale.x.min;
-                xEnd = this._zoom.end2 / 100 * total + scale.x.min;
-                total = scale.y.max - scale.y.min;
-                yStart = this._zoom.start / 100 * total + scale.y.min;
-                yEnd = this._zoom.end / 100 * total + scale.y.min;
-            }
-            var value;
-            for (var i = 0, l = data.length; i < l; i++) {
-                value = data[i].value || data[i];
-                if (value[0] >= xStart && value[0] <= xEnd && value[1] >= yStart && value[1] <= yEnd) {
-                    newData.push(data[i]);
-                }
-            }
-            return newData;
-        },
-        _setScale: function () {
-            var needScale = this._zoom.start !== 0 || this._zoom.end !== 100 || this._zoom.start2 !== 0 || this._zoom.end2 !== 100;
-            var axis = {
-                xAxis: this.option.xAxis,
-                yAxis: this.option.yAxis
-            };
-            for (var key in axis) {
-                for (var i = 0, l = axis[key].length; i < l; i++) {
-                    axis[key][i].scale = needScale || axis[key][i]._scale;
-                }
-            }
-        },
-        _backupScale: function () {
-            var axis = {
-                xAxis: this.option.xAxis,
-                yAxis: this.option.yAxis
-            };
-            for (var key in axis) {
-                for (var i = 0, l = axis[key].length; i < l; i++) {
-                    axis[key][i]._scale = axis[key][i].scale;
-                }
-            }
-        },
-        _getDetail: function () {
-            var key = this.zoomOption.orient == 'horizontal' ? 'xAxis' : 'yAxis';
-            var target = this._originalData[key];
-            for (var idx in target) {
-                var data = target[idx];
-                if (data == null) {
-                    continue;
-                }
-                var length = data.length;
-                var start = Math.floor(this._zoom.start / 100 * length);
-                var end = Math.ceil(this._zoom.end / 100 * length);
-                end -= end >= length ? 1 : 0;
-                return {
-                    start: data[start].value != null ? data[start].value : data[start],
-                    end: data[end].value != null ? data[end].value : data[end]
-                };
-            }
-            var seriesIndex = this._zoom.seriesIndex[0];
-            var axisIndex = this.option.series[seriesIndex][key + 'Index'] || 0;
-            var axisType = this.option[key][axisIndex].type;
-            var min = this._zoom.scatterMap[seriesIndex][key.charAt(0)].min;
-            var max = this._zoom.scatterMap[seriesIndex][key.charAt(0)].max;
-            var gap = max - min;
-            if (axisType == 'value') {
-                return {
-                    start: min + gap * this._zoom.start / 100,
-                    end: min + gap * this._zoom.end / 100
-                };
-            } else if (axisType == 'time') {
-                max = min + gap * this._zoom.end / 100;
-                min = min + gap * this._zoom.start / 100;
-                var formatter = ecDate.getAutoFormatter(min, max).formatter;
-                return {
-                    start: ecDate.format(formatter, min),
-                    end: ecDate.format(formatter, max)
-                };
-            }
-            return {
-                start: '',
-                end: ''
-            };
-        },
-        __ondrift: function (shape, dx, dy) {
-            if (this.zoomOption.zoomLock) {
-                shape = this._fillerShae;
-            }
-            var detailSize = shape._type == 'filler' ? this._handleSize : 0;
-            if (this.zoomOption.orient == 'horizontal') {
-                if (shape.style.x + dx - detailSize <= this._location.x) {
-                    shape.style.x = this._location.x + detailSize;
-                } else if (shape.style.x + dx + shape.style.width + detailSize >= this._location.x + this._location.width) {
-                    shape.style.x = this._location.x + this._location.width - shape.style.width - detailSize;
-                } else {
-                    shape.style.x += dx;
-                }
-            } else {
-                if (shape.style.y + dy - detailSize <= this._location.y) {
-                    shape.style.y = this._location.y + detailSize;
-                } else if (shape.style.y + dy + shape.style.height + detailSize >= this._location.y + this._location.height) {
-                    shape.style.y = this._location.y + this._location.height - shape.style.height - detailSize;
-                } else {
-                    shape.style.y += dy;
-                }
-            }
-            if (shape._type == 'filler') {
-                this._syncHandleShape();
-            } else {
-                this._syncFillerShape();
-            }
-            if (this.zoomOption.realtime) {
-                this._syncData();
-            }
-            if (this.zoomOption.showDetail) {
-                var deltail = this._getDetail();
-                this._startShape.style.text = this._startShape.highlightStyle.text = deltail.start;
-                this._endShape.style.text = this._endShape.highlightStyle.text = deltail.end;
-                this._startShape.style.textPosition = this._startShape.highlightStyle.textPosition;
-                this._endShape.style.textPosition = this._endShape.highlightStyle.textPosition;
-            }
-            return true;
-        },
-        __ondragend: function () {
-            if (this.zoomOption.showDetail) {
-                this._startShape.style.text = this._endShape.style.text = '=';
-                this._startShape.style.textPosition = this._endShape.style.textPosition = 'inside';
-                this.zr.modShape(this._startShape.id);
-                this.zr.modShape(this._endShape.id);
-                this.zr.refreshNextFrame();
-            }
-            this.isDragend = true;
-        },
-        ondragend: function (param, status) {
-            if (!this.isDragend || !param.target) {
-                return;
-            }
-            !this.zoomOption.realtime && this._syncData();
-            status.dragOut = true;
-            status.dragIn = true;
-            if (!this._isSilence && !this.zoomOption.realtime) {
-                this.messageCenter.dispatch(ecConfig.EVENT.DATA_ZOOM, null, { zoom: this._zoom }, this.myChart);
-            }
-            status.needRefresh = false;
-            this.isDragend = false;
-            return;
-        },
-        ondataZoom: function (param, status) {
-            status.needRefresh = true;
-            return;
-        },
-        absoluteZoom: function (param) {
-            this._zoom.start = param.start;
-            this._zoom.end = param.end;
-            this._zoom.start2 = param.start2;
-            this._zoom.end2 = param.end2;
-            this._syncShape();
-            this._syncData(true);
-            return;
-        },
-        rectZoom: function (param) {
-            if (!param) {
-                this._zoom.start = this._zoom.start2 = 0;
-                this._zoom.end = this._zoom.end2 = 100;
-                this._syncShape();
-                this._syncData(true);
-                return this._zoom;
-            }
-            var gridArea = this.component.grid.getArea();
-            var rect = {
-                x: param.x,
-                y: param.y,
-                width: param.width,
-                height: param.height
-            };
-            if (rect.width < 0) {
-                rect.x += rect.width;
-                rect.width = -rect.width;
-            }
-            if (rect.height < 0) {
-                rect.y += rect.height;
-                rect.height = -rect.height;
-            }
-            if (rect.x > gridArea.x + gridArea.width || rect.y > gridArea.y + gridArea.height) {
-                return false;
-            }
-            if (rect.x < gridArea.x) {
-                rect.x = gridArea.x;
-            }
-            if (rect.x + rect.width > gridArea.x + gridArea.width) {
-                rect.width = gridArea.x + gridArea.width - rect.x;
-            }
-            if (rect.y + rect.height > gridArea.y + gridArea.height) {
-                rect.height = gridArea.y + gridArea.height - rect.y;
-            }
-            var total;
-            var sdx = (rect.x - gridArea.x) / gridArea.width;
-            var edx = 1 - (rect.x + rect.width - gridArea.x) / gridArea.width;
-            var sdy = 1 - (rect.y + rect.height - gridArea.y) / gridArea.height;
-            var edy = (rect.y - gridArea.y) / gridArea.height;
-            if (this.zoomOption.orient == 'horizontal') {
-                total = this._zoom.end - this._zoom.start;
-                this._zoom.start += total * sdx;
-                this._zoom.end -= total * edx;
-                total = this._zoom.end2 - this._zoom.start2;
-                this._zoom.start2 += total * sdy;
-                this._zoom.end2 -= total * edy;
-            } else {
-                total = this._zoom.end - this._zoom.start;
-                this._zoom.start += total * sdy;
-                this._zoom.end -= total * edy;
-                total = this._zoom.end2 - this._zoom.start2;
-                this._zoom.start2 += total * sdx;
-                this._zoom.end2 -= total * edx;
-            }
-            this._syncShape();
-            this._syncData(true);
-            return this._zoom;
-        },
-        syncBackupData: function (curOption) {
-            var start;
-            var target = this._originalData['series'];
-            var curSeries = curOption.series;
-            var curData;
-            for (var i = 0, l = curSeries.length; i < l; i++) {
-                curData = curSeries[i].data || curSeries[i].eventList;
-                if (target[i]) {
-                    start = Math.floor(this._zoom.start / 100 * target[i].length);
-                } else {
-                    start = 0;
-                }
-                for (var j = 0, k = curData.length; j < k; j++) {
-                    if (target[i]) {
-                        target[i][j + start] = curData[j];
-                    }
-                }
-            }
-        },
-        syncOption: function (magicOption) {
-            this.silence(true);
-            this.option = magicOption;
-            this.option.dataZoom = this.reformOption(this.option.dataZoom);
-            this.zoomOption = this.option.dataZoom;
-            if (!this.myChart.canvasSupported) {
-                this.zoomOption.realtime = false;
-            }
-            this.clear();
-            this._location = this._getLocation();
-            this._zoom = this._getZoom();
-            this._backupData();
-            if (this.option.dataZoom && this.option.dataZoom.show) {
-                this._buildShape();
-            }
-            this._syncData();
-            this.silence(false);
-        },
-        silence: function (s) {
-            this._isSilence = s;
-        },
-        getRealDataIndex: function (sIdx, dIdx) {
-            if (!this._originalData || this._zoom.start === 0 && this._zoom.end == 100) {
-                return dIdx;
-            }
-            var sreies = this._originalData.series;
-            if (sreies[sIdx]) {
-                return Math.floor(this._zoom.start / 100 * sreies[sIdx].length) + dIdx;
-            }
-            return -1;
-        },
-        resize: function () {
-            this.clear();
-            this._location = this._getLocation();
-            this._zoom = this._getZoom();
-            if (this.option.dataZoom.show) {
-                this._buildShape();
-            }
-        }
-    };
-    zrUtil.inherits(DataZoom, Base);
-    require('../component').define('dataZoom', DataZoom);
-    return DataZoom;
-});define('echarts/component/categoryAxis', [
-    'require',
-    './base',
-    'zrender/shape/Text',
-    'zrender/shape/Line',
-    'zrender/shape/Rectangle',
-    '../config',
-    'zrender/tool/util',
-    'zrender/tool/area',
-    '../component'
-], function (require) {
-    var Base = require('./base');
-    var TextShape = require('zrender/shape/Text');
-    var LineShape = require('zrender/shape/Line');
-    var RectangleShape = require('zrender/shape/Rectangle');
-    var ecConfig = require('../config');
-    var zrUtil = require('zrender/tool/util');
-    var zrArea = require('zrender/tool/area');
-    function CategoryAxis(ecTheme, messageCenter, zr, option, myChart, axisBase) {
-        if (option.data.length < 1) {
-            console.error('option.data.length < 1.');
-            return;
-        }
-        Base.call(this, ecTheme, messageCenter, zr, option, myChart);
-        this.grid = this.component.grid;
-        for (var method in axisBase) {
-            this[method] = axisBase[method];
-        }
-        this.refresh(option);
-    }
-    CategoryAxis.prototype = {
-        type: ecConfig.COMPONENT_TYPE_AXIS_CATEGORY,
-        _getReformedLabel: function (idx) {
-            var data = typeof this.option.data[idx].value != 'undefined' ? this.option.data[idx].value : this.option.data[idx];
-            var formatter = this.option.data[idx].formatter || this.option.axisLabel.formatter;
-            if (formatter) {
-                if (typeof formatter == 'function') {
-                    data = formatter.call(this.myChart, data);
-                } else if (typeof formatter == 'string') {
-                    data = formatter.replace('{value}', data);
-                }
-            }
-            return data;
-        },
-        _getInterval: function () {
-            var interval = this.option.axisLabel.interval;
-            if (interval == 'auto') {
-                var fontSize = this.option.axisLabel.textStyle.fontSize;
-                var data = this.option.data;
-                var dataLength = this.option.data.length;
-                if (this.isHorizontal()) {
-                    if (dataLength > 3) {
-                        var gap = this.getGap();
-                        var isEnough = false;
-                        var labelSpace;
-                        var labelSize;
-                        var step = Math.floor(0.5 / gap);
-                        step = step < 1 ? 1 : step;
-                        interval = Math.floor(15 / gap);
-                        while (!isEnough && interval < dataLength) {
-                            interval += step;
-                            isEnough = true;
-                            labelSpace = Math.floor(gap * interval);
-                            for (var i = Math.floor((dataLength - 1) / interval) * interval; i >= 0; i -= interval) {
-                                if (this.option.axisLabel.rotate !== 0) {
-                                    labelSize = fontSize;
-                                } else if (data[i].textStyle) {
-                                    labelSize = zrArea.getTextWidth(this._getReformedLabel(i), this.getFont(zrUtil.merge(data[i].textStyle, this.option.axisLabel.textStyle)));
-                                } else {
-                                    var label = this._getReformedLabel(i) + '';
-                                    var wLen = (label.match(/\w/g) || '').length;
-                                    var oLen = label.length - wLen;
-                                    labelSize = wLen * fontSize * 2 / 3 + oLen * fontSize;
-                                }
-                                if (labelSpace < labelSize) {
-                                    isEnough = false;
-                                    break;
-                                }
-                            }
-                        }
-                    } else {
-                        interval = 1;
-                    }
-                } else {
-                    if (dataLength > 3) {
-                        var gap = this.getGap();
-                        interval = Math.floor(11 / gap);
-                        while (gap * interval - 6 < fontSize && interval < dataLength) {
-                            interval++;
-                        }
-                    } else {
-                        interval = 1;
-                    }
-                }
-            } else {
-                interval = interval - 0 + 1;
-            }
-            return interval;
-        },
-        _buildShape: function () {
-            this._interval = this._getInterval();
-            if (!this.option.show) {
-                return;
-            }
-            this.option.splitArea.show && this._buildSplitArea();
-            this.option.splitLine.show && this._buildSplitLine();
-            this.option.axisLine.show && this._buildAxisLine();
-            this.option.axisTick.show && this._buildAxisTick();
-            this.option.axisLabel.show && this._buildAxisLabel();
-            for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                this.zr.addShape(this.shapeList[i]);
-            }
-        },
-        _buildAxisTick: function () {
-            var axShape;
-            var dataLength = this.option.data.length;
-            var tickOption = this.option.axisTick;
-            var length = tickOption.length;
-            var color = tickOption.lineStyle.color;
-            var lineWidth = tickOption.lineStyle.width;
-            var interval = tickOption.interval == 'auto' ? this._interval : tickOption.interval - 0 + 1;
-            var onGap = tickOption.onGap;
-            var optGap = onGap ? this.getGap() / 2 : typeof onGap == 'undefined' ? this.option.boundaryGap ? this.getGap() / 2 : 0 : 0;
-            var startIndex = optGap > 0 ? -interval : 0;
-            if (this.isHorizontal()) {
-                var yPosition = this.option.position == 'bottom' ? tickOption.inside ? this.grid.getYend() - length - 1 : this.grid.getYend() + 1 : tickOption.inside ? this.grid.getY() + 1 : this.grid.getY() - length - 1;
-                var x;
-                for (var i = startIndex; i < dataLength; i += interval) {
-                    x = this.subPixelOptimize(this.getCoordByIndex(i) + (i >= 0 ? optGap : 0), lineWidth);
-                    axShape = {
-                        _axisShape: 'axisTick',
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: x,
-                            yStart: yPosition,
-                            xEnd: x,
-                            yEnd: yPosition + length,
-                            strokeColor: color,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            } else {
-                var xPosition = this.option.position == 'left' ? tickOption.inside ? this.grid.getX() + 1 : this.grid.getX() - length - 1 : tickOption.inside ? this.grid.getXend() - length - 1 : this.grid.getXend() + 1;
-                var y;
-                for (var i = startIndex; i < dataLength; i += interval) {
-                    y = this.subPixelOptimize(this.getCoordByIndex(i) - (i >= 0 ? optGap : 0), lineWidth);
-                    axShape = {
-                        _axisShape: 'axisTick',
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: xPosition,
-                            yStart: y,
-                            xEnd: xPosition + length,
-                            yEnd: y,
-                            strokeColor: color,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            }
-        },
-        _buildAxisLabel: function () {
-            var axShape;
-            var data = this.option.data;
-            var dataLength = this.option.data.length;
-            var rotate = this.option.axisLabel.rotate;
-            var margin = this.option.axisLabel.margin;
-            var clickable = this.option.axisLabel.clickable;
-            var textStyle = this.option.axisLabel.textStyle;
-            var dataTextStyle;
-            if (this.isHorizontal()) {
-                var yPosition;
-                var baseLine;
-                if (this.option.position == 'bottom') {
-                    yPosition = this.grid.getYend() + margin;
-                    baseLine = 'top';
-                } else {
-                    yPosition = this.grid.getY() - margin;
-                    baseLine = 'bottom';
-                }
-                for (var i = 0; i < dataLength; i += this._interval) {
-                    if (this._getReformedLabel(i) === '') {
-                        continue;
-                    }
-                    dataTextStyle = zrUtil.merge(data[i].textStyle || {}, textStyle);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            x: this.getCoordByIndex(i),
-                            y: yPosition,
-                            color: dataTextStyle.color,
-                            text: this._getReformedLabel(i),
-                            textFont: this.getFont(dataTextStyle),
-                            textAlign: dataTextStyle.align || 'center',
-                            textBaseline: dataTextStyle.baseline || baseLine
-                        }
-                    };
-                    if (rotate) {
-                        axShape.style.textAlign = rotate > 0 ? this.option.position == 'bottom' ? 'right' : 'left' : this.option.position == 'bottom' ? 'left' : 'right';
-                        axShape.rotation = [
-                            rotate * Math.PI / 180,
-                            axShape.style.x,
-                            axShape.style.y
-                        ];
-                    }
-                    this.shapeList.push(new TextShape(this._axisLabelClickable(clickable, axShape)));
-                }
-            } else {
-                var xPosition;
-                var align;
-                if (this.option.position == 'left') {
-                    xPosition = this.grid.getX() - margin;
-                    align = 'right';
-                } else {
-                    xPosition = this.grid.getXend() + margin;
-                    align = 'left';
-                }
-                for (var i = 0; i < dataLength; i += this._interval) {
-                    if (this._getReformedLabel(i) === '') {
-                        continue;
-                    }
-                    dataTextStyle = zrUtil.merge(data[i].textStyle || {}, textStyle);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            x: xPosition,
-                            y: this.getCoordByIndex(i),
-                            color: dataTextStyle.color,
-                            text: this._getReformedLabel(i),
-                            textFont: this.getFont(dataTextStyle),
-                            textAlign: dataTextStyle.align || align,
-                            textBaseline: dataTextStyle.baseline || i === 0 && this.option.name !== '' ? 'bottom' : i == dataLength - 1 && this.option.name !== '' ? 'top' : 'middle'
-                        }
-                    };
-                    if (rotate) {
-                        axShape.rotation = [
-                            rotate * Math.PI / 180,
-                            axShape.style.x,
-                            axShape.style.y
-                        ];
-                    }
-                    this.shapeList.push(new TextShape(this._axisLabelClickable(clickable, axShape)));
-                }
-            }
-        },
-        _buildSplitLine: function () {
-            var axShape;
-            var dataLength = this.option.data.length;
-            var sLineOption = this.option.splitLine;
-            var lineType = sLineOption.lineStyle.type;
-            var lineWidth = sLineOption.lineStyle.width;
-            var color = sLineOption.lineStyle.color;
-            color = color instanceof Array ? color : [color];
-            var colorLength = color.length;
-            var onGap = sLineOption.onGap;
-            var optGap = onGap ? this.getGap() / 2 : typeof onGap == 'undefined' ? this.option.boundaryGap ? this.getGap() / 2 : 0 : 0;
-            dataLength -= onGap || typeof onGap == 'undefined' && this.option.boundaryGap ? 1 : 0;
-            if (this.isHorizontal()) {
-                var sy = this.grid.getY();
-                var ey = this.grid.getYend();
-                var x;
-                for (var i = 0; i < dataLength; i += this._interval) {
-                    x = this.subPixelOptimize(this.getCoordByIndex(i) + optGap, lineWidth);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: x,
-                            yStart: sy,
-                            xEnd: x,
-                            yEnd: ey,
-                            strokeColor: color[i / this._interval % colorLength],
-                            lineType: lineType,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            } else {
-                var sx = this.grid.getX();
-                var ex = this.grid.getXend();
-                var y;
-                for (var i = 0; i < dataLength; i += this._interval) {
-                    y = this.subPixelOptimize(this.getCoordByIndex(i) - optGap, lineWidth);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: sx,
-                            yStart: y,
-                            xEnd: ex,
-                            yEnd: y,
-                            strokeColor: color[i / this._interval % colorLength],
-                            linetype: lineType,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            }
-        },
-        _buildSplitArea: function () {
-            var axShape;
-            var sAreaOption = this.option.splitArea;
-            var color = sAreaOption.areaStyle.color;
-            if (!(color instanceof Array)) {
-                axShape = {
-                    zlevel: this._zlevelBase,
-                    hoverable: false,
-                    style: {
-                        x: this.grid.getX(),
-                        y: this.grid.getY(),
-                        width: this.grid.getWidth(),
-                        height: this.grid.getHeight(),
-                        color: color
-                    }
-                };
-                this.shapeList.push(new RectangleShape(axShape));
-            } else {
-                var colorLength = color.length;
-                var dataLength = this.option.data.length;
-                var onGap = sAreaOption.onGap;
-                var optGap = onGap ? this.getGap() / 2 : typeof onGap == 'undefined' ? this.option.boundaryGap ? this.getGap() / 2 : 0 : 0;
-                if (this.isHorizontal()) {
-                    var y = this.grid.getY();
-                    var height = this.grid.getHeight();
-                    var lastX = this.grid.getX();
-                    var curX;
-                    for (var i = 0; i <= dataLength; i += this._interval) {
-                        curX = i < dataLength ? this.getCoordByIndex(i) + optGap : this.grid.getXend();
-                        axShape = {
-                            zlevel: this._zlevelBase,
-                            hoverable: false,
-                            style: {
-                                x: lastX,
-                                y: y,
-                                width: curX - lastX,
-                                height: height,
-                                color: color[i / this._interval % colorLength]
-                            }
-                        };
-                        this.shapeList.push(new RectangleShape(axShape));
-                        lastX = curX;
-                    }
-                } else {
-                    var x = this.grid.getX();
-                    var width = this.grid.getWidth();
-                    var lastYend = this.grid.getYend();
-                    var curY;
-                    for (var i = 0; i <= dataLength; i += this._interval) {
-                        curY = i < dataLength ? this.getCoordByIndex(i) - optGap : this.grid.getY();
-                        axShape = {
-                            zlevel: this._zlevelBase,
-                            hoverable: false,
-                            style: {
-                                x: x,
-                                y: curY,
-                                width: width,
-                                height: lastYend - curY,
-                                color: color[i / this._interval % colorLength]
-                            }
-                        };
-                        this.shapeList.push(new RectangleShape(axShape));
-                        lastYend = curY;
-                    }
-                }
-            }
-        },
-        refresh: function (newOption) {
-            if (newOption) {
-                this.option = this.reformOption(newOption);
-                this.option.axisLabel.textStyle = zrUtil.merge(this.option.axisLabel.textStyle || {}, this.ecTheme.textStyle);
-            }
-            this.clear();
-            this._buildShape();
-        },
-        getGap: function () {
-            var dataLength = this.option.data.length;
-            var total = this.isHorizontal() ? this.grid.getWidth() : this.grid.getHeight();
-            if (this.option.boundaryGap) {
-                return total / dataLength;
-            } else {
-                return total / (dataLength > 1 ? dataLength - 1 : 1);
-            }
-        },
-        getCoord: function (value) {
-            var data = this.option.data;
-            var dataLength = data.length;
-            var gap = this.getGap();
-            var position = this.option.boundaryGap ? gap / 2 : 0;
-            for (var i = 0; i < dataLength; i++) {
-                if (data[i] == value || typeof data[i].value != 'undefined' && data[i].value == value) {
-                    if (this.isHorizontal()) {
-                        position = this.grid.getX() + position;
-                    } else {
-                        position = this.grid.getYend() - position;
-                    }
-                    return position;
-                }
-                position += gap;
-            }
-        },
-        getCoordByIndex: function (dataIndex) {
-            if (dataIndex < 0) {
-                if (this.isHorizontal()) {
-                    return this.grid.getX();
-                } else {
-                    return this.grid.getYend();
-                }
-            } else if (dataIndex > this.option.data.length - 1) {
-                if (this.isHorizontal()) {
-                    return this.grid.getXend();
-                } else {
-                    return this.grid.getY();
-                }
-            } else {
-                var gap = this.getGap();
-                var position = this.option.boundaryGap ? gap / 2 : 0;
-                position += dataIndex * gap;
-                if (this.isHorizontal()) {
-                    position = this.grid.getX() + position;
-                } else {
-                    position = this.grid.getYend() - position;
-                }
-                return position;
-            }
-        },
-        getNameByIndex: function (dataIndex) {
-            var data = this.option.data[dataIndex];
-            if (typeof data != 'undefined' && typeof data.value != 'undefined') {
-                return data.value;
-            } else {
-                return data;
-            }
-        },
-        getIndexByName: function (name) {
-            var data = this.option.data;
-            var dataLength = data.length;
-            for (var i = 0; i < dataLength; i++) {
-                if (data[i] == name || typeof data[i].value != 'undefined' && data[i].value == name) {
-                    return i;
-                }
-            }
-            return -1;
-        },
-        getValueFromCoord: function () {
-            return '';
-        },
-        isMainAxis: function (dataIndex) {
-            return dataIndex % this._interval === 0;
-        }
-    };
-    zrUtil.inherits(CategoryAxis, Base);
-    require('../component').define('categoryAxis', CategoryAxis);
-    return CategoryAxis;
-});define('echarts/component/valueAxis', [
-    'require',
-    './base',
-    'zrender/shape/Text',
-    'zrender/shape/Line',
-    'zrender/shape/Rectangle',
-    '../config',
-    '../util/date',
-    'zrender/tool/util',
-    '../util/smartSteps',
-    '../util/accMath',
-    '../component'
-], function (require) {
-    var Base = require('./base');
-    var TextShape = require('zrender/shape/Text');
-    var LineShape = require('zrender/shape/Line');
-    var RectangleShape = require('zrender/shape/Rectangle');
-    var ecConfig = require('../config');
-    var ecDate = require('../util/date');
-    var zrUtil = require('zrender/tool/util');
-    function ValueAxis(ecTheme, messageCenter, zr, option, myChart, axisBase, series) {
-        if (!series || series.length === 0) {
-            console.err('option.series.length == 0.');
-            return;
-        }
-        Base.call(this, ecTheme, messageCenter, zr, option, myChart);
-        this.series = series;
-        this.grid = this.component.grid;
-        for (var method in axisBase) {
-            this[method] = axisBase[method];
-        }
-        this.refresh(option, series);
-    }
-    ValueAxis.prototype = {
-        type: ecConfig.COMPONENT_TYPE_AXIS_VALUE,
-        _buildShape: function () {
-            this._hasData = false;
-            this._calculateValue();
-            if (!this._hasData || !this.option.show) {
-                return;
-            }
-            this.option.splitArea.show && this._buildSplitArea();
-            this.option.splitLine.show && this._buildSplitLine();
-            this.option.axisLine.show && this._buildAxisLine();
-            this.option.axisTick.show && this._buildAxisTick();
-            this.option.axisLabel.show && this._buildAxisLabel();
-            for (var i = 0, l = this.shapeList.length; i < l; i++) {
-                this.zr.addShape(this.shapeList[i]);
-            }
-        },
-        _buildAxisTick: function () {
-            var axShape;
-            var data = this._valueList;
-            var dataLength = this._valueList.length;
-            var tickOption = this.option.axisTick;
-            var length = tickOption.length;
-            var color = tickOption.lineStyle.color;
-            var lineWidth = tickOption.lineStyle.width;
-            if (this.isHorizontal()) {
-                var yPosition = this.option.position === 'bottom' ? tickOption.inside ? this.grid.getYend() - length - 1 : this.grid.getYend() + 1 : tickOption.inside ? this.grid.getY() + 1 : this.grid.getY() - length - 1;
-                var x;
-                for (var i = 0; i < dataLength; i++) {
-                    x = this.subPixelOptimize(this.getCoord(data[i]), lineWidth);
-                    axShape = {
-                        _axisShape: 'axisTick',
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: x,
-                            yStart: yPosition,
-                            xEnd: x,
-                            yEnd: yPosition + length,
-                            strokeColor: color,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            } else {
-                var xPosition = this.option.position === 'left' ? tickOption.inside ? this.grid.getX() + 1 : this.grid.getX() - length - 1 : tickOption.inside ? this.grid.getXend() - length - 1 : this.grid.getXend() + 1;
-                var y;
-                for (var i = 0; i < dataLength; i++) {
-                    y = this.subPixelOptimize(this.getCoord(data[i]), lineWidth);
-                    axShape = {
-                        _axisShape: 'axisTick',
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: xPosition,
-                            yStart: y,
-                            xEnd: xPosition + length,
-                            yEnd: y,
-                            strokeColor: color,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            }
-        },
-        _buildAxisLabel: function () {
-            var axShape;
-            var data = this._valueList;
-            var dataLength = this._valueList.length;
-            var rotate = this.option.axisLabel.rotate;
-            var margin = this.option.axisLabel.margin;
-            var clickable = this.option.axisLabel.clickable;
-            var textStyle = this.option.axisLabel.textStyle;
-            if (this.isHorizontal()) {
-                var yPosition;
-                var baseLine;
-                if (this.option.position === 'bottom') {
-                    yPosition = this.grid.getYend() + margin;
-                    baseLine = 'top';
-                } else {
-                    yPosition = this.grid.getY() - margin;
-                    baseLine = 'bottom';
-                }
-                for (var i = 0; i < dataLength; i++) {
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            x: this.getCoord(data[i]),
-                            y: yPosition,
-                            color: typeof textStyle.color === 'function' ? textStyle.color(data[i]) : textStyle.color,
-                            text: this._valueLabel[i],
-                            textFont: this.getFont(textStyle),
-                            textAlign: textStyle.align || 'center',
-                            textBaseline: textStyle.baseline || baseLine
-                        }
-                    };
-                    if (rotate) {
-                        axShape.style.textAlign = rotate > 0 ? this.option.position === 'bottom' ? 'right' : 'left' : this.option.position === 'bottom' ? 'left' : 'right';
-                        axShape.rotation = [
-                            rotate * Math.PI / 180,
-                            axShape.style.x,
-                            axShape.style.y
-                        ];
-                    }
-                    this.shapeList.push(new TextShape(this._axisLabelClickable(clickable, axShape)));
-                }
-            } else {
-                var xPosition;
-                var align;
-                if (this.option.position === 'left') {
-                    xPosition = this.grid.getX() - margin;
-                    align = 'right';
-                } else {
-                    xPosition = this.grid.getXend() + margin;
-                    align = 'left';
-                }
-                for (var i = 0; i < dataLength; i++) {
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            x: xPosition,
-                            y: this.getCoord(data[i]),
-                            color: typeof textStyle.color === 'function' ? textStyle.color(data[i]) : textStyle.color,
-                            text: this._valueLabel[i],
-                            textFont: this.getFont(textStyle),
-                            textAlign: textStyle.align || align,
-                            textBaseline: textStyle.baseline || i === 0 && this.option.name !== '' ? 'bottom' : i === dataLength - 1 && this.option.name !== '' ? 'top' : 'middle'
-                        }
-                    };
-                    if (rotate) {
-                        axShape.rotation = [
-                            rotate * Math.PI / 180,
-                            axShape.style.x,
-                            axShape.style.y
-                        ];
-                    }
-                    this.shapeList.push(new TextShape(this._axisLabelClickable(clickable, axShape)));
-                }
-            }
-        },
-        _buildSplitLine: function () {
-            var axShape;
-            var data = this._valueList;
-            var dataLength = this._valueList.length;
-            var sLineOption = this.option.splitLine;
-            var lineType = sLineOption.lineStyle.type;
-            var lineWidth = sLineOption.lineStyle.width;
-            var color = sLineOption.lineStyle.color;
-            color = color instanceof Array ? color : [color];
-            var colorLength = color.length;
-            if (this.isHorizontal()) {
-                var sy = this.grid.getY();
-                var ey = this.grid.getYend();
-                var x;
-                for (var i = 0; i < dataLength; i++) {
-                    x = this.subPixelOptimize(this.getCoord(data[i]), lineWidth);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: x,
-                            yStart: sy,
-                            xEnd: x,
-                            yEnd: ey,
-                            strokeColor: color[i % colorLength],
-                            lineType: lineType,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            } else {
-                var sx = this.grid.getX();
-                var ex = this.grid.getXend();
-                var y;
-                for (var i = 0; i < dataLength; i++) {
-                    y = this.subPixelOptimize(this.getCoord(data[i]), lineWidth);
-                    axShape = {
-                        zlevel: this._zlevelBase,
-                        hoverable: false,
-                        style: {
-                            xStart: sx,
-                            yStart: y,
-                            xEnd: ex,
-                            yEnd: y,
-                            strokeColor: color[i % colorLength],
-                            lineType: lineType,
-                            lineWidth: lineWidth
-                        }
-                    };
-                    this.shapeList.push(new LineShape(axShape));
-                }
-            }
-        },
-        _buildSplitArea: function () {
-            var axShape;
-            var color = this.option.splitArea.areaStyle.color;
-            if (!(color instanceof Array)) {
-                axShape = {
-                    zlevel: this._zlevelBase,
-                    hoverable: false,
-                    style: {
-                        x: this.grid.getX(),
-                        y: this.grid.getY(),
-                        width: this.grid.getWidth(),
-                        height: this.grid.getHeight(),
-                        color: color
-                    }
-                };
-                this.shapeList.push(new RectangleShape(axShape));
-            } else {
-                var colorLength = color.length;
-                var data = this._valueList;
-                var dataLength = this._valueList.length;
-                if (this.isHorizontal()) {
-                    var y = this.grid.getY();
-                    var height = this.grid.getHeight();
-                    var lastX = this.grid.getX();
-                    var curX;
-                    for (var i = 0; i <= dataLength; i++) {
-                        curX = i < dataLength ? this.getCoord(data[i]) : this.grid.getXend();
-                        axShape = {
-                            zlevel: this._zlevelBase,
-                            hoverable: false,
-                            style: {
-                                x: lastX,
-                                y: y,
-                                width: curX - lastX,
-                                height: height,
-                                color: color[i % colorLength]
-                            }
-                        };
-                        this.shapeList.push(new RectangleShape(axShape));
-                        lastX = curX;
-                    }
-                } else {
-                    var x = this.grid.getX();
-                    var width = this.grid.getWidth();
-                    var lastYend = this.grid.getYend();
-                    var curY;
-                    for (var i = 0; i <= dataLength; i++) {
-                        curY = i < dataLength ? this.getCoord(data[i]) : this.grid.getY();
-                        axShape = {
-                            zlevel: this._zlevelBase,
-                            hoverable: false,
-                            style: {
-                                x: x,
-                                y: curY,
-                                width: width,
-                                height: lastYend - curY,
-                                color: color[i % colorLength]
-                            }
-                        };
-                        this.shapeList.push(new RectangleShape(axShape));
-                        lastYend = curY;
-                    }
-                }
-            }
-        },
-        _calculateValue: function () {
-            if (isNaN(this.option.min - 0) || isNaN(this.option.max - 0)) {
-                var data = {};
-                var xIdx;
-                var yIdx;
-                var legend = this.component.legend;
-                for (var i = 0, l = this.series.length; i < l; i++) {
-                    if (this.series[i].type != ecConfig.CHART_TYPE_LINE && this.series[i].type != ecConfig.CHART_TYPE_BAR && this.series[i].type != ecConfig.CHART_TYPE_SCATTER && this.series[i].type != ecConfig.CHART_TYPE_K && this.series[i].type != ecConfig.CHART_TYPE_EVENTRIVER) {
-                        continue;
-                    }
-                    if (legend && !legend.isSelected(this.series[i].name)) {
-                        continue;
-                    }
-                    xIdx = this.series[i].xAxisIndex || 0;
-                    yIdx = this.series[i].yAxisIndex || 0;
-                    if (this.option.xAxisIndex != xIdx && this.option.yAxisIndex != yIdx) {
-                        continue;
-                    }
-                    this._calculSum(data, i);
-                }
-                var oriData;
-                for (var i in data) {
-                    oriData = data[i];
-                    for (var j = 0, k = oriData.length; j < k; j++) {
-                        if (!isNaN(oriData[j])) {
-                            this._hasData = true;
-                            this._min = oriData[j];
-                            this._max = oriData[j];
-                            break;
-                        }
-                    }
-                    if (this._hasData) {
-                        break;
-                    }
-                }
-                for (var i in data) {
-                    oriData = data[i];
-                    for (var j = 0, k = oriData.length; j < k; j++) {
-                        if (!isNaN(oriData[j])) {
-                            this._min = Math.min(this._min, oriData[j]);
-                            this._max = Math.max(this._max, oriData[j]);
-                        }
-                    }
-                }
-                var gap = Math.abs(this._max - this._min);
-                this._min = isNaN(this.option.min - 0) ? this._min - Math.abs(gap * this.option.boundaryGap[0]) : this.option.min - 0;
-                this._max = isNaN(this.option.max - 0) ? this._max + Math.abs(gap * this.option.boundaryGap[1]) : this.option.max - 0;
-                if (this._min === this._max) {
-                    if (this._max === 0) {
-                        this._max = 1;
-                    } else if (this._max > 0) {
-                        this._min = this._max / this.option.splitNumber != null ? this.option.splitNumber : 5;
-                    } else {
-                        this._max = this._max / this.option.splitNumber != null ? this.option.splitNumber : 5;
-                    }
-                }
-                this.option.type != 'time' ? this._reformValue(this.option.scale) : this._reformTimeValue();
-            } else {
-                this._hasData = true;
-                this._min = this.option.min - 0;
-                this._max = this.option.max - 0;
-                this.option.type != 'time' ? this._customerValue() : this._reformTimeValue();
-            }
-        },
-        _calculSum: function (data, i) {
-            var key = this.series[i].name || 'kener';
-            var value;
-            var oriData;
-            if (!this.series[i].stack) {
-                data[key] = data[key] || [];
-                if (this.series[i].type != ecConfig.CHART_TYPE_EVENTRIVER) {
-                    oriData = this.series[i].data;
-                    for (var j = 0, k = oriData.length; j < k; j++) {
-                        value = oriData[j].value != null ? oriData[j].value : oriData[j];
-                        if (this.series[i].type === ecConfig.CHART_TYPE_K) {
-                            data[key].push(value[0]);
-                            data[key].push(value[1]);
-                            data[key].push(value[2]);
-                            data[key].push(value[3]);
-                        } else if (value instanceof Array) {
-                            if (this.option.xAxisIndex != -1) {
-                                data[key].push(this.option.type != 'time' ? value[0] : ecDate.getNewDate(value[0]));
-                            }
-                            if (this.option.yAxisIndex != -1) {
-                                data[key].push(this.option.type != 'time' ? value[1] : ecDate.getNewDate(value[1]));
-                            }
-                        } else {
-                            data[key].push(value);
-                        }
-                    }
-                } else {
-                    oriData = this.series[i].eventList;
-                    for (var j = 0, k = oriData.length; j < k; j++) {
-                        var evolution = oriData[j].evolution;
-                        for (var m = 0, n = evolution.length; m < n; m++) {
-                            data[key].push(ecDate.getNewDate(evolution[m].time));
-                        }
-                    }
-                }
-            } else {
-                var keyP = '__Magic_Key_Positive__' + this.series[i].stack;
-                var keyN = '__Magic_Key_Negative__' + this.series[i].stack;
-                data[keyP] = data[keyP] || [];
-                data[keyN] = data[keyN] || [];
-                data[key] = data[key] || [];
-                oriData = this.series[i].data;
-                for (var j = 0, k = oriData.length; j < k; j++) {
-                    value = oriData[j].value != null ? oriData[j].value : oriData[j];
-                    if (value === '-') {
-                        continue;
-                    }
-                    value = value - 0;
-                    if (value >= 0) {
-                        if (data[keyP][j] != null) {
-                            data[keyP][j] += value;
-                        } else {
-                            data[keyP][j] = value;
-                        }
-                    } else {
-                        if (data[keyN][j] != null) {
-                            data[keyN][j] += value;
-                        } else {
-                            data[keyN][j] = value;
-                        }
-                    }
-                    if (this.option.scale) {
-                        data[key].push(value);
-                    }
-                }
-            }
-        },
-        _reformValue: function (scale) {
-            var smartSteps = require('../util/smartSteps');
-            var splitNumber = this.option.splitNumber;
-            if (!scale && this._min >= 0 && this._max >= 0) {
-                this._min = 0;
-            }
-            if (!scale && this._min <= 0 && this._max <= 0) {
-                this._max = 0;
-            }
-            var stepOpt = smartSteps(this._min, this._max, splitNumber);
-            splitNumber = splitNumber != null ? splitNumber : stepOpt.secs;
-            this.option.splitNumber = splitNumber;
-            this._min = stepOpt.min;
-            this._max = stepOpt.max;
-            this._valueList = stepOpt.pnts;
-            this._reformLabelData();
-        },
-        _reformTimeValue: function () {
-            var splitNumber = this.option.splitNumber != null ? this.option.splitNumber : 5;
-            var curValue = ecDate.getAutoFormatter(this._min, this._max, splitNumber);
-            var formatter = curValue.formatter;
-            var gapValue = curValue.gapValue;
-            this._valueList = [ecDate.getNewDate(this._min)];
-            var startGap;
-            switch (formatter) {
-            case 'week':
-                startGap = ecDate.nextMonday(this._min);
-                break;
-            case 'month':
-                startGap = ecDate.nextNthOnMonth(this._min, 1);
-                break;
-            case 'quarter':
-                startGap = ecDate.nextNthOnQuarterYear(this._min, 1);
-                break;
-            case 'half-year':
-                startGap = ecDate.nextNthOnHalfYear(this._min, 1);
-                break;
-            case 'year':
-                startGap = ecDate.nextNthOnYear(this._min, 1);
-                break;
-            default:
-                if (gapValue <= 3600000 * 2) {
-                    startGap = (Math.floor(this._min / gapValue) + 1) * gapValue;
-                } else {
-                    startGap = ecDate.getNewDate(this._min - -gapValue);
-                    startGap.setHours(Math.round(startGap.getHours() / 6) * 6);
-                    startGap.setMinutes(0);
-                    startGap.setSeconds(0);
-                }
-                break;
-            }
-            if (startGap - this._min < gapValue / 2) {
-                startGap -= -gapValue;
-            }
-            curValue = ecDate.getNewDate(startGap);
-            splitNumber *= 1.5;
-            while (splitNumber-- >= 0) {
-                if (formatter == 'month' || formatter == 'quarter' || formatter == 'half-year' || formatter == 'year') {
-                    curValue.setDate(1);
-                }
-                if (this._max - curValue < gapValue / 2) {
-                    break;
-                }
-                this._valueList.push(curValue);
-                curValue = ecDate.getNewDate(curValue - -gapValue);
-            }
-            this._valueList.push(ecDate.getNewDate(this._max));
-            this._reformLabelData(formatter);
-        },
-        _customerValue: function () {
-            var accMath = require('../util/accMath');
-            var splitNumber = this.option.splitNumber != null ? this.option.splitNumber : 5;
-            var splitGap = (this._max - this._min) / splitNumber;
-            this._valueList = [];
-            for (var i = 0; i <= splitNumber; i++) {
-                this._valueList.push(accMath.accAdd(this._min, accMath.accMul(splitGap, i)));
-            }
-            this._reformLabelData();
-        },
-        _reformLabelData: function (timeFormatter) {
-            this._valueLabel = [];
-            var formatter = this.option.axisLabel.formatter;
-            if (formatter) {
-                for (var i = 0, l = this._valueList.length; i < l; i++) {
-                    if (typeof formatter === 'function') {
-                        this._valueLabel.push(timeFormatter ? formatter.call(this.myChart, this._valueList[i], timeFormatter) : formatter.call(this.myChart, this._valueList[i]));
-                    } else if (typeof formatter === 'string') {
-                        this._valueLabel.push(timeFormatter ? ecDate.format(formatter, this._valueList[i]) : formatter.replace('{value}', this._valueList[i]));
-                    }
-                }
-            } else if (timeFormatter) {
-                for (var i = 0, l = this._valueList.length; i < l; i++) {
-                    this._valueLabel.push(ecDate.format(timeFormatter, this._valueList[i]));
-                }
-            } else {
-                for (var i = 0, l = this._valueList.length; i < l; i++) {
-                    this._valueLabel.push(this.numAddCommas(this._valueList[i]));
-                }
-            }
-        },
-        getExtremum: function () {
-            this._calculateValue();
-            return {
-                min: this._min,
-                max: this._max
-            };
-        },
-        refresh: function (newOption, newSeries) {
-            if (newOption) {
-                this.option = this.reformOption(newOption);
-                this.option.axisLabel.textStyle = zrUtil.merge(this.option.axisLabel.textStyle || {}, this.ecTheme.textStyle);
-                this.series = newSeries;
-            }
-            if (this.zr) {
-                this.clear();
-                this._buildShape();
-            }
-        },
-        getCoord: function (value) {
-            value = value < this._min ? this._min : value;
-            value = value > this._max ? this._max : value;
-            var result;
-            if (!this.isHorizontal()) {
-                result = this.grid.getYend() - (value - this._min) / (this._max - this._min) * this.grid.getHeight();
-            } else {
-                result = this.grid.getX() + (value - this._min) / (this._max - this._min) * this.grid.getWidth();
-            }
-            return result;
-        },
-        getCoordSize: function (value) {
-            if (!this.isHorizontal()) {
-                return Math.abs(value / (this._max - this._min) * this.grid.getHeight());
-            } else {
-                return Math.abs(value / (this._max - this._min) * this.grid.getWidth());
-            }
-        },
-        getValueFromCoord: function (coord) {
-            var result;
-            if (!this.isHorizontal()) {
-                coord = coord < this.grid.getY() ? this.grid.getY() : coord;
-                coord = coord > this.grid.getYend() ? this.grid.getYend() : coord;
-                result = this._max - (coord - this.grid.getY()) / this.grid.getHeight() * (this._max - this._min);
-            } else {
-                coord = coord < this.grid.getX() ? this.grid.getX() : coord;
-                coord = coord > this.grid.getXend() ? this.grid.getXend() : coord;
-                result = this._min + (coord - this.grid.getX()) / this.grid.getWidth() * (this._max - this._min);
-            }
-            return result.toFixed(2) - 0;
-        },
-        isMaindAxis: function (value) {
-            for (var i = 0, l = this._valueList.length; i < l; i++) {
-                if (this._valueList[i] === value) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    };
-    zrUtil.inherits(ValueAxis, Base);
-    require('../component').define('valueAxis', ValueAxis);
-    return ValueAxis;
-});define('echarts/util/date', [], function () {
-    var _timeGap = [
-        {
-            formatter: 'hh : mm : ss',
-            value: 1000
-        },
-        {
-            formatter: 'hh : mm : ss',
-            value: 1000 * 5
-        },
-        {
-            formatter: 'hh : mm : ss',
-            value: 1000 * 10
-        },
-        {
-            formatter: 'hh : mm : ss',
-            value: 1000 * 15
-        },
-        {
-            formatter: 'hh : mm : ss',
-            value: 1000 * 30
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 60000
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 60000 * 5
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 60000 * 10
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 60000 * 15
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 60000 * 30
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 3600000
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 3600000 * 2
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 3600000 * 6
-        },
-        {
-            formatter: 'hh : mm\nMM - dd',
-            value: 3600000 * 12
-        },
-        {
-            formatter: 'MM - dd\nyyyy',
-            value: 3600000 * 24
-        },
-        {
-            formatter: 'week',
-            value: 3600000 * 24 * 7
-        },
-        {
-            formatter: 'month',
-            value: 3600000 * 24 * 31
-        },
-        {
-            formatter: 'quarter',
-            value: 3600000 * 24 * 380 / 4
-        },
-        {
-            formatter: 'half-year',
-            value: 3600000 * 24 * 380 / 2
-        },
-        {
-            formatter: 'year',
-            value: 3600000 * 24 * 380
-        }
-    ];
-    function getAutoFormatter(min, max, splitNumber) {
-        splitNumber = splitNumber > 1 ? splitNumber : 2;
-        var curValue;
-        var totalGap;
-        var formatter;
-        var gapValue;
-        for (var i = 0, l = _timeGap.length; i < l; i++) {
-            curValue = _timeGap[i].value;
-            totalGap = Math.ceil(max / curValue) * curValue - Math.floor(min / curValue) * curValue;
-            if (Math.round(totalGap / curValue) <= splitNumber * 1.2) {
-                formatter = _timeGap[i].formatter;
-                gapValue = _timeGap[i].value;
-                break;
-            }
-        }
-        if (formatter == null) {
-            formatter = 'year';
-            curValue = 3600000 * 24 * 367;
-            totalGap = Math.ceil(max / curValue) * curValue - Math.floor(min / curValue) * curValue;
-            gapValue = Math.round(totalGap / (splitNumber - 1) / curValue) * curValue;
-        }
-        return {
-            formatter: formatter,
-            gapValue: gapValue
-        };
-    }
-    function s2d(v) {
-        return v < 10 ? '0' + v : v;
-    }
-    function format(formatter, value) {
-        if (formatter == 'week' || formatter == 'month' || formatter == 'quarter' || formatter == 'half-year' || formatter == 'year') {
-            formatter = 'MM - dd\nyyyy';
-        }
-        var date = getNewDate(value);
-        var y = date.getFullYear();
-        var M = date.getMonth() + 1;
-        var d = date.getDate();
-        var h = date.getHours();
-        var m = date.getMinutes();
-        var s = date.getSeconds();
-        formatter = formatter.replace('MM', s2d(M));
-        formatter = formatter.toLowerCase();
-        formatter = formatter.replace('yyyy', y);
-        formatter = formatter.replace('yy', y % 100);
-        formatter = formatter.replace('dd', s2d(d));
-        formatter = formatter.replace('d', d);
-        formatter = formatter.replace('hh', s2d(h));
-        formatter = formatter.replace('h', h);
-        formatter = formatter.replace('mm', s2d(m));
-        formatter = formatter.replace('m', m);
-        formatter = formatter.replace('ss', s2d(s));
-        formatter = formatter.replace('s', s);
-        return formatter;
-    }
-    function nextMonday(value) {
-        value = getNewDate(value);
-        value.setDate(value.getDate() + 8 - value.getDay());
-        return value;
-    }
-    function nextNthPerNmonth(value, nth, nmon) {
-        value = getNewDate(value);
-        value.setMonth(Math.ceil((value.getMonth() + 1) / nmon) * nmon);
-        value.setDate(nth);
-        return value;
-    }
-    function nextNthOnMonth(value, nth) {
-        return nextNthPerNmonth(value, nth, 1);
-    }
-    function nextNthOnQuarterYear(value, nth) {
-        return nextNthPerNmonth(value, nth, 3);
-    }
-    function nextNthOnHalfYear(value, nth) {
-        return nextNthPerNmonth(value, nth, 6);
-    }
-    function nextNthOnYear(value, nth) {
-        return nextNthPerNmonth(value, nth, 12);
-    }
-    function getNewDate(value) {
-        return value instanceof Date ? value : new Date(typeof value == 'string' ? value.replace(/-/g, '/') : value);
-    }
-    return {
-        getAutoFormatter: getAutoFormatter,
-        getNewDate: getNewDate,
-        format: format,
-        nextMonday: nextMonday,
-        nextNthPerNmonth: nextNthPerNmonth,
-        nextNthOnMonth: nextNthOnMonth,
-        nextNthOnQuarterYear: nextNthOnQuarterYear,
-        nextNthOnHalfYear: nextNthOnHalfYear,
-        nextNthOnYear: nextNthOnYear
-    };
-});define('echarts/util/smartSteps', [], function () {
-    var mySteps = [
-        10,
-        25,
-        50
-    ];
-    var mySections = [
-        4,
-        5,
-        6
-    ];
-    var custOpts;
-    var custSteps;
-    var custSecs;
-    var minLocked;
-    var maxLocked;
-    var MT = Math;
-    var MATH_ROUND = MT.round;
-    var MATH_FLOOR = MT.floor;
-    var MATH_CEIL = MT.ceil;
-    var MATH_ABS = MT.abs;
-    function MATH_LOG(n) {
-        return MT.log(MATH_ABS(n)) / MT.LN10;
-    }
-    function MATH_POW(n) {
-        return MT.pow(10, n);
-    }
-    function MATH_ISINT(n) {
-        return n === MATH_FLOOR(n);
-    }
-    function smartSteps(min, max, section, opts) {
-        custOpts = opts || {};
-        custSteps = custOpts.steps || mySteps;
-        custSecs = custOpts.secs || mySections;
-        section = MATH_ROUND(+section || 0) % 99;
-        min = +min || 0;
-        max = +max || 0;
-        minLocked = maxLocked = 0;
-        if ('min' in custOpts) {
-            min = +custOpts.min || 0;
-            minLocked = 1;
-        }
-        if ('max' in custOpts) {
-            max = +custOpts.max || 0;
-            maxLocked = 1;
-        }
-        if (min > max) {
-            max = [
-                min,
-                min = max
-            ][0];
-        }
-        var span = max - min;
-        if (minLocked && maxLocked) {
-            return bothLocked(min, max, section);
-        }
-        if (span < (section || 5)) {
-            if (MATH_ISINT(min) && MATH_ISINT(max)) {
-                return forInteger(min, max, section);
-            } else if (span === 0) {
-                return forSpan0(min, max, section);
-            }
-        }
-        return coreCalc(min, max, section);
-    }
-    function makeResult(newMin, newMax, section, expon) {
-        expon = expon || 0;
-        var expStep = expNum((newMax - newMin) / section, -1);
-        var expMin = expNum(newMin, -1, 1);
-        var expMax = expNum(newMax, -1);
-        var minExp = MT.min(expStep.e, expMin.e, expMax.e);
-        expFixTo(expStep, {
-            c: 0,
-            e: minExp
-        });
-        expFixTo(expMin, expStep, 1);
-        expFixTo(expMax, expStep);
-        expon += minExp;
-        newMin = expMin.c;
-        newMax = expMax.c;
-        var step = (newMax - newMin) / section;
-        var zoom = MATH_POW(expon);
-        var fixTo = 0;
-        var points = [];
-        for (var i = section + 1; i--;) {
-            points[i] = (newMin + step * i) * zoom;
-        }
-        if (expon < 0) {
-            fixTo = decimals(zoom);
-            step = +(step * zoom).toFixed(fixTo);
-            newMin = +(newMin * zoom).toFixed(fixTo);
-            newMax = +(newMax * zoom).toFixed(fixTo);
-            for (var i = points.length; i--;) {
-                points[i] = points[i].toFixed(fixTo);
-                +points[i] === 0 && (points[i] = '0');
-            }
-        } else {
-            newMin *= zoom;
-            newMax *= zoom;
-            step *= zoom;
-        }
-        custSecs = 0;
-        custSteps = 0;
-        custOpts = 0;
-        return {
-            min: newMin,
-            max: newMax,
-            secs: section,
-            step: step,
-            fix: fixTo,
-            exp: expon,
-            pnts: points
-        };
-    }
-    function expNum(num, digit, byFloor) {
-        digit = MATH_ROUND(digit % 10) || 2;
-        if (digit < 0) {
-            if (MATH_ISINT(num)) {
-                digit = ('' + MATH_ABS(num)).replace(/0+$/, '').length || 1;
-            } else {
-                num = num.toFixed(15).replace(/0+$/, '');
-                digit = num.replace('.', '').replace(/^[-0]+/, '').length;
-                num = +num;
-            }
-        }
-        var expon = MATH_FLOOR(MATH_LOG(num)) - digit + 1;
-        var cNum = +(num * MATH_POW(-expon)).toFixed(15) || 0;
-        cNum = byFloor ? MATH_FLOOR(cNum) : MATH_CEIL(cNum);
-        !cNum && (expon = 0);
-        if (('' + MATH_ABS(cNum)).length > digit) {
-            expon += 1;
-            cNum /= 10;
-        }
-        return {
-            c: cNum,
-            e: expon
-        };
-    }
-    function expFixTo(expnum1, expnum2, byFloor) {
-        var deltaExp = expnum2.e - expnum1.e;
-        if (deltaExp) {
-            expnum1.e += deltaExp;
-            expnum1.c *= MATH_POW(-deltaExp);
-            expnum1.c = byFloor ? MATH_FLOOR(expnum1.c) : MATH_CEIL(expnum1.c);
-        }
-    }
-    function expFixMin(expnum1, expnum2, byFloor) {
-        if (expnum1.e < expnum2.e) {
-            expFixTo(expnum2, expnum1, byFloor);
-        } else {
-            expFixTo(expnum1, expnum2, byFloor);
-        }
-    }
-    function getCeil(num, rounds) {
-        rounds = rounds || mySteps;
-        num = expNum(num);
-        var cNum = num.c;
-        var i = 0;
-        while (cNum > rounds[i]) {
-            i++;
-        }
-        if (!rounds[i]) {
-            cNum /= 10;
-            num.e += 1;
-            i = 0;
-            while (cNum > rounds[i]) {
-                i++;
-            }
-        }
-        num.c = rounds[i];
-        return num;
-    }
-    function coreCalc(min, max, section) {
-        var step;
-        var secs = section || +custSecs.slice(-1);
-        var expStep = getCeil((max - min) / secs, custSteps);
-        var expSpan = expNum(max - min);
-        var expMin = expNum(min, -1, 1);
-        var expMax = expNum(max, -1);
-        expFixTo(expSpan, expStep);
-        expFixTo(expMin, expStep, 1);
-        expFixTo(expMax, expStep);
-        if (!section) {
-            secs = look4sections(expMin, expMax);
-        } else {
-            step = look4step(expMin, expMax, secs);
-        }
-        if (MATH_ISINT(min) && MATH_ISINT(max) && min * max >= 0) {
-            if (max - min < secs) {
-                return forInteger(min, max, secs);
-            }
-            secs = tryForInt(min, max, section, expMin, expMax, secs);
-        }
-        var arrMM = cross0(min, max, expMin.c, expMax.c);
-        expMin.c = arrMM[0];
-        expMax.c = arrMM[1];
-        if (minLocked || maxLocked) {
-            singleLocked(min, max, expMin, expMax);
-        }
-        return makeResult(expMin.c, expMax.c, secs, expMax.e);
-    }
-    function look4sections(expMin, expMax) {
-        var section;
-        var tmpStep, tmpMin, tmpMax;
-        var reference = [];
-        for (var i = custSecs.length; i--;) {
-            section = custSecs[i];
-            tmpStep = getCeil((expMax.c - expMin.c) / section, custSteps);
-            tmpStep = tmpStep.c * MATH_POW(tmpStep.e);
-            tmpMin = MATH_FLOOR(expMin.c / tmpStep) * tmpStep;
-            tmpMax = MATH_CEIL(expMax.c / tmpStep) * tmpStep;
-            reference[i] = {
-                min: tmpMin,
-                max: tmpMax,
-                step: tmpStep,
-                span: tmpMax - tmpMin
-            };
-        }
-        reference.sort(function (a, b) {
-            return a.span - b.span;
-        });
-        reference = reference[0];
-        section = reference.span / reference.step;
-        expMin.c = reference.min;
-        expMax.c = reference.max;
-        return section < 3 ? section * 2 : section;
-    }
-    function look4step(expMin, expMax, secs) {
-        var span;
-        var tmpMax;
-        var tmpMin = expMax.c;
-        var tmpStep = (expMax.c - expMin.c) / secs - 1;
-        while (tmpMin > expMin.c) {
-            tmpStep = getCeil(tmpStep + 1, custSteps);
-            tmpStep = tmpStep.c * MATH_POW(tmpStep.e);
-            span = tmpStep * secs;
-            tmpMax = MATH_CEIL(expMax.c / tmpStep) * tmpStep;
-            tmpMin = tmpMax - span;
-        }
-        var deltaMin = expMin.c - tmpMin;
-        var deltaMax = tmpMax - expMax.c;
-        var deltaDelta = deltaMin - deltaMax;
-        if (deltaDelta >= tmpStep * 2) {
-            deltaDelta = MATH_FLOOR(deltaDelta / tmpStep) * tmpStep;
-            tmpMin += deltaDelta;
-            tmpMax += deltaDelta;
-        }
-        expMin.c = tmpMin;
-        expMax.c = tmpMax;
-        return tmpStep;
-    }
-    function tryForInt(min, max, section, expMin, expMax, secs) {
-        var span = expMax.c - expMin.c;
-        var step = span / secs * MATH_POW(expMax.e);
-        if (!MATH_ISINT(step)) {
-            step = MATH_FLOOR(step);
-            span = step * secs;
-            if (span < max - min) {
-                step += 1;
-                span = step * secs;
-                if (!section && step * (secs - 1) >= max - min) {
-                    secs -= 1;
-                    span = step * secs;
-                }
-            }
-            if (span >= max - min) {
-                var delta = span - (max - min);
-                expMin.c = MATH_ROUND(min - delta / 2);
-                expMax.c = MATH_ROUND(max + delta / 2);
-                expMin.e = 0;
-                expMax.e = 0;
-            }
-        }
-        return secs;
-    }
-    function forInteger(min, max, section) {
-        section = section || 5;
-        if (minLocked) {
-            max = min + section;
-        } else if (maxLocked) {
-            min = max - section;
-        } else {
-            var delta = section - (max - min);
-            var newMin = MATH_ROUND(min - delta / 2);
-            var newMax = MATH_ROUND(max + delta / 2);
-            var arrMM = cross0(min, max, newMin, newMax);
-            min = arrMM[0];
-            max = arrMM[1];
-        }
-        return makeResult(min, max, section);
-    }
-    function forSpan0(min, max, section) {
-        section = section || 5;
-        var delta = MT.min(MATH_ABS(max / section), section) / 2.1;
-        if (minLocked) {
-            max = min + delta;
-        } else if (maxLocked) {
-            min = max - delta;
-        } else {
-            min = min - delta;
-            max = max + delta;
-        }
-        return coreCalc(min, max, section);
-    }
-    function cross0(min, max, newMin, newMax) {
-        if (min >= 0 && newMin < 0) {
-            newMax -= newMin;
-            newMin = 0;
-        } else if (max <= 0 && newMax > 0) {
-            newMin -= newMax;
-            newMax = 0;
-        }
-        return [
-            newMin,
-            newMax
-        ];
-    }
-    function decimals(num) {
-        num = (+num).toFixed(15).split('.');
-        return num.pop().replace(/0+$/, '').length;
-    }
-    function singleLocked(min, max, emin, emax) {
-        if (minLocked) {
-            var expMin = expNum(min, 4, 1);
-            if (emin.e - expMin.e > 6) {
-                expMin = {
-                    c: 0,
-                    e: emin.e
-                };
-            }
-            expFixMin(emin, expMin);
-            expFixMin(emax, expMin);
-            emax.c += expMin.c - emin.c;
-            emin.c = expMin.c;
-        } else if (maxLocked) {
-            var expMax = expNum(max, 4);
-            if (emax.e - expMax.e > 6) {
-                expMax = {
-                    c: 0,
-                    e: emax.e
-                };
-            }
-            expFixMin(emin, expMax);
-            expFixMin(emax, expMax);
-            emin.c += expMax.c - emax.c;
-            emax.c = expMax.c;
-        }
-    }
-    function bothLocked(min, max, section) {
-        var trySecs = section ? [section] : custSecs;
-        var span = max - min;
-        if (span === 0) {
-            max = expNum(max, 3);
-            section = trySecs[0];
-            max.c = MATH_ROUND(max.c + section / 2);
-            return makeResult(max.c - section, max.c, section, max.e);
-        }
-        if (MATH_ABS(max / span) < 0.000001) {
-            max = 0;
-        }
-        if (MATH_ABS(min / span) < 0.000001) {
-            min = 0;
-        }
-        var step, deltaSpan, score;
-        var scoreS = [
-            [
-                5,
-                10
-            ],
-            [
-                10,
-                2
-            ],
-            [
-                50,
-                10
-            ],
-            [
-                100,
-                2
-            ]
-        ];
-        var reference = [];
-        var debugLog = [];
-        var expSpan = expNum(max - min, 3);
-        var expMin = expNum(min, -1, 1);
-        var expMax = expNum(max, -1);
-        expFixTo(expMin, expSpan, 1);
-        expFixTo(expMax, expSpan);
-        span = expMax.c - expMin.c;
-        expSpan.c = span;
-        for (var i = trySecs.length; i--;) {
-            section = trySecs[i];
-            step = MATH_CEIL(span / section);
-            deltaSpan = step * section - span;
-            score = (deltaSpan + 3) * 3;
-            score += (section - trySecs[0] + 2) * 2;
-            if (section % 5 === 0) {
-                score -= 10;
-            }
-            for (var j = scoreS.length; j--;) {
-                if (step % scoreS[j][0] === 0) {
-                    score /= scoreS[j][1];
-                }
-            }
-            debugLog[i] = [
-                section,
-                step,
-                deltaSpan,
-                score
-            ].join();
-            reference[i] = {
-                secs: section,
-                step: step,
-                delta: deltaSpan,
-                score: score
-            };
-        }
-        reference.sort(function (a, b) {
-            return a.score - b.score;
-        });
-        reference = reference[0];
-        expMin.c = MATH_ROUND(expMin.c - reference.delta / 2);
-        expMax.c = MATH_ROUND(expMax.c + reference.delta / 2);
-        return makeResult(expMin.c, expMax.c, reference.secs, expSpan.e);
-    }
-    return smartSteps;
 });
