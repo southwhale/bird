@@ -1,6 +1,5 @@
 define('echarts/chart/chord', [
     'require',
-    '../component/base',
     './base',
     'zrender/shape/Text',
     'zrender/shape/Line',
@@ -17,7 +16,6 @@ define('echarts/chart/chord', [
     '../chart'
 ], function (require) {
     'use strict';
-    var ComponentBase = require('../component/base');
     var ChartBase = require('./base');
     var TextShape = require('zrender/shape/Text');
     var LineShape = require('zrender/shape/Line');
@@ -32,8 +30,7 @@ define('echarts/chart/chord', [
     var Graph = require('../data/Graph');
     var ChordLayout = require('../layout/Chord');
     function Chord(ecTheme, messageCenter, zr, option, myChart) {
-        ComponentBase.call(this, ecTheme, messageCenter, zr, option, myChart);
-        ChartBase.call(this);
+        ChartBase.call(this, ecTheme, messageCenter, zr, option, myChart);
         this.scaleLineLength = 4;
         this.scaleUnitAngle = 4;
         this.refresh(option);
@@ -108,6 +105,11 @@ define('echarts/chart/chord', [
             var nodeFilter = function (n) {
                 return n.layout.size > 0;
             };
+            var createEdgeFilter = function (graph) {
+                return function (e) {
+                    return graph.getEdge(e.node2, e.node1);
+                };
+            };
             for (var i = 0; i < series.length; i++) {
                 var serie = series[i];
                 if (this.selectedMap[serie.name]) {
@@ -118,6 +120,9 @@ define('echarts/chart/chord', [
                         graph = this._getSerieGraphFromNodeLinks(serie, mainSerie);
                     }
                     graph.filterNode(nodeFilter, this);
+                    if (serie.ribbonType) {
+                        graph.filterEdge(createEdgeFilter(graph));
+                    }
                     graphs.push(graph);
                     graph.__serie = serie;
                 }
@@ -366,6 +371,7 @@ define('echarts/chart/chord', [
                 var endAngle = node.layout.endAngle / Math.PI * 180 * sign;
                 var sector = new SectorShape({
                     zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: center[0],
                         y: center[1],
@@ -426,7 +432,7 @@ define('echarts/chart/chord', [
                 }
                 var iconShape = new IconShape({
                     zlevel: this.getZlevelBase(),
-                    z: 1,
+                    z: this.getZBase() + 1,
                     style: {
                         x: -node.layout.size,
                         y: -node.layout.size,
@@ -485,7 +491,8 @@ define('echarts/chart/chord', [
                 var start = vec2.scale([], v, radius[1] + distance);
                 vec2.add(start, start, center);
                 var labelShape = {
-                    zlevel: this.getZlevelBase() + 1,
+                    zlevel: this.getZlevelBase(),
+                    z: this.getZBase() + 1,
                     hoverable: false,
                     style: {
                         text: node.data.label == null ? node.id : node.data.label,
@@ -550,6 +557,7 @@ define('echarts/chart/chord', [
                 var queryTargetEmphasis = this._getEdgeQueryTarget(serie, edge.data, 'emphasis');
                 var ribbon = new RibbonShape({
                     zlevel: this.getZlevelBase(),
+                    z: this.getZBase(),
                     style: {
                         x: center[0],
                         y: center[1],
@@ -573,7 +581,15 @@ define('echarts/chart/chord', [
                         strokeColor: this.deepQuery(queryTargetEmphasis, 'borderColor')
                     }
                 });
-                ecData.pack(ribbon, serie, serieIdx, edge.data, edge.rawIndex == null ? idx : edge.rawIndex, edge.data.name || edge.node1.id + '-' + edge.node2.id, edge.node1.id, edge.node2.id);
+                var node1, node2;
+                if (edge.layout.weight <= other.layout.weight) {
+                    node1 = other.node1;
+                    node2 = other.node2;
+                } else {
+                    node1 = edge.node1;
+                    node2 = edge.node2;
+                }
+                ecData.pack(ribbon, serie, serieIdx, edge.data, edge.rawIndex == null ? idx : edge.rawIndex, edge.data.name || node1.id + '-' + node2.id, node1.id, node2.id);
                 this.shapeList.push(ribbon);
                 edge.shape = ribbon;
             }, this);
@@ -590,7 +606,7 @@ define('echarts/chart/chord', [
                 var queryTargetEmphasis = this._getEdgeQueryTarget(serie, e.data, 'emphasis');
                 var curveShape = new BezierCurveShape({
                     zlevel: this.getZlevelBase(),
-                    z: 0,
+                    z: this.getZBase(),
                     style: {
                         xStart: shape1.position[0],
                         yStart: shape1.position[1],
@@ -663,7 +679,8 @@ define('echarts/chart/chord', [
                     var end = vec2.scale([], v, radius[1] + this.scaleLineLength);
                     vec2.add(end, end, center);
                     var scaleShape = new LineShape({
-                        zlevel: this.getZlevelBase() - 1,
+                        zlevel: this.getZlevelBase(),
+                        z: this.getZBase() - 1,
                         hoverable: false,
                         style: {
                             xStart: start[0],
@@ -696,7 +713,8 @@ define('echarts/chart/chord', [
                     }
                     var isRightSide = theta <= 90 || theta >= 270;
                     var textShape = new TextShape({
-                        zlevel: this.getZlevelBase() - 1,
+                        zlevel: this.getZlevelBase(),
+                        z: this.getZBase() - 1,
                         hoverable: false,
                         style: {
                             x: isRightSide ? radius[1] + this.scaleLineLength + 4 : -radius[1] - this.scaleLineLength - 4,
@@ -760,7 +778,6 @@ define('echarts/chart/chord', [
         }
     };
     zrUtil.inherits(Chord, ChartBase);
-    zrUtil.inherits(Chord, ComponentBase);
     require('../chart').define('chord', Chord);
     return Chord;
 });define('echarts/util/shape/Ribbon', [
@@ -954,9 +971,9 @@ define('echarts/chart/chord', [
             n2 = n2.id;
         }
         if (this._directed) {
-            return this._edgesMap[n1 + '-' + n2] || this._edgesMap[n2 + '-' + n1];
-        } else {
             return this._edgesMap[n1 + '-' + n2];
+        } else {
+            return this._edgesMap[n1 + '-' + n2] || this._edgesMap[n2 + '-' + n1];
         }
     };
     Graph.prototype.removeNode = function (node) {
