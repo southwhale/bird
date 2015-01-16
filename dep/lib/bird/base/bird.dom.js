@@ -181,6 +181,9 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                 var div = document.createElement("div");
                 div.innerHTML = nodes;
                 nodes = div.childNodes;
+                if (nodes.length === 1) {
+                    nodes = nodes[0];
+                }
                 div = null;
             }
             if (lang.isArrayLike(nodes)) {
@@ -190,6 +193,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             } else {
                 container.appendChild(nodes);
             }
+            return nodes;
         };
         this.getChildren = function(element) {
             return array.filter(element.children, function(child) {

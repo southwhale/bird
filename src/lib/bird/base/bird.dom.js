@@ -213,6 +213,9 @@ define(function(require) {
 				var div = document.createElement('div');
 				div.innerHTML = nodes;
 				nodes = div.childNodes;
+				if (nodes.length === 1) {
+					nodes = nodes[0];
+				}
 				div = null;
 			}
 
@@ -223,6 +226,7 @@ define(function(require) {
 			}else{
 				container.appendChild(nodes);
 			}
+			return nodes;
 		};
 
 

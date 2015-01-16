@@ -2353,6 +2353,9 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                 var div = document.createElement("div");
                 div.innerHTML = nodes;
                 nodes = div.childNodes;
+                if (nodes.length === 1) {
+                    nodes = nodes[0];
+                }
                 div = null;
             }
             if (lang.isArrayLike(nodes)) {
@@ -2362,6 +2365,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             } else {
                 container.appendChild(nodes);
             }
+            return nodes;
         };
         this.getChildren = function(element) {
             return array.filter(element.children, function(child) {
@@ -4024,7 +4028,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 array.forEach(interceptors, function(interceptor) {
                     if (lang.isFunction(interceptor.response)) {
                         var ret = interceptor.response(data);
-                        if (!lang.isUndeined(ret)) {
+                        if (!lang.isUndefinedOrNull(ret)) {
                             data = ret;
                         }
                     }
@@ -4823,7 +4827,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.LifeCycle = {
             NEW: 0,
             INITED: 1,
-            MODEL_BOUND: 2,
+            MODEL_INITED: 2,
             RENDERED: 3,
             EVENT_BOUND: 4,
             DESTROYED: 5
@@ -4893,7 +4897,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.initModel = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
         this._initModel = function() {
             this.initModel(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-            this.lifePhase = this.LifeCycle.MODEL_BOUND;
+            this.lifePhase = this.LifeCycle.MODEL_INITED;
         };
         /*
 		 * 初始模板应用双向绑定
@@ -5012,6 +5016,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             });
             this._initModel();
             this.loadTpl(function() {
+                if (me.lifePhase >= me.LifeCycle.DESTROYED) {
+                    return;
+                }
                 //根据Action的变化更新浏览器标题栏
                 if (me.title && me.title !== document.title) {
                     document.title = me.title;

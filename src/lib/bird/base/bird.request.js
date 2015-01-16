@@ -34,7 +34,7 @@ define(function(require) {
                 array.forEach(interceptors, function(interceptor) {
                     if (lang.isFunction(interceptor.response)) {
                         var ret = interceptor.response(data);
-                        if (!lang.isUndeined(ret)) {
+                        if (!lang.isUndefinedOrNull(ret)) {
                             data = ret;
                         }
                     }

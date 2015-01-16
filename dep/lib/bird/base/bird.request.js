@@ -27,7 +27,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 array.forEach(interceptors, function(interceptor) {
                     if (lang.isFunction(interceptor.response)) {
                         var ret = interceptor.response(data);
-                        if (!lang.isUndeined(ret)) {
+                        if (!lang.isUndefinedOrNull(ret)) {
                             data = ret;
                         }
                     }
