@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-17
+ * @date: 2015-01-18
  */
 /**
  *	封装LRU cache为独立模块
@@ -4486,6 +4486,26 @@ define("bird.string", [], function(require) {
                 }
                 return replacer == null ? "" : replacer;
             });
+        };
+        this.startWith = function(origin, startStr, isIgnoreCase) {
+            if (origin.length < startStr.length) {
+                return false;
+            }
+            if (isIgnoreCase) {
+                origin = origin.toLowerCase();
+                startStr = startStr.toLowerCase();
+            }
+            return origin.indexOf(startStr) === 0;
+        };
+        this.endWith = function(origin, endStr, isIgnoreCase) {
+            if (origin.length < endStr.length) {
+                return false;
+            }
+            if (isIgnoreCase) {
+                origin = origin.toLowerCase();
+                endStr = endStr.toLowerCase();
+            }
+            return origin.lastIndexOf(endStr) === origin.length - endStr.length;
         };
     }).call(_String.prototype);
     return new _String();
