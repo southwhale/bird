@@ -93,6 +93,26 @@ define(function(require){
                 }
             );
         };
+        this.startWith = function(str, s, isIgnoreCase){
+            if(str.length < s.length){
+                return false;
+            }
+            if(isIgnoreCase){
+                str = str.toLowerCase();
+                s = s.toLowerCase();
+            }
+            return str.indexOf(s) === 0;
+        };
+        this.endWith = function(str, s, isIgnoreCase){
+            if(str.length < s.length){
+                return false;
+            }
+            if(isIgnoreCase){
+                str = str.toLowerCase();
+                s = s.toLowerCase();
+            }
+            return str.lastIndexOf(s) === str.length - s.length;
+        };
 	}).call(_String.prototype);
  
 	return new _String();
