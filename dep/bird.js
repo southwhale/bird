@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-16
+ * @date: 2015-01-17
  */
 /**
  *	封装LRU cache为独立模块
@@ -3823,8 +3823,9 @@ define("bird.lrucache", [ "./bird.__lrucache__" ], function(require) {
     var LRUCache = require("./bird.__lrucache__");
     return new LRUCache();
 });
-define("bird.object", [ "./bird.lang" ], function(require) {
+define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
     var lang = require("./bird.lang");
+    var array = require("./bird.array");
     function _Object() {}
     (function() {
         //each可从内部中断,当findSuper为true时把继承而来的property也一起遍历
@@ -3898,6 +3899,44 @@ define("bird.object", [ "./bird.lang" ], function(require) {
                 return dest;
             }
             return dest;
+        };
+        /**
+		 * 克隆对象
+		 * @param {Object|Array} obj
+		 * @param {boolean} deep
+		 * @return {Object|Array}
+		 */
+        this.clone = function(obj, deep) {
+            var ret, forEach, isArray, isPlainObject;
+            if (lang.isPlainObject(obj)) {
+                ret = {};
+                forEach = this.forEach;
+                isPlainObject = true;
+            } else if (lang.isArray(obj)) {
+                ret = [];
+                forEach = array.forEach;
+                isArray = true;
+            }
+            var me = this;
+            forEach(obj, function(v, k) {
+                if (deep) {
+                    if (lang.isPlainObject(v)) {
+                        v = me.clone(v, deep);
+                    } else if (lang.isArray(v)) {
+                        var arr = [];
+                        array.forEach(v, function(e) {
+                            arr.push(me.clone(e, deep));
+                        });
+                        v = arr;
+                    }
+                }
+                if (isPlainObject) {
+                    ret[k] = v;
+                } else if (isArray) {
+                    ret.push(v);
+                }
+            });
+            return ret;
         };
         this.jsonToQuery = function(obj, split) {
             if (lang.isString(obj)) {

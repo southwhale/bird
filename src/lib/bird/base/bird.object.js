@@ -1,6 +1,7 @@
 define(function(require) {
 
 	var lang = require('./bird.lang');
+	var array = require('./bird.array');
 
 	function _Object() {
 
@@ -84,6 +85,47 @@ define(function(require) {
 				return dest;
 			}
 			return dest;
+		};
+
+		/**
+		 * 克隆对象
+		 * @param {Object|Array} obj
+		 * @param {boolean} deep
+		 * @return {Object|Array}
+		 */
+		this.clone = function(obj, deep) {
+			var ret, forEach, isArray, isPlainObject;
+			if (lang.isPlainObject(obj)) {
+				ret = {};
+				forEach = this.forEach;
+				isPlainObject = true;
+			} else if (lang.isArray(obj)) {
+				ret = [];
+				forEach = array.forEach;
+				isArray = true;
+			}
+
+			var me = this;
+			forEach(obj, function(v, k) {
+				if (deep) {
+					if (lang.isPlainObject(v)) {
+						v = me.clone(v, deep);
+					} else if (lang.isArray(v)) {
+						var arr = [];
+						array.forEach(v, function(e) {
+							arr.push(me.clone(e, deep));
+						});
+						v = arr;
+					}
+				}
+				if (isPlainObject) {
+					ret[k] = v;
+				} else if (isArray) {
+					ret.push(v);
+				}
+				
+			});
+			return ret;
 		};
 
 		
