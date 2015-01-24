@@ -334,30 +334,9 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             offset.right = offset.right + scrollLeft - clientLeft;
             return offset;
         };
-        this.hasClass = function(el, cls) {
-            return el.className.match(new RegExp("(\\s|^)" + cls + "(\\s|$)"));
-        };
-        this.addClass = function(el, cls) {
-            if (!this.hasClass(el, cls)) {
-                el.className += el.className ? " " + cls : cls;
-            }
-        };
-        this.removeClass = function(el, cls) {
-            if (this.hasClass(el, cls)) {
-                el.className = el.className.replace(new RegExp("(\\s|^)" + cls + "(\\s|$)"), "");
-            }
-        };
-        this.toggleClass = function(el, cls) {
-            if (!this.hasClass(el, cls)) {
-                el.className += el.className ? " " + cls : cls;
-            } else {
-                el.className = el.className.replace(new RegExp("(\\s|^)" + cls + "(\\s|$)"), "");
-            }
-        };
         this.getClassList = function(element) {
             return element.className ? element.className.split(/\s+/) : [];
         };
-        //<-------baidu className operation start here------->
         /**
 		 * 判断元素是否拥有指定的class
 		 *
@@ -365,7 +344,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
 		 * @param {string} className 要判断的class名称
 		 * @return {boolean} 是否拥有指定的class
 		 */
-        this._hasClass = function(element, className) {
+        this.hasClass = function(element, className) {
             element = this.getElementById(element);
             if (className === "") {
                 throw new Error("className must not be empty");
@@ -386,7 +365,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
 		 * @param {string} className 要添加的class名称
 		 * @return {HTMLElement} 目标元素
 		 */
-        this._addClass = function(element, className) {
+        this.addClass = function(element, className) {
             element = this.getElementById(element);
             if (className === "") {
                 throw new Error("className must not be empty");
@@ -438,7 +417,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
 		 * @param {string} className 要移除的class名称
 		 * @return {HTMLElement} 目标元素
 		 */
-        this._removeClass = function(element, className) {
+        this.removeClass = function(element, className) {
             element = this.getElementById(element);
             if (className === "") {
                 throw new Error("className must not be empty");
@@ -497,7 +476,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
 		 * @param {string} className 要切换的class名称
 		 * @return {HTMLElement} 目标元素
 		 */
-        this._toggleClass = function(element, className) {
+        this.toggleClass = function(element, className) {
             element = this.getElementById(element);
             if (className === "") {
                 throw new Error("className must not be empty");

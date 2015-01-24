@@ -99,7 +99,7 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         this["class"] = function(node, selector, variable, filter) {
             return function(value, oldValue) {
                 oldValue && dom.removeClass(node, oldValue);
-                dom.addClass(node, value);
+                value && dom.addClass(node, value);
             };
         };
         this.event = function(node, selector, variable, filter, eventType) {

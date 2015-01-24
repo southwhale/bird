@@ -105,7 +105,7 @@ define(function(require) {
 		this['class'] = function(node, selector, variable, filter) {
 			return function(value, oldValue) {
 				oldValue && dom.removeClass(node, oldValue);
-				dom.addClass(node, value);
+				value && dom.addClass(node, value);
 			};
 		};
 		this.event = function(node, selector, variable, filter, eventType) {
