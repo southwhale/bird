@@ -113,6 +113,44 @@ define(function(require){
             }
             return origin.lastIndexOf(endStr) === origin.length - endStr.length;
         };
+
+        /**
+         * kmpSearch
+         * @param {string} [source] 源字符串
+         * @param {string} [subject] 需要搜索的子字符串
+         * @return {Integer} 子字符串在源字符串中的位置索引
+         */
+        this.search = function (source, subject){  
+            var srcLen = source.length;  
+            var subLen = subject.length;  
+            var pattern = [];  
+            prefix(subject, pattern);  
+                      
+            for(var index=0,p=0; index<srcLen; index++){  
+                if(source.charAt(index) == subject.charAt(p)){  
+                    p++;  
+                    if(p == subLen)  
+                        return index - subLen + 1;  
+                }else{  
+                    p = pattern[p];  
+                }     
+            }     
+            return -1;  
+        };
+                
+        function prefix(subject,pattern){  
+            var subLen = subject.length;  
+            pattern[0] = 0;  
+            for(var i=1,k=0; i<subLen; i++){  
+                while ((subject.charAt(i) != subject.charAt(k)) && k > 0){  
+                    k = pattern[k];               
+                }         
+                if(subject.charAt(i) == subject.charAt(k)){  
+                    k++;  
+                }  
+                pattern[i] = k;  
+            }  
+        }
 	}).call(_String.prototype);
  
 	return new _String();

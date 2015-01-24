@@ -296,8 +296,9 @@ define(function(require) {
 
 
 		this.css = function(el, p, v) {
-			if (v === undefined) {
+			if (lang.isUndefined(v)) {
 				if (lang.isString(p)) {
+					p = preHandleStyleKey(p, el);
 					return el.style[string.camelize(p)];
 				}
 				/**
@@ -331,9 +332,21 @@ define(function(require) {
 					el = null;
 				}
 			} else {
+				p = preHandleStyleKey(p, el);
 				el.style[string.camelize(p)] = v;
 			}
 		};
+
+		function preHandleStyleKey(key, el) {
+			if (key === 'float') {
+				if ('styleFloat' in el.style) {
+					return 'styleFloat'
+				} else if ('cssFloat' in el.style) {
+					return 'cssFloat';
+				}
+			}
+			return key;
+		}
 
 		this.getComputedStyle = function(element, key) {
 			if (!element) {

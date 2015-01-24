@@ -361,6 +361,22 @@ define(function(require) {
             return dom.g('.content', errorTipNode) || errorTipNode;
         };
 
+        this.showErrorTip = function(target, errorMessage) {
+            var errorTipNode = this.getErrorTipNode(target);
+            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+
+            dom.setText(errorTipContentNode, errorMessage);
+            dom.show(errorTipNode);
+        };
+
+        this.hideErrorTip = function(target) {
+            var errorTipNode = this.getErrorTipNode(target);
+            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+
+            dom.setText(errorTipContentNode, '');
+            dom.hide(errorTipNode);
+        };
+
         /**
          * float,2 ——>
          * {
@@ -377,8 +393,7 @@ define(function(require) {
                 return true;
             }
             var value = target.value;
-            var errorTipNode = this.getErrorTipNode(target);
-            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            var me = this;
 
             var isValid = array.each(validators, function(v) {
                 var rule = ruleMap[v.ruleName];
@@ -392,16 +407,12 @@ define(function(require) {
                     return true;
                 }
 
-                if (errorTipNode) {
-                    dom.setText(errorTipContentNode, ret.message);
-                    dom.show(errorTipNode);
-                }
+                me.showErrorTip(target, ret.message);
                 return false;
             });
 
-            if (isValid && errorTipNode) {
-                dom.setText(errorTipContentNode, '');
-                dom.hide(errorTipNode);
+            if (isValid) {
+                me.hideErrorTip(target);
             }
 
             return isValid;

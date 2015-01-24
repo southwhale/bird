@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-18
+ * @date: 2015-01-24
  */
 /**
  *	封装LRU cache为独立模块
@@ -2418,8 +2418,9 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             return paths.length ? paths.join("->") : "";
         };
         this.css = function(el, p, v) {
-            if (v === undefined) {
+            if (lang.isUndefined(v)) {
                 if (lang.isString(p)) {
+                    p = preHandleStyleKey(p, el);
                     return el.style[string.camelize(p)];
                 }
                 /**
@@ -2452,9 +2453,20 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                     el = null;
                 }
             } else {
+                p = preHandleStyleKey(p, el);
                 el.style[string.camelize(p)] = v;
             }
         };
+        function preHandleStyleKey(key, el) {
+            if (key === "float") {
+                if ("styleFloat" in el.style) {
+                    return "styleFloat";
+                } else if ("cssFloat" in el.style) {
+                    return "cssFloat";
+                }
+            }
+            return key;
+        }
         this.getComputedStyle = function(element, key) {
             if (!element) {
                 return "";
@@ -4507,6 +4519,40 @@ define("bird.string", [], function(require) {
             }
             return origin.lastIndexOf(endStr) === origin.length - endStr.length;
         };
+        /**
+         * kmpSearch
+         * @param {string} [source] 源字符串
+         * @param {string} [subject] 需要搜索的子字符串
+         * @return {Integer} 子字符串在源字符串中的位置索引
+         */
+        this.search = function(source, subject) {
+            var srcLen = source.length;
+            var subLen = subject.length;
+            var pattern = [];
+            prefix(subject, pattern);
+            for (var index = 0, p = 0; index < srcLen; index++) {
+                if (source.charAt(index) == subject.charAt(p)) {
+                    p++;
+                    if (p == subLen) return index - subLen + 1;
+                } else {
+                    p = pattern[p];
+                }
+            }
+            return -1;
+        };
+        function prefix(subject, pattern) {
+            var subLen = subject.length;
+            pattern[0] = 0;
+            for (var i = 1, k = 0; i < subLen; i++) {
+                while (subject.charAt(i) != subject.charAt(k) && k > 0) {
+                    k = pattern[k];
+                }
+                if (subject.charAt(i) == subject.charAt(k)) {
+                    k++;
+                }
+                pattern[i] = k;
+            }
+        }
     }).call(_String.prototype);
     return new _String();
 });
@@ -6945,6 +6991,18 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
         this.getErrorTipContentNode = function(errorTipNode) {
             return dom.g(".content", errorTipNode) || errorTipNode;
         };
+        this.showErrorTip = function(target, errorMessage) {
+            var errorTipNode = this.getErrorTipNode(target);
+            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            dom.setText(errorTipContentNode, errorMessage);
+            dom.show(errorTipNode);
+        };
+        this.hideErrorTip = function(target) {
+            var errorTipNode = this.getErrorTipNode(target);
+            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            dom.setText(errorTipContentNode, "");
+            dom.hide(errorTipNode);
+        };
         /**
          * float,2 ——>
          * {
@@ -6960,8 +7018,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 return true;
             }
             var value = target.value;
-            var errorTipNode = this.getErrorTipNode(target);
-            var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            var me = this;
             var isValid = array.each(validators, function(v) {
                 var rule = ruleMap[v.ruleName];
                 if (!rule) {
@@ -6973,15 +7030,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 if (ret.success) {
                     return true;
                 }
-                if (errorTipNode) {
-                    dom.setText(errorTipContentNode, ret.message);
-                    dom.show(errorTipNode);
-                }
+                me.showErrorTip(target, ret.message);
                 return false;
             });
-            if (isValid && errorTipNode) {
-                dom.setText(errorTipContentNode, "");
-                dom.hide(errorTipNode);
+            if (isValid) {
+                me.hideErrorTip(target);
             }
             return isValid;
         };
