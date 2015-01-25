@@ -2370,26 +2370,90 @@ define(function(require) {
 	}(jQuery);
 
 
-	jQuery(
-	function($) {
+	(function($) {
+		var contentTop = [];
+		var content = [];
+		var lastScrollTop = 0;
+		var scrollDir = '';
+		var itemClass = '';
+		var itemHover = '';
+		var menuSize = null;
+		var stickyHeight = 0;
+		var stickyMarginB = 0;
+		var currentMarginT = 0;
+		var topMargin = 0;
+		//var onAfterStickup = null;
+		//var onAfterUnStickup = null;
+		var vartop = 0;
+		//var isInitHidden = false;
+
+		var StickUp = function(element, options) {
+			this.options = options && $.extend({}, options)
+
+			this.$element = $(element)
+
+			this.init();
+		}
+
+		StickUp.prototype.init = function() {
+			var $this = this.$element;
+			var options = this.options;
+			// adding a class to users div
+			$this.addClass('stuckMenu');
+			if($this.is(':hidden')) {
+				$this.data('isInitHidden', 'true');
+				$this.show();
+			}
+        	//getting options
+        	var objn = 0;
+        	if(options != null) {
+	        	for(var o in options.parts) {
+	        		if (options.parts.hasOwnProperty(o)){
+	        			content[objn] = options.parts[objn];
+	        			objn++;
+	        		}
+	        	}
+	  			if(objn == 0) {
+	  				console.log('error:needs arguments');
+	  			}
+
+	  			itemClass = options.itemClass;
+	  			itemHover = options.itemHover;
+	  			//onAfterStickup = options.onAfterStickup;
+	  			//onAfterUnStickup = options.onAfterUnStickup;
+
+	  			if(options.topMargin != null) {
+	  				if(options.topMargin == 'auto') {
+	  					topMargin = parseInt($this.css('margin-top'));
+	  				} else {
+	  					if(isNaN(options.topMargin) && options.topMargin.search("px") > 0){
+	  						topMargin = parseInt(options.topMargin.replace("px",""));
+	  					} else if(!isNaN(parseInt(options.topMargin))) {
+	  						topMargin = parseInt(options.topMargin);
+	  					} else {
+	  						console.log("incorrect argument, ignored.");
+	  						topMargin = 0;
+	  					}	
+	  				}
+	  			} else {
+	  				topMargin = 0;
+	  			}
+	  			menuSize = $('.'+itemClass).size();
+  			}			
+			stickyHeight = parseInt($this.height());
+			stickyMarginB = parseInt($this.css('margin-bottom'));
+			currentMarginT = parseInt($this.next().closest('div').css('margin-top'));
+			vartop = parseInt($this.offset().top);
+			//$(this).find('*').removeClass(itemHover);
+			if ($this.data('isInitHidden') === 'true') {
+				$this.hide();
+			}
+		};
 		
-		$(document).ready(function(){
-			var contentButton = [];
-			var contentTop = [];
-			var content = [];
-			var lastScrollTop = 0;
-			var scrollDir = '';
-			var itemClass = '';
-			var itemHover = '';
-			var menuSize = null;
-			var stickyHeight = 0;
-			var stickyMarginB = 0;
-			var currentMarginT = 0;
-			var topMargin = 0;
-			//var onAfterStickup = null;
-			//var onAfterUnStickup = null;
-			var vartop = 0;
-			var isInitHidden = false;
+		//$(document).ready(function(){
+			//var contentButton = [];
+			
+			
 
 			$(window).scroll(function(event){
 	   			var st = $(this).scrollTop();
@@ -2400,60 +2464,14 @@ define(function(require) {
 	   			}
 	  			lastScrollTop = st;
 			});
-			$.fn.stickUp = function( options ) {
-				var $this = $(this);
-				// adding a class to users div
-				$this.addClass('stuckMenu');
-				if($this.is(':hidden')) {
-					isInitHidden = true;
-					$this.show();
-				}
-	        	//getting options
-	        	var objn = 0;
-	        	if(options != null) {
-		        	for(var o in options.parts) {
-		        		if (options.parts.hasOwnProperty(o)){
-		        			content[objn] = options.parts[objn];
-		        			objn++;
-		        		}
-		        	}
-		  			if(objn == 0) {
-		  				console.log('error:needs arguments');
-		  			}
-
-		  			itemClass = options.itemClass;
-		  			itemHover = options.itemHover;
-		  			onAfterStickup = options.onAfterStickup;
-		  			onAfterUnStickup = options.onAfterUnStickup;
-
-		  			if(options.topMargin != null) {
-		  				if(options.topMargin == 'auto') {
-		  					topMargin = parseInt($('.stuckMenu').css('margin-top'));
-		  				} else {
-		  					if(isNaN(options.topMargin) && options.topMargin.search("px") > 0){
-		  						topMargin = parseInt(options.topMargin.replace("px",""));
-		  					} else if(!isNaN(parseInt(options.topMargin))) {
-		  						topMargin = parseInt(options.topMargin);
-		  					} else {
-		  						console.log("incorrect argument, ignored.");
-		  						topMargin = 0;
-		  					}	
-		  				}
-		  			} else {
-		  				topMargin = 0;
-		  			}
-		  			menuSize = $('.'+itemClass).size();
-	  			}			
-				stickyHeight = parseInt($this.height());
-				stickyMarginB = parseInt($this.css('margin-bottom'));
-				currentMarginT = parseInt($this.next().closest('div').css('margin-top'));
-				vartop = parseInt($this.offset().top);
-				//$(this).find('*').removeClass(itemHover);
-				if (isInitHidden) {
-					$this.hide();
-				}
-			}
+			
 			$(document).on('scroll', function() {
+				var $stickMenu = $('.stuckMenu');
+				if (!$stickMenu.length) {
+					return
+				} 
+				var isInitHidden = $stickMenu.data('isInitHidden');
+
 				var varscroll = parseInt($(document).scrollTop());
 				if(menuSize != null){
 					for(var i=0;i < menuSize;i++)
@@ -2470,8 +2488,6 @@ define(function(require) {
 					}
 				}
 
-				var $stickMenu = $('.stuckMenu');
-
 				if(vartop < varscroll + topMargin){
 					$stickMenu.addClass('isStuck');
 					$stickMenu.next().closest('div').css({
@@ -2483,7 +2499,7 @@ define(function(require) {
 					}, 10);
 
 					if (isInitHidden) {
-						$stickMenu.slideDown();
+						$stickMenu.show();
 					}
 					/*if (typeof onAfterStickup === 'function') {
 						onAfterStickup.call($stickMenu);
@@ -2497,7 +2513,7 @@ define(function(require) {
 						'margin-top': currentMarginT + 'px'
 					}, 10);
 					if (isInitHidden) {
-						$stickMenu.slideUp();
+						$stickMenu.hide();
 					}
 					/*if (typeof onAfterStickup === 'function') {
 						onAfterStickup.call($stickMenu);
@@ -2518,9 +2534,36 @@ define(function(require) {
 					$('.'+itemClass+':eq(0)').addClass(itemHover);
 				}
 			}
-		});
+		//});
 
-	});
+		// STICKUP PLUGIN DEFINITION
+		// =====================
+
+		function Plugin(option) {
+			return this.each(function() {
+				var $this = $(this)
+				var data = $this.data('bs.stickup')
+
+				if (!data) $this.data('bs.stickup', (data = new StickUp(this)))
+				if (typeof option == 'string') data[option]()
+			})
+		}
+
+		var old = $.fn.stickUp
+
+		$.fn.stickUp = Plugin
+		$.fn.stickUp.Constructor = StickUp
+
+
+		// STICKUP NO CONFLICT
+		// ===============
+
+		$.fn.stickUp.noConflict = function() {
+			$.fn.stickUp = old
+			return this
+		}
+
+	})(jQuery);
 
 
 	return jQuery;

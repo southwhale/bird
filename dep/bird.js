@@ -6972,16 +6972,48 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
         };
         this.showErrorTip = function(target, errorMessage) {
             var errorTipNode = this.getErrorTipNode(target);
+            if (!errorTipNode) {
+                return;
+            }
+            clearAutoCloseTimer(errorTipNode);
             var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            if (!errorTipContentNode) {
+                return;
+            }
             dom.setText(errorTipContentNode, errorMessage);
             dom.show(errorTipNode);
+            this.autoClose(target, errorTipNode);
         };
         this.hideErrorTip = function(target) {
             var errorTipNode = this.getErrorTipNode(target);
+            if (!errorTipNode) {
+                return;
+            }
+            clearAutoCloseTimer(errorTipNode);
             var errorTipContentNode = this.getErrorTipContentNode(errorTipNode);
+            if (!errorTipContentNode) {
+                return;
+            }
             dom.setText(errorTipContentNode, "");
             dom.hide(errorTipNode);
         };
+        this.autoClose = function(target, errorTipNode) {
+            var autoCloseSeconds;
+            var dataAutoClose = dom.getAttr(errorTipNode, "data-autoclose");
+            var me = this;
+            if (dataAutoClose && dataAutoClose !== "0" && dataAutoClose !== "false") {
+                var dataAutoCloseSeconds = dom.getAttr(errorTipNode, "data-autoclose-seconds");
+                if (dataAutoCloseSeconds && lang.isNumber(+dataAutoCloseSeconds)) {
+                    autoCloseSeconds = +dataAutoCloseSeconds;
+                } else {
+                    autoCloseSeconds = me.autoCloseSeconds;
+                }
+                errorTipNode.autoCloseTimer = setTimeout(function() {
+                    me.hideErrorTip(target);
+                }, autoCloseSeconds * 1e3);
+            }
+        };
+        this.autoCloseSeconds = 5;
         /**
          * float,2 ——>
          * {
@@ -7038,6 +7070,16 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 });
             }
         };
+        function clearAutoCloseTimer(errorTipNode) {
+            if (errorTipNode.autoCloseTimer) {
+                clearTimeout(errorTipNode.autoCloseTimer);
+                try {
+                    delete errorTipNode.autoCloseTimer;
+                } catch (e) {
+                    errorTipNode.autoCloseTimer = null;
+                }
+            }
+        }
     }).call(Validator.prototype);
     return new Validator();
 });
