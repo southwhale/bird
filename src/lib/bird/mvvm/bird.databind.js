@@ -126,7 +126,7 @@ define(function(require) {
 						if (cachedTpl) {
 							doInclude(node, cachedTpl, model, actionId, dataBinds);
 						} else {
-							request.syncLoad(val.variable, function(data) {
+							request.load(val.variable, function(data) {
 								doInclude(node, data, model, actionId, dataBinds);
 								lruCache.add(val.variable, data);
 							});

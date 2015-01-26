@@ -2465,7 +2465,7 @@ define(function(require) {
 	  			lastScrollTop = st;
 			});
 			
-			$(document).on('scroll', function() {
+			$(window).on('scroll', function() {
 				var $stickMenu = $('.stuckMenu');
 				if (!$stickMenu.length) {
 					return

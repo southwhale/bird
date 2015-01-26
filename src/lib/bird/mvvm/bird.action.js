@@ -272,7 +272,7 @@ define(function(require) {
 				callback();
 			} else {
 				var me = this;
-				request.syncLoad(this.tplUrl + '?' + new Date().getTime(), function(data) {
+				request.load(this.tplUrl + '?' + new Date().getTime(), function(data) {
 					me.constructor.prototype.tpl = data;
 					callback();
 				});
