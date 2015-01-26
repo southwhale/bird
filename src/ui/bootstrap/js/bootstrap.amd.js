@@ -2463,9 +2463,9 @@ define(function(require) {
 	      			scrollDir = 'up';
 	   			}
 	  			lastScrollTop = st;
-			});
+			//});
 			
-			$(window).on('scroll', function() {
+			//$(window).on('scroll', function() {
 				var $stickMenu = $('.stuckMenu');
 				if (!$stickMenu.length) {
 					return
