@@ -69,9 +69,8 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                     return;
                 }
                 me[methodName] = function(data, completeCallback, errorCallback) {
-                    if (/\{\{id\}\}/.test(url)) {
+                    if (/\{\{.+?\}\}/.test(url)) {
                         url = string.format(url, data);
-                        delete data.id;
                     }
                     request.ajax({
                         url: url,

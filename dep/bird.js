@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-27
+ * @date: 2015-01-28
  */
 /**
  *	封装LRU cache为独立模块
@@ -5851,9 +5851,8 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                     return;
                 }
                 me[methodName] = function(data, completeCallback, errorCallback) {
-                    if (/\{\{id\}\}/.test(url)) {
+                    if (/\{\{.+?\}\}/.test(url)) {
                         url = string.format(url, data);
-                        delete data.id;
                     }
                     request.ajax({
                         url: url,
