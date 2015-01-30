@@ -4977,8 +4977,14 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
                 });
             }
         };
-        //子类可以覆盖该接口
-        this.initModel = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        /**
+		 * 子类可以覆盖该接口
+		 * 通过往modelReference上挂载属性的方式修改action.model,如：
+		 * modelReference.name = 'liwei';
+		 * modelReference.email = 'relativeli@qq.com';
+		 * modelReference.company = 'Baidu';
+		 */
+        this.initModel = lang.noop;
         this._initModel = function() {
             this.initModel(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             this.lifePhase = this.LifeCycle.MODEL_INITED;
@@ -5064,21 +5070,21 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             this.forward(this.args.referrer ? "#!" + this.args.referrer : "/");
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
-        this.bindEvent = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        this.bindEvent = lang.noop;
         this._bindEvent = function() {
             this.bindEvent(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             this.lifePhase = this.LifeCycle.EVENT_BOUND;
         };
         //子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
-        this.beforeRender = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        this.beforeRender = lang.noop;
         this._render = function() {
             this.render(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             this.lifePhase = this.LifeCycle.RENDERED;
         };
         //子类可以覆盖该接口,请求后台数据返回后重新渲染模板部分内容
-        this.render = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        this.render = lang.noop;
         //子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
-        this.afterRender = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        this.afterRender = lang.noop;
         this.loadTpl = function(callback) {
             if (!this.tplUrl || this.tpl) {
                 callback();
@@ -5115,7 +5121,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
             });
         };
         //子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
-        this.beforeLeave = function(modelReference, watcherReference, requesterReference, argumentsReference, lruCacheReference) {};
+        this.beforeLeave = lang.noop;
         this.leave = function(nextAction) {
             this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
             this.args = {};
