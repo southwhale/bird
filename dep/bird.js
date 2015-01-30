@@ -4519,6 +4519,16 @@ define("bird.string", [], function(require) {
             }
             return -1;
         };
+        /**
+         * 对字符中进行HTML编码
+         *
+         * @param {string} [source] 源字符串
+         * @param {string} HTML编码后的字符串
+         */
+        this.encodeHTML = function(source) {
+            source = source + "";
+            return source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        };
         function prefix(subject, pattern) {
             var subLen = subject.length;
             pattern[0] = 0;
