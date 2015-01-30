@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-01-28
+ * @date: 2015-01-30
  */
 /**
  *	封装LRU cache为独立模块
@@ -4100,7 +4100,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                             } else {
                                 result = this.response || this.responseText;
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
-                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function("return " + result)();
+                                    result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function("return (" + result + ")")();
                                 }
                                 result = ajaxPostFilter(result);
                                 obj.complete(result, this.status);
@@ -4549,7 +4549,7 @@ define("bird.syspatch", [ "./bird.util", "./bird.lang" ], function(require) {
         ctx.JSON = {
             parse: function(s) {
                 //return ctx.eval('(' + s + ')');
-                return new Function("return " + s)();
+                return new Function("return (" + s + ")")();
             },
             stringify: util.stringify
         };

@@ -13,7 +13,7 @@ define(function(require) {
 		ctx.JSON = {
 			parse: function(s) {
 				//return ctx.eval('(' + s + ')');
-				return new Function('return ' + s)();
+				return new Function('return (' + s + ')')();
 			},
 			stringify: util.stringify
 		};
