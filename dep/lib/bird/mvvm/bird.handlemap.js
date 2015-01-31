@@ -60,9 +60,21 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this.readonly = function(node, selector, variable, filter) {
             return function(value) {
-                node.readonly = !!value;
+                node.readOnly = !!value;
             };
         };
+        /*this.disabled = function(node, selector, variable, filter) {
+			return function(value) {
+				//node.disabled = !!value;
+				value ? dom.setAttr(node, 'disabled', 'disabled') : dom.removeAttr(node, 'disabled');
+				
+			};
+		};
+		this.readonly = function(node, selector, variable, filter) {
+			return function(value) {
+				value ? dom.setAttr(node, 'readonly', 'readonly') : dom.removeAttr(node, 'readonly');
+			};
+		};*/
         this.checked = function(node, selector, variable, filter) {
             return function(value) {
                 node.checked = !!value;

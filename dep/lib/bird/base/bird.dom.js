@@ -865,6 +865,17 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                 return element[attrName];
             }
         };
+        this.removeAttr = function(element, attrName) {
+            if (lang.isFunction(element.removeAttribute)) {
+                element.removeAttribute(attrName);
+            } else {
+                try {
+                    delete element[attrName];
+                } catch (e) {
+                    element[attrName] = null;
+                }
+            }
+        };
         this.show = function(element) {
             if (element.style.display === "none") {
                 element.style.display = "";
