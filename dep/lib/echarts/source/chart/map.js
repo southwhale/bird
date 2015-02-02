@@ -33,6 +33,36 @@ define('echarts/chart/map', [
     require('../component/dataRange');
     require('../component/roamController');
     var ecConfig = require('../config');
+    ecConfig.map = {
+        zlevel: 0,
+        z: 2,
+        mapType: 'china',
+        mapValuePrecision: 0,
+        showLegendSymbol: true,
+        dataRangeHoverLink: true,
+        hoverable: true,
+        clickable: true,
+        itemStyle: {
+            normal: {
+                borderColor: 'rgba(0,0,0,0)',
+                borderWidth: 1,
+                areaStyle: { color: '#ccc' },
+                label: {
+                    show: false,
+                    textStyle: { color: 'rgb(139,69,19)' }
+                }
+            },
+            emphasis: {
+                borderColor: 'rgba(0,0,0,0)',
+                borderWidth: 1,
+                areaStyle: { color: 'rgba(255,215,0,0.8)' },
+                label: {
+                    show: false,
+                    textStyle: { color: 'rgb(100,0,0)' }
+                }
+            }
+        }
+    };
     var ecData = require('../util/ecData');
     var zrUtil = require('zrender/tool/util');
     var zrConfig = require('zrender/config');
@@ -202,7 +232,7 @@ define('echarts/chart/map', [
                 self._buildMark(mt, ms);
                 if (--self._mapDataRequireCounter <= 0) {
                     self.addShapeList();
-                    self.zr.refresh();
+                    self.zr.refreshNextFrame();
                 }
             };
         },
@@ -441,7 +471,6 @@ define('echarts/chart/map', [
             var data;
             var value;
             var queryTarget;
-            var defaultOption = this.ecTheme.map;
             var color;
             var font;
             var style;
@@ -479,7 +508,6 @@ define('echarts/chart/map', [
                             }));
                         }
                     }
-                    queryTarget.push(defaultOption);
                     value = data.value;
                 } else {
                     data = '-';
@@ -488,9 +516,10 @@ define('echarts/chart/map', [
                     for (var key in mapSeries) {
                         queryTarget.push(series[key]);
                     }
-                    queryTarget.push(defaultOption);
                     value = '-';
                 }
+                this.ecTheme.map && queryTarget.push(this.ecTheme.map);
+                queryTarget.push(ecConfig);
                 color = dataRange && !isNaN(value) ? dataRange.getColor(value) : null;
                 style.color = style.color || color || this.getItemStyleColor(this.deepQuery(queryTarget, 'itemStyle.normal.color'), data.seriesIndex, -1, data) || this.deepQuery(queryTarget, 'itemStyle.normal.areaStyle.color');
                 style.strokeColor = style.strokeColor || this.deepQuery(queryTarget, 'itemStyle.normal.borderColor');
@@ -739,7 +768,7 @@ define('echarts/chart/map', [
                                 geoAndPos = this.geo2pos(mapType, this.shapeList[i]._geo[1]);
                                 this.shapeList[i]._x = this.shapeList[i].style.xEnd = geoAndPos[0];
                                 this.shapeList[i]._y = this.shapeList[i].style.yEnd = geoAndPos[1];
-                            } else if (this.shapeList[i].type == 'icon') {
+                            } else if (this.shapeList[i].type == 'icon' || this.shapeList[i].type == 'image') {
                                 geoAndPos = this.geo2pos(mapType, this.shapeList[i]._geo);
                                 this.shapeList[i].style.x = this.shapeList[i].style._x = geoAndPos[0] - this.shapeList[i].style.width / 2;
                                 this.shapeList[i].style.y = this.shapeList[i].style._y = geoAndPos[1] - this.shapeList[i].style.height / 2;
@@ -759,7 +788,7 @@ define('echarts/chart/map', [
             }
             if (haveScale) {
                 zrEvent.stop(event);
-                this.zr.refresh();
+                this.zr.refreshNextFrame();
                 var self = this;
                 clearTimeout(this._refreshDelayTicket);
                 this._refreshDelayTicket = setTimeout(function () {
@@ -815,7 +844,7 @@ define('echarts/chart/map', [
             }
             this.messageCenter.dispatch(ecConfig.EVENT.MAP_ROAM, params.event, { type: 'move' }, this.myChart);
             this.clearEffectShape(true);
-            this.zr.refresh();
+            this.zr.refreshNextFrame();
             this._justMove = true;
             zrEvent.stop(event);
         },
@@ -892,7 +921,7 @@ define('echarts/chart/map', [
             }
             this.messageCenter.dispatch(ecConfig.EVENT.MAP_ROAM, params.event, { type: 'move' }, this.myChart);
             this.clearEffectShape(true);
-            this.zr.refresh();
+            this.zr.refreshNextFrame();
             clearTimeout(this.dircetionTimer);
             var self = this;
             this.dircetionTimer = setTimeout(function () {
@@ -950,7 +979,7 @@ define('echarts/chart/map', [
                 selected: this._selected,
                 target: name
             }, this.myChart);
-            this.zr.refresh();
+            this.zr.refreshNextFrame();
             var self = this;
             setTimeout(function () {
                 self.zr.trigger(zrConfig.EVENT.MOUSEMOVE, params.event);
@@ -1533,6 +1562,32 @@ define('echarts/chart/map', [
     var RectangleShape = require('zrender/shape/Rectangle');
     var HandlePolygonShape = require('../util/shape/HandlePolygon');
     var ecConfig = require('../config');
+    ecConfig.dataRange = {
+        zlevel: 0,
+        z: 4,
+        show: true,
+        orient: 'vertical',
+        x: 'left',
+        y: 'bottom',
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderColor: '#ccc',
+        borderWidth: 0,
+        padding: 5,
+        itemGap: 10,
+        itemWidth: 20,
+        itemHeight: 14,
+        precision: 0,
+        splitNumber: 5,
+        calculable: false,
+        selectedMode: true,
+        hoverLink: true,
+        realtime: true,
+        color: [
+            '#006edd',
+            '#e0ffff'
+        ],
+        textStyle: { color: '#333' }
+    };
     var zrUtil = require('zrender/tool/util');
     var zrEvent = require('zrender/tool/event');
     var zrArea = require('zrender/tool/area');
@@ -2401,7 +2456,7 @@ define('echarts/chart/map', [
                 this._syncFillerShape(shape);
             }
             if (this.dataRangeOption.realtime) {
-                this._syncData();
+                this._dispatchDataRange();
             }
             return true;
         },
@@ -2412,16 +2467,10 @@ define('echarts/chart/map', [
             if (!this.isDragend || !param.target) {
                 return;
             }
-            !this.dataRangeOption.realtime && this._syncData();
             status.dragOut = true;
             status.dragIn = true;
             if (!this.dataRangeOption.realtime) {
-                this.messageCenter.dispatch(ecConfig.EVENT.DATA_RANGE, null, {
-                    range: {
-                        start: this._range.end,
-                        end: this._range.start
-                    }
-                }, this.myChart);
+                this._dispatchDataRange();
             }
             status.needRefresh = false;
             this.isDragend = false;
@@ -2531,17 +2580,15 @@ define('echarts/chart/map', [
             this.zr.modShape(this._startMask.id);
             this.zr.modShape(this._endMask.id);
             this.zr.modShape(this._fillerShape.id);
-            this.zr.refresh();
+            this.zr.refreshNextFrame();
         },
-        _syncData: function () {
-            if (this.dataRangeOption.realtime) {
-                this.messageCenter.dispatch(ecConfig.EVENT.DATA_RANGE, null, {
-                    range: {
-                        start: this._range.end,
-                        end: this._range.start
-                    }
-                }, this.myChart);
-            }
+        _dispatchDataRange: function () {
+            this.messageCenter.dispatch(ecConfig.EVENT.DATA_RANGE, null, {
+                range: {
+                    start: this._range.end,
+                    end: this._range.start
+                }
+            }, this.myChart);
         },
         __dataRangeSelected: function (param) {
             if (this.dataRangeOption.selectedMode === 'single') {
@@ -2587,7 +2634,7 @@ define('echarts/chart/map', [
         __onhoverlink: function (param) {
             if (this.dataRangeOption.show && this.dataRangeOption.hoverLink && this._indicatorShape && param && param.seriesIndex != null && param.dataIndex != null) {
                 var curValue = param.value;
-                if (curValue == '' || isNaN(curValue)) {
+                if (curValue === '' || isNaN(curValue)) {
                     return;
                 }
                 if (curValue < this.dataRangeOption.min) {
@@ -2721,6 +2768,23 @@ define('echarts/chart/map', [
     var SectorShape = require('zrender/shape/Sector');
     var CircleShape = require('zrender/shape/Circle');
     var ecConfig = require('../config');
+    ecConfig.roamController = {
+        zlevel: 0,
+        z: 4,
+        show: true,
+        x: 'left',
+        y: 'top',
+        width: 80,
+        height: 120,
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderColor: '#ccc',
+        borderWidth: 0,
+        padding: 5,
+        handleColor: '#6495ed',
+        fillerColor: '#fff',
+        step: 15,
+        mapTypeControl: null
+    };
     var zrUtil = require('zrender/tool/util');
     var zrColor = require('zrender/tool/color');
     var zrEvent = require('zrender/tool/event');

@@ -21,6 +21,99 @@ define('echarts/chart/gauge', [
     var CircleShape = require('zrender/shape/Circle');
     var SectorShape = require('zrender/shape/Sector');
     var ecConfig = require('../config');
+    ecConfig.gauge = {
+        zlevel: 0,
+        z: 2,
+        center: [
+            '50%',
+            '50%'
+        ],
+        clickable: true,
+        legendHoverLink: true,
+        radius: '75%',
+        startAngle: 225,
+        endAngle: -45,
+        min: 0,
+        max: 100,
+        precision: 0,
+        splitNumber: 10,
+        axisLine: {
+            show: true,
+            lineStyle: {
+                color: [
+                    [
+                        0.2,
+                        '#228b22'
+                    ],
+                    [
+                        0.8,
+                        '#48b'
+                    ],
+                    [
+                        1,
+                        '#ff4500'
+                    ]
+                ],
+                width: 30
+            }
+        },
+        axisTick: {
+            show: true,
+            splitNumber: 5,
+            length: 8,
+            lineStyle: {
+                color: '#eee',
+                width: 1,
+                type: 'solid'
+            }
+        },
+        axisLabel: {
+            show: true,
+            textStyle: { color: 'auto' }
+        },
+        splitLine: {
+            show: true,
+            length: 30,
+            lineStyle: {
+                color: '#eee',
+                width: 2,
+                type: 'solid'
+            }
+        },
+        pointer: {
+            show: true,
+            length: '80%',
+            width: 8,
+            color: 'auto'
+        },
+        title: {
+            show: true,
+            offsetCenter: [
+                0,
+                '-40%'
+            ],
+            textStyle: {
+                color: '#333',
+                fontSize: 15
+            }
+        },
+        detail: {
+            show: true,
+            backgroundColor: 'rgba(0,0,0,0)',
+            borderWidth: 0,
+            borderColor: '#ccc',
+            width: 100,
+            height: 40,
+            offsetCenter: [
+                0,
+                '40%'
+            ],
+            textStyle: {
+                color: 'auto',
+                fontSize: 30
+            }
+        }
+    };
     var ecData = require('../util/ecData');
     var accMath = require('../util/accMath');
     var zrUtil = require('zrender/tool/util');
@@ -248,6 +341,7 @@ define('echarts/chart/gauge', [
             var pointShape = new GaugePointerShape({
                 zlevel: this.getZlevelBase(),
                 z: this.getZBase() + 1,
+                clickable: this.query(serie, 'clickable'),
                 style: {
                     x: center[0],
                     y: center[1],
@@ -298,7 +392,7 @@ define('echarts/chart/gauge', [
                 var y = params.center[1] + this.parsePercent(offsetCenter[1], params.radius[1]);
                 this.shapeList.push(new TextShape({
                     zlevel: this.getZlevelBase(),
-                    z: this.getZBase() + (Math.abs(x - params.center[0]) + Math.abs(y - params.center[1])) < textStyle.fontSize * 2 ? 2 : 1,
+                    z: this.getZBase() + (Math.abs(x - params.center[0]) + Math.abs(y - params.center[1]) < textStyle.fontSize * 2 ? 2 : 1),
                     hoverable: false,
                     style: {
                         x: x,
@@ -331,7 +425,7 @@ define('echarts/chart/gauge', [
             var y = params.center[1] + this.parsePercent(offsetCenter[1], params.radius[1]);
             this.shapeList.push(new RectangleShape({
                 zlevel: this.getZlevelBase(),
-                z: this.getZBase() + (Math.abs(x + detail.width / 2 - params.center[0]) + Math.abs(y + detail.height / 2 - params.center[1])) < textStyle.fontSize ? 2 : 1,
+                z: this.getZBase() + (Math.abs(x + detail.width / 2 - params.center[0]) + Math.abs(y + detail.height / 2 - params.center[1]) < textStyle.fontSize ? 2 : 1),
                 hoverable: false,
                 style: {
                     x: x,

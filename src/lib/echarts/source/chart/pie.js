@@ -20,6 +20,55 @@ define('echarts/chart/pie', [
     var SectorShape = require('zrender/shape/Sector');
     var PolylineShape = require('zrender/shape/Polyline');
     var ecConfig = require('../config');
+    ecConfig.pie = {
+        zlevel: 0,
+        z: 2,
+        clickable: true,
+        legendHoverLink: true,
+        center: [
+            '50%',
+            '50%'
+        ],
+        radius: [
+            0,
+            '75%'
+        ],
+        clockWise: true,
+        startAngle: 90,
+        minAngle: 0,
+        selectedOffset: 10,
+        itemStyle: {
+            normal: {
+                borderColor: 'rgba(0,0,0,0)',
+                borderWidth: 1,
+                label: {
+                    show: true,
+                    position: 'outer'
+                },
+                labelLine: {
+                    show: true,
+                    length: 20,
+                    lineStyle: {
+                        width: 1,
+                        type: 'solid'
+                    }
+                }
+            },
+            emphasis: {
+                borderColor: 'rgba(0,0,0,0)',
+                borderWidth: 1,
+                label: { show: false },
+                labelLine: {
+                    show: false,
+                    length: 20,
+                    lineStyle: {
+                        width: 1,
+                        type: 'solid'
+                    }
+                }
+            }
+        }
+    };
     var ecData = require('../util/ecData');
     var zrUtil = require('zrender/tool/util');
     var zrMath = require('zrender/tool/math');
@@ -91,7 +140,7 @@ define('echarts/chart/pie', [
                                 r: radius[1] + 10,
                                 brushType: 'stroke',
                                 lineWidth: 1,
-                                strokeColor: series[i].calculableHolderColor || this.ecTheme.calculableHolderColor
+                                strokeColor: series[i].calculableHolderColor || this.ecTheme.calculableHolderColor || ecConfig.calculableHolderColor
                             }
                         };
                         ecData.pack(pieCase, series[i], i, undefined, -1);
@@ -474,8 +523,10 @@ define('echarts/chart/pie', [
                         deltaX = lastDeltaX + 10;
                     }
                     sList[i]._rect.x = sList[i].style.x = x + deltaX * direction;
-                    sList[i]._labelLine.style.pointList[2][0] = x + (deltaX - 5) * direction;
-                    sList[i]._labelLine.style.pointList[1][0] = x + (deltaX - 20) * direction;
+                    if (sList[i]._labelLine) {
+                        sList[i]._labelLine.style.pointList[2][0] = x + (deltaX - 5) * direction;
+                        sList[i]._labelLine.style.pointList[1][0] = x + (deltaX - 20) * direction;
+                    }
                     lastDeltaX = deltaX;
                 }
             }
@@ -506,9 +557,9 @@ define('echarts/chart/pie', [
         },
         reformOption: function (opt) {
             var _merge = zrUtil.merge;
-            opt = _merge(opt || {}, this.ecTheme.pie);
-            opt.itemStyle.normal.label.textStyle = _merge(opt.itemStyle.normal.label.textStyle || {}, this.ecTheme.textStyle);
-            opt.itemStyle.emphasis.label.textStyle = _merge(opt.itemStyle.emphasis.label.textStyle || {}, this.ecTheme.textStyle);
+            opt = _merge(_merge(opt || {}, zrUtil.clone(this.ecTheme.pie || {})), zrUtil.clone(ecConfig.pie));
+            opt.itemStyle.normal.label.textStyle = this.getTextStyle(opt.itemStyle.normal.label.textStyle);
+            opt.itemStyle.emphasis.label.textStyle = this.getTextStyle(opt.itemStyle.emphasis.label.textStyle);
             return opt;
         },
         refresh: function (newOption) {
@@ -661,7 +712,7 @@ define('echarts/chart/pie', [
                 selected: this._selected,
                 target: ecData.get(target, 'name')
             }, this.myChart);
-            this.zr.refresh();
+            this.zr.refreshNextFrame();
         }
     };
     zrUtil.inherits(Pie, ChartBase);
