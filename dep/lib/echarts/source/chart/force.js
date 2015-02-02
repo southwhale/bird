@@ -23,6 +23,58 @@ define('echarts/chart/force', [
     var ImageShape = require('zrender/shape/Image');
     var IconShape = require('../util/shape/Icon');
     var ecConfig = require('../config');
+    ecConfig.force = {
+        zlevel: 1,
+        z: 2,
+        center: [
+            '50%',
+            '50%'
+        ],
+        size: '100%',
+        preventOverlap: false,
+        coolDown: 0.99,
+        minRadius: 10,
+        maxRadius: 20,
+        ratioScaling: false,
+        large: false,
+        useWorker: false,
+        steps: 1,
+        scaling: 1,
+        gravity: 1,
+        symbol: 'circle',
+        symbolSize: 0,
+        linkSymbol: null,
+        linkSymbolSize: [
+            10,
+            15
+        ],
+        draggable: true,
+        clickable: true,
+        roam: false,
+        itemStyle: {
+            normal: {
+                label: {
+                    show: false,
+                    position: 'inside'
+                },
+                nodeStyle: {
+                    brushType: 'both',
+                    borderColor: '#5182ab',
+                    borderWidth: 1
+                },
+                linkStyle: {
+                    color: '#5182ab',
+                    width: 1,
+                    type: 'line'
+                }
+            },
+            emphasis: {
+                label: { show: false },
+                nodeStyle: {},
+                linkStyle: { opacity: 0 }
+            }
+        }
+    };
     var ecData = require('../util/ecData');
     var zrUtil = require('zrender/tool/util');
     var zrConfig = require('zrender/config');
@@ -861,9 +913,6 @@ define('echarts/chart/force', [
     };
     var ArrayCtor = typeof Float32Array == 'undefined' ? Array : Float32Array;
     var workerUrl;
-    function getToken() {
-        return Math.round(new Date().getTime() / 100) % 10000000;
-    }
     function createWorkerUrl() {
         if (typeof Worker !== 'undefined' && typeof Blob !== 'undefined') {
             try {

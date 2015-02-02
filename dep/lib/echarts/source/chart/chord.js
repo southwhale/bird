@@ -24,6 +24,58 @@ define('echarts/chart/chord', [
     var IconShape = require('../util/shape/Icon');
     var BezierCurveShape = require('zrender/shape/BezierCurve');
     var ecConfig = require('../config');
+    ecConfig.chord = {
+        zlevel: 0,
+        z: 2,
+        clickable: true,
+        radius: [
+            '65%',
+            '75%'
+        ],
+        center: [
+            '50%',
+            '50%'
+        ],
+        padding: 2,
+        sort: 'none',
+        sortSub: 'none',
+        startAngle: 90,
+        clockWise: true,
+        ribbonType: true,
+        minRadius: 10,
+        maxRadius: 20,
+        symbol: 'circle',
+        showScale: false,
+        showScaleText: false,
+        itemStyle: {
+            normal: {
+                borderWidth: 0,
+                borderColor: '#000',
+                label: {
+                    show: true,
+                    rotate: false,
+                    distance: 5
+                },
+                chordStyle: {
+                    width: 1,
+                    color: 'black',
+                    borderWidth: 1,
+                    borderColor: '#999',
+                    opacity: 0.5
+                }
+            },
+            emphasis: {
+                borderWidth: 0,
+                borderColor: '#000',
+                chordStyle: {
+                    width: 1,
+                    color: 'black',
+                    borderWidth: 1,
+                    borderColor: '#999'
+                }
+            }
+        }
+    };
     var ecData = require('../util/ecData');
     var zrUtil = require('zrender/tool/util');
     var vec2 = require('zrender/tool/vector');
@@ -773,8 +825,8 @@ define('echarts/chart/chord', [
         },
         reformOption: function (opt) {
             var _merge = zrUtil.merge;
-            opt = _merge(opt || {}, this.ecTheme.chord);
-            opt.itemStyle.normal.label.textStyle = _merge(opt.itemStyle.normal.label.textStyle || {}, this.ecTheme.textStyle);
+            opt = _merge(_merge(opt || {}, this.ecTheme.chord), ecConfig.chord);
+            opt.itemStyle.normal.label.textStyle = this.getTextStyle(opt.itemStyle.normal.label.textStyle);
         }
     };
     zrUtil.inherits(Chord, ChartBase);
