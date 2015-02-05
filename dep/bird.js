@@ -5300,8 +5300,14 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
         //调度指定的Action并启动Action
         this.dispatch = function(name, data) {
             var me = this;
+            me.lastName = name;
             //兼容seajs和esl
             (require.async || require)(name, function(action) {
+                //如果模块ModA需要的资源还没加载完全就点击链接进入另个模块ModB
+                //进入ModB之后, ModA的资源加载完成, 此时不该进入ModA, 应抛弃ModA
+                if (name !== me.lastName) {
+                    return;
+                }
                 data.action = name;
                 if (action && action instanceof Action) {
                     me.currentAction && me.currentAction.leave(action);
