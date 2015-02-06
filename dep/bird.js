@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-02-05
+ * @date: 2015-02-06
  */
 /**
  *	封装LRU cache为独立模块
@@ -6838,11 +6838,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             "float": "小数位不能超过{{digit}}位"
         };
         var ruleMap = {
-            required: function(value) {
+            required: function(value, fieldName) {
                 var ret = checkReg.required.test(value);
                 return {
                     success: ret,
-                    message: !ret && messageMap["required"]
+                    message: !ret && messageMap["required"] + (fieldName || "")
                 };
             },
             number: function(value) {

@@ -49,11 +49,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             "float": "小数位不能超过{{digit}}位"
         };
         var ruleMap = {
-            required: function(value) {
+            required: function(value, fieldName) {
                 var ret = checkReg.required.test(value);
                 return {
                     success: ret,
-                    message: !ret && messageMap["required"]
+                    message: !ret && messageMap["required"] + (fieldName || "")
                 };
             },
             number: function(value) {

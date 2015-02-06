@@ -57,11 +57,11 @@ define(function(require) {
 
 
         var ruleMap = {
-            'required': function(value) {
+            'required': function(value, fieldName) {
                 var ret = checkReg.required.test(value);
                 return {
                     success: ret,
-                    message: !ret && messageMap['required']
+                    message: !ret && messageMap['required'] + (fieldName || '')
                 };
 
             },
