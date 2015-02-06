@@ -7,7 +7,9 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
     var lang = require("bird.lang");
     var array = require("bird.array");
     var Action = require("./bird.action");
-    function Controller() {}
+    function Controller() {
+        this.actionInstanceCache = {};
+    }
     (function() {
         this.start = function() {
             router.start();
@@ -18,6 +20,11 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
         this.dispatch = function(name, data) {
             var me = this;
             me.lastName = name;
+            var instance = this.actionInstanceCache[name];
+            if (instance) {
+                enter.call(this, instance, data, name);
+                return;
+            }
             //兼容seajs和esl
             (require.async || require)(name, function(action) {
                 //如果模块ModA需要的资源还没加载完全就点击链接进入另个模块ModB
@@ -25,11 +32,13 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
                 if (name !== me.lastName) {
                     return;
                 }
-                data.action = name;
-                if (action && action instanceof Action) {
-                    me.currentAction && me.currentAction.leave(action);
-                    me.currentAction = action;
-                    action.enter(data);
+                if (!lang.isFunction(action)) {
+                    return;
+                }
+                var instance = new action();
+                if (instance instanceof Action) {
+                    me.actionInstanceCache[name] = instance;
+                    enter.call(me, instance, data, name);
                 }
             });
         };
@@ -50,6 +59,12 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
         this.configApp = function(options) {
             this.actionMaps = lang.isArray(options) ? options : options.actionMaps;
         };
+        function enter(instance, data, name) {
+            data.action = name;
+            this.currentAction && this.currentAction.leave(instance);
+            this.currentAction = instance;
+            instance.enter(data);
+        }
     }).call(Controller.prototype);
     return new Controller();
 });

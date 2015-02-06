@@ -10,7 +10,7 @@ define(function(require) {
 	var Action = require('./bird.action');
 
 	function Controller() {
-
+		this.actionInstanceCache = {};
 	}
 
 	(function() {
@@ -26,21 +26,27 @@ define(function(require) {
 		this.dispatch = function(name, data) {
 			var me = this;
 			me.lastName = name;
-			//兼容seajs和esl
-			(require.async || require)(name, function(action) {
-				//如果模块ModA需要的资源还没加载完全就点击链接进入另个模块ModB
-				//进入ModB之后, ModA的资源加载完成, 此时不该进入ModA, 应抛弃ModA
-				if (name !== me.lastName) {
-					return;
-				}
-
-				data.action = name;
-				if (action && (action instanceof Action)) {
-					me.currentAction && me.currentAction.leave(action);
-					me.currentAction = action;
-					action.enter(data);
-				}
-			});
+			var instance = this.actionInstanceCache[name];
+            if (instance) {
+                enter.call(this, instance, data, name);
+                return;
+            }
+            //兼容seajs和esl
+            (require.async || require)(name, function(action) {
+                //如果模块ModA需要的资源还没加载完全就点击链接进入另个模块ModB
+                //进入ModB之后, ModA的资源加载完成, 此时不该进入ModA, 应抛弃ModA
+                if (name !== me.lastName) {
+                    return;
+                }
+                if (!lang.isFunction(action)) {
+                    return;
+                }
+                var instance = new action();
+                if (instance instanceof Action) {
+                    me.actionInstanceCache[name] = instance;
+                    enter.call(me, instance, data, name);
+                }
+            });
 		};
 
 		this.initActionListener = function() {
@@ -61,6 +67,14 @@ define(function(require) {
 		this.configApp = function(options) {
 			this.actionMaps = lang.isArray(options) ? options : options.actionMaps;
 		};
+
+
+		function enter(instance, data, name) {
+			data.action = name;
+            this.currentAction && this.currentAction.leave(instance);
+            this.currentAction = instance;
+            instance.enter(data);
+        }
 
 	}).call(Controller.prototype);
 
