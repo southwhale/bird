@@ -34,18 +34,24 @@ define("bird.class", [ "./bird.object" ], function(require) {
             object.forEach(originalSubClassProto, function(fn, property) {
                 if (subClass.prototype[property]) {
                     fn["__propertyname__"] = property;
+                    fn["__superclass__"] = superClass;
                 }
                 subClass.prototype[property] = fn;
             }, true);
-            subClass.prototype.$superMethod = function(args) {
-                var method = this.$superMethod.caller;
-                var methodName = method["__propertyname__"];
-                subClass.superClass.prototype[methodName].apply(this, args);
-            };
-            subClass.prototype.$superConstructor = function(args) {
-                var method = this.$superConstructor.caller;
-                method.superClass.apply(this, args);
-            };
+            if (!superClass.prototype.$superMethod) {
+                superClass.prototype.$superMethod = function(args) {
+                    var method = this.$superMethod.caller;
+                    var methodName = method["__propertyname__"];
+                    var _superClass = method["__superclass__"];
+                    _superClass.prototype[methodName].apply(this, args);
+                };
+            }
+            if (!superClass.prototype.$superConstructor) {
+                superClass.prototype.$superConstructor = function(args) {
+                    var method = this.$superConstructor.caller;
+                    method.superClass.apply(this, args);
+                };
+            }
             subClass.prototype.constructor = subClass;
             return subClass;
         };
