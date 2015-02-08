@@ -78,8 +78,9 @@ define(function(require) {
 
 				me[methodName] = function(data, completeCallback, errorCallback) {
 					if (/\{\{.+?\}\}/.test(url)) {
-						url = string.format(url, data);
-						//delete data.id;
+						url = string.format(url, data, function(k, d) {
+							delete d[k];
+						});
 					}
 					request.ajax({
 						url: url,

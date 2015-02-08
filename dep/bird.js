@@ -6020,7 +6020,9 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                 }
                 me[methodName] = function(data, completeCallback, errorCallback) {
                     if (/\{\{.+?\}\}/.test(url)) {
-                        url = string.format(url, data);
+                        url = string.format(url, data, function(k, d) {
+                            delete d[k];
+                        });
                     }
                     request.ajax({
                         url: url,
