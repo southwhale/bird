@@ -77,13 +77,14 @@ define(function(require) {
 				}
 
 				me[methodName] = function(data, completeCallback, errorCallback) {
+					var reqUrl = url;
 					if (/\{\{.+?\}\}/.test(url)) {
-						url = string.format(url, data, function(k, d) {
+						reqUrl = string.format(url, data, function(k, d) {
 							delete d[k];
 						});
 					}
 					request.ajax({
-						url: url,
+						url: reqUrl,
 						data: data,
 						requestType: reqType,
 						responseType: 'json',
