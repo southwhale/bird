@@ -2,10 +2,11 @@
  * 所有业务Action的基类,定义了一个Action应该包含的一系列接口
  * 所有业务子Action必须继承该类
  */
-define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__", "bird.router" ], function(require) {
+define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "bird.array", "bird.util", "bird.request", "./bird.model", "./bird.databind", "./bird.requesthelper", "./bird.validator", "bird.__lrucache__", "bird.router" ], function(require) {
     var object = require("bird.object");
     var lang = require("bird.lang");
     var dom = require("bird.dom");
+    var string = require("bird.string");
     var array = require("bird.array");
     var util = require("bird.util");
     var request = require("bird.request");
@@ -221,12 +222,12 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.array", "b
         this.enter = function(args) {
             var me = this;
             this.args = args;
+            this._initModel();
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
                 me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
             });
-            this._initModel();
             this.loadTpl(function() {
                 if (me.lifePhase >= me.LifeCycle.DESTROYED) {
                     return;

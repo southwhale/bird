@@ -8,6 +8,7 @@ define(function(require) {
 	var object = require('bird.object');
 	var lang = require('bird.lang');
 	var dom = require('bird.dom');
+	var string = require('bird.string');
 	var array = require('bird.array');
 	var util = require('bird.util');
 	var request = require('bird.request');
@@ -272,12 +273,14 @@ define(function(require) {
 		this.enter = function(args) {
 			var me = this;
 			this.args = args;
+			this._initModel();
+			
 			this._requestData(function() {
 				me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
 				me._render();
 				me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
 			});
-			this._initModel();
+			
 			this.loadTpl(function() {
 				if (me.lifePhase >= me.LifeCycle.DESTROYED) {
 					return;
