@@ -58,7 +58,7 @@ define("bird.string", [], function(require) {
         this.escapeRegExp = function(s) {
             return s.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
         };
-        this.format = function(template, data) {
+        this.format = function(template, data, callback) {
             if (!template) {
                 return "";
             }
@@ -69,6 +69,9 @@ define("bird.string", [], function(require) {
                 var replacer = data[key];
                 if (typeof replacer === "function") {
                     replacer = replacer(key);
+                }
+                if (typeof callback === "function") {
+                    callback(key, data);
                 }
                 return replacer == null ? "" : replacer;
             });
