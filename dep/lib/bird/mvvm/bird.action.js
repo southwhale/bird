@@ -25,7 +25,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
         this.lruCache = new LRUCache();
         this.args = {};
         this.lifePhase = this.LifeCycle.NEW;
-        this.init();
     }
     Action.setContainer = function(container) {
         Action.prototype.container = lang.isString(container) ? document.getElementById(container) : container;
@@ -222,6 +221,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
         this.enter = function(args) {
             var me = this;
             this.args = args;
+            if (this.lifePhase < this.LifeCycle.INITED) {
+                this.init();
+            }
             this._initModel();
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);

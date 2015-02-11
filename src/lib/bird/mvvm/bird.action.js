@@ -30,8 +30,6 @@ define(function(require) {
 		this.args = {};
 
 		this.lifePhase = this.LifeCycle.NEW;
-
-		this.init();
 	}
 
 	Action.setContainer = function(container) {
@@ -273,6 +271,9 @@ define(function(require) {
 		this.enter = function(args) {
 			var me = this;
 			this.args = args;
+			if (this.lifePhase < this.LifeCycle.INITED) {
+                this.init();
+            }
 			this._initModel();
 			
 			this._requestData(function() {
