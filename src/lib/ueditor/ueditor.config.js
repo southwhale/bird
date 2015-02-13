@@ -353,9 +353,17 @@
 
     function getConfigFilePath() {
 
-        var configPath = document.getElementsByTagName('script');
+        /*var configPath = document.getElementsByTagName('script');
+        var ueScriptSrc;
+        for (var i = 0, len = configPath.length; i < len; i++) {
+            ueScriptSrc = configPath[i].src;
+            if (/\/ueditor\/.+/i.test(ueScriptSrc)) {
+                break;
+            }
+        }
 
-        return configPath[ configPath.length - 1 ].src;
+        return ueScriptSrc;*/
+        return 'dep/lib/ueditor/ueditor.config.js';
 
     }
 

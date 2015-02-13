@@ -4,7 +4,7 @@
  * build: Thu May 29 2014 16:47:57 GMT+0800 (中国标准时间)
  */
 
-(function(){
+define(function(require){
 
 // editor.js
 UEDITOR_CONFIG = window.UEDITOR_CONFIG || {};
@@ -14445,14 +14445,16 @@ UE.plugin.register('copy', function () {
                     if (window.ZeroClipboard) {
                         initZeroClipboard();
                     } else {
-                        utils.loadFile(document, {
+                        /*utils.loadFile(document, {
                             src: me.options.UEDITOR_HOME_URL + "third-party/zeroclipboard/ZeroClipboard.js",
                             tag: "script",
                             type: "text/javascript",
                             defer: "defer"
                         }, function () {
                             initZeroClipboard();
-                        });
+                        });*/
+                        window.ZeroClipboard = require('ueditor.zeroclipboard');
+                        initZeroClipboard();
                     }
                 }
             }
@@ -29426,4 +29428,4 @@ UE.registerUI('autosave', function(editor) {
 
 
 
-})();
+});
