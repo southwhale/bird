@@ -1,4 +1,4 @@
-/**
+﻿/**
  * User: Jinqn
  * Date: 14-04-08
  * Time: 下午16:34
@@ -29,11 +29,12 @@
         }
 
         var img = editor.selection.getRange().getClosedNode();
-        if (img && img.tagName && img.tagName.toLowerCase() == 'img') {
+	// 禁用上传功能，这里使得初始化插入图片功能时显示插入图片的tab
+        //if (img && img.tagName && img.tagName.toLowerCase() == 'img') {
             setTabFocus('remote');
-        } else {
-            setTabFocus('upload');
-        }
+        //} else {
+        //    setTabFocus('upload');
+        //}
     }
 
     /* 初始化tabbody */
