@@ -6851,7 +6851,8 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             time: /^\d{1,2}:\d{1,2}:\d{1,2}$/,
             carNo: /^[\u4e00-\u9fa5]{1}[a-zA-Z]{1}[a-zA-Z_0-9]{4}[a-zA-Z_0-9_\u4e00-\u9fa5]$|^[a-zA-Z]{2}\d{7}$/,
             validCode: /^[A-Za-z0-9]{4}$/,
-            qq: /^\d{4,}$/
+            qq: /^\d{4,}$/,
+            password: /^[a-zA-Z0-9-_]+$/
         };
         var messageMap = {
             required: "请输入",
@@ -6870,8 +6871,11 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             datetime: "日期和时间格式不正确",
             birthday: "生日格式不正确",
             qq: "QQ号码格式不正确",
+            password: '密码只能由字母、数字、"_"或"-"组成',
             idCard: "身份证号码格式不正确",
-            "float": "小数位不能超过{{digit}}位"
+            "float": "小数位不能超过{{digit}}位",
+            minLength: "字符数少于{{minLength}}个",
+            maxLength: "字符数超过{{maxLength}}个"
         };
         var ruleMap = {
             required: function(value, fieldName) {
@@ -7051,6 +7055,48 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 return {
                     success: false,
                     message: messageMap["mobile"]
+                };
+            },
+            minLength: function(value, minLen) {
+                if (value == null || value.length < minLen) {
+                    return {
+                        success: false,
+                        message: string.format(messageMap["minLength"], {
+                            minLength: minLen
+                        })
+                    };
+                }
+                return {
+                    success: true
+                };
+            },
+            maxLength: function(value, maxLen) {
+                if (value == null || value.length < minLen) {
+                    return {
+                        success: false,
+                        message: string.format(messageMap["maxLength"], {
+                            maxLength: maxLen
+                        })
+                    };
+                }
+                return {
+                    success: true
+                };
+            },
+            password: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.password.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["password"]
                 };
             },
             birthday: function(value) {
