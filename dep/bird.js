@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-02-17
+ * @date: 2015-02-28
  */
 /**
  *	封装LRU cache为独立模块
@@ -6846,10 +6846,12 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             address: /((.*[\u0391-\uFFE5].*)+){6,}/,
             authCode: /^\d{6}$/,
             date: /^\d{4}-\d{1,2}-\d{1,2}$/,
+            birthday: /^\d{4}-\d{2}-\d{2}$/,
             datetime: /^\d{4}-\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}:\d{1,2}$/,
             time: /^\d{1,2}:\d{1,2}:\d{1,2}$/,
             carNo: /^[\u4e00-\u9fa5]{1}[a-zA-Z]{1}[a-zA-Z_0-9]{4}[a-zA-Z_0-9_\u4e00-\u9fa5]$|^[a-zA-Z]{2}\d{7}$/,
-            validCode: /^[A-Za-z0-9]{4}$/
+            validCode: /^[A-Za-z0-9]{4}$/,
+            qq: /^\d{4,}$/
         };
         var messageMap = {
             required: "请输入",
@@ -6864,6 +6866,10 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             notPositiveInt: "只能输入非正整数",
             email: "邮箱格式不正确",
             mobile: "手机号码格式不正确",
+            date: "日期格式不正确",
+            datetime: "日期和时间格式不正确",
+            birthday: "生日格式不正确",
+            qq: "QQ号码格式不正确",
             idCard: "身份证号码格式不正确",
             "float": "小数位不能超过{{digit}}位"
         };
@@ -7045,6 +7051,70 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 return {
                     success: false,
                     message: messageMap["mobile"]
+                };
+            },
+            birthday: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.birthday.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["birthday"]
+                };
+            },
+            qq: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.qq.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["qq"]
+                };
+            },
+            date: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.date.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["date"]
+                };
+            },
+            datetime: function(value) {
+                if (value == null || value === "") {
+                    return {
+                        success: true
+                    };
+                }
+                if (checkReg.datetime.test(value)) {
+                    return {
+                        success: true
+                    };
+                }
+                return {
+                    success: false,
+                    message: messageMap["datetime"]
                 };
             },
             idCard: function(b) {
