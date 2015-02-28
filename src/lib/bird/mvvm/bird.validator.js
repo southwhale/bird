@@ -61,8 +61,8 @@ define(function(require) {
             'password': '密码只能由字母、数字、"_"或"-"组成',
             'idCard': '身份证号码格式不正确',
             'float': '小数位不能超过{{digit}}位',
-            'minLength': '字符数少于{{minLength}}个',
-            'maxLength': '字符数超过{{maxLength}}个',
+            'minLength': '字符数不能少于{{minLength}}个',
+            'maxLength': '字符数不能超过{{maxLength}}个',
         };
 
 
