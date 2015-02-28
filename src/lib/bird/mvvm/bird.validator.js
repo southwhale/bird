@@ -62,7 +62,7 @@ define(function(require) {
             'idCard': '身份证号码格式不正确',
             'float': '小数位不能超过{{digit}}位',
             'minLength': '字符数不能少于{{minLength}}个',
-            'maxLength': '字符数不能超过{{maxLength}}个',
+            'maxLength': '字符数不能超过{{maxLength}}个'
         };
 
 
