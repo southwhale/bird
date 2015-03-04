@@ -121,12 +121,12 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                 eventMap[eventHandleKey] = value;
             };
         };
-        this.customAttr = function(node, selector, variable, filter, key) {
-            return function(value) {
-                value = filter ? filterHelper.filter(value, filter) : value;
-                dom.setAttr(node, key, value);
-            };
-        };
+        /*this.customAttr = function(node, selector, variable, filter, key) {
+			return function(value) {
+				value = filter ? filterHelper.filter(value, filter) : value;
+				dom.setAttr(node, key, value);
+			};
+		};*/
         //默认的处理函数
         this["default"] = function(node, selector, variable, filter, type) {
             return function(value) {

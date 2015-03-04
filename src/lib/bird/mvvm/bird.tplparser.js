@@ -21,7 +21,7 @@ define(function(require) {
         //valueVariable是用来为checkbox 、radio 、select服务的
         //这三个控件的value通常作为固定选项值存在
         var variableAttrs = [ "class", "src", "href", "value", "valueVariable", "style", "type", "alt", "for", "readonly", "disabled", "checked", "selected", "placeholder" ];
-        var parseFunctionNames = [ "_parseInlineEvents", "_parseCustomAttr" ];
+        var parseFunctionNames = [ "_parseInlineEvents"/*, "_parseCustomAttr"*/ ];
         var regExpMap = {
             htmlStartTag: /<([a-zA-Z]+\d*)([^>]*?)\/?>/g,
             //$1: tagName, $2: propertyStrs
@@ -94,7 +94,7 @@ define(function(require) {
                 tagName = arr[1];
                 propertyStr = arr[2];
                 if (regExpMap.hasVariable.test(propertyStr)) {
-                    var idArr = /id=(['"])(.+?)\1/i.exec(propertyStr)
+                    var idArr = /\s+id=(['"])(.+?)\1/i.exec(propertyStr)
                     var id = idArr && idArr[2] || util.uuid("bind_");
                     var parsedInfo = this.parsedInfoCache[id] = {
                         id: id,
@@ -199,7 +199,7 @@ define(function(require) {
             }
             ret.length && (parsedInfo.event = ret);
         };
-        this._parseCustomAttr = function(str, parsedInfo) {
+        /*this._parseCustomAttr = function(str, parsedInfo) {
             var ret = [];
             var customAttrRE = /(data-[a-z0-9$]+)=(['"])\s*\{\{([a-z_$][a-z0-9_$]*?)\}\}\s*\2/gi;
             var arr;
@@ -211,7 +211,7 @@ define(function(require) {
                 });
             }
             ret.length && (parsedInfo.customAttr = ret);
-        };
+        };*/
         this._parseStyle = function(str, parsedInfo) {
             var arr = regExpMap.style.exec(str);
             if (arr) {

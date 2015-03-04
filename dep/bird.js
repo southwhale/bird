@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-02-28
+ * @date: 2015-03-04
  */
 /**
  *	封装LRU cache为独立模块
@@ -5832,12 +5832,12 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                 eventMap[eventHandleKey] = value;
             };
         };
-        this.customAttr = function(node, selector, variable, filter, key) {
-            return function(value) {
-                value = filter ? filterHelper.filter(value, filter) : value;
-                dom.setAttr(node, key, value);
-            };
-        };
+        /*this.customAttr = function(node, selector, variable, filter, key) {
+			return function(value) {
+				value = filter ? filterHelper.filter(value, filter) : value;
+				dom.setAttr(node, key, value);
+			};
+		};*/
         //默认的处理函数
         this["default"] = function(node, selector, variable, filter, type) {
             return function(value) {
@@ -6559,7 +6559,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         //valueVariable是用来为checkbox 、radio 、select服务的
         //这三个控件的value通常作为固定选项值存在
         var variableAttrs = [ "class", "src", "href", "value", "valueVariable", "style", "type", "alt", "for", "readonly", "disabled", "checked", "selected", "placeholder" ];
-        var parseFunctionNames = [ "_parseInlineEvents", "_parseCustomAttr" ];
+        var parseFunctionNames = [ "_parseInlineEvents" ];
         var regExpMap = {
             htmlStartTag: /<([a-zA-Z]+\d*)([^>]*?)\/?>/g,
             //$1: tagName, $2: propertyStrs
@@ -6632,7 +6632,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                 tagName = arr[1];
                 propertyStr = arr[2];
                 if (regExpMap.hasVariable.test(propertyStr)) {
-                    var idArr = /id=(['"])(.+?)\1/i.exec(propertyStr);
+                    var idArr = /\s+id=(['"])(.+?)\1/i.exec(propertyStr);
                     var id = idArr && idArr[2] || util.uuid("bind_");
                     var parsedInfo = this.parsedInfoCache[id] = {
                         id: id,
@@ -6737,7 +6737,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
             }
             ret.length && (parsedInfo.event = ret);
         };
-        this._parseCustomAttr = function(str, parsedInfo) {
+        /*this._parseCustomAttr = function(str, parsedInfo) {
             var ret = [];
             var customAttrRE = /(data-[a-z0-9$]+)=(['"])\s*\{\{([a-z_$][a-z0-9_$]*?)\}\}\s*\2/gi;
             var arr;
@@ -6749,7 +6749,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
                 });
             }
             ret.length && (parsedInfo.customAttr = ret);
-        };
+        };*/
         this._parseStyle = function(str, parsedInfo) {
             var arr = regExpMap.style.exec(str);
             if (arr) {
