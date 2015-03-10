@@ -103,7 +103,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var selector = info.id;
                 var node = dom.getElementById(selector);
                 object.forEach(info, function(val, key) {
-                    if (/id|tagName/.test(key)) {
+                    if (/^(?:id|tagName)$/.test(key)) {
                         return;
                     }
                     if (val.filter === "include") {

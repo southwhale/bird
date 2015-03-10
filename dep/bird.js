@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-04
+ * @date: 2015-03-10
  */
 /**
  *	封装LRU cache为独立模块
@@ -5468,7 +5468,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 var selector = info.id;
                 var node = dom.getElementById(selector);
                 object.forEach(info, function(val, key) {
-                    if (/id|tagName/.test(key)) {
+                    if (/^(?:id|tagName)$/.test(key)) {
                         return;
                     }
                     if (val.filter === "include") {
