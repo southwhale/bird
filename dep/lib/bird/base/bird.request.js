@@ -22,11 +22,11 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 });
             }
         }
-        function ajaxPostFilter(data) {
+        function ajaxPostFilter(data, reqData) {
             if (interceptors.length && lang.isNotEmpty(data)) {
                 array.forEach(interceptors, function(interceptor) {
                     if (lang.isFunction(interceptor.response)) {
-                        var ret = interceptor.response(data);
+                        var ret = interceptor.response(data, reqData);
                         if (!lang.isUndefinedOrNull(ret)) {
                             data = ret;
                         }
@@ -64,14 +64,14 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                         if (lang.isFunction(obj.complete)) {
                             var result;
                             if (/^xml$/i.test(obj.responseType)) {
-                                result = ajaxPostFilter(this.responseXML);
+                                result = ajaxPostFilter(this.responseXML, obj);
                                 obj.complete(result, this.status);
                             } else {
                                 result = this.response || this.responseText;
                                 if (lang.isString(result) && /^json$/i.test(obj.responseType)) {
                                     result = typeof JSON !== "undefined" && lang.isFunction(JSON.parse) ? JSON.parse(result) : new Function("return (" + result + ")")();
                                 }
-                                result = ajaxPostFilter(result);
+                                result = ajaxPostFilter(result, obj);
                                 obj.complete(result, this.status);
                             }
                         }
