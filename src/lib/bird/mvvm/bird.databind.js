@@ -118,7 +118,7 @@ define(function(require) {
 				var selector = info.id;
                 var node = dom.getElementById(selector);
                 object.forEach(info, function(val, key) {
-                    if (/id|tagName/.test(key)) {
+                    if (/^(?:id|tagName)$/.test(key)) {
                         return;
                     }
 					if (val.filter === "include") {
