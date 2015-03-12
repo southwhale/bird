@@ -267,10 +267,17 @@ define(function(require) {
 			}
 		};
 
+		this.beforeEnter = function () {
+			return true;
+		};
 
 		this.enter = function(args) {
-			var me = this;
 			this.args = args;
+			if (!this.beforeEnter()) {
+				return;
+			}
+			var me = this;
+			
 			if (this.lifePhase < this.LifeCycle.INITED) {
                 this.init();
             }
