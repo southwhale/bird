@@ -223,7 +223,15 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
         };
         this.getParsedValidators = function(id) {
             var info = this.tplParser.parsedInfoCache[id];
-            return info && info.value && info.value.validators || [];
+            var ret = [];
+            if (info) {
+                if (info.value && info.value.validators) {
+                    ret = info.value.validators;
+                } else if (info.htmlText && info.htmlText.validators) {
+                    ret = info.htmlText.validators;
+                }
+            }
+            return ret;
         };
         this.destroy = function(deepDestroy) {
             deepDestroy && this.tplParser.destroy();
