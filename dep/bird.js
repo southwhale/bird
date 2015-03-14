@@ -7075,7 +7075,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 };
             },
             maxLength: function(value, maxLen) {
-                if (value == null || value.length < maxLen) {
+                if (value == null || value.length > maxLen) {
                     return {
                         success: false,
                         message: string.format(messageMap["maxLength"], {
