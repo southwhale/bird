@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-12
+ * @date: 2015-03-14
  */
 /**
  *	封装LRU cache为独立模块
@@ -7075,7 +7075,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
                 };
             },
             maxLength: function(value, maxLen) {
-                if (value == null || value.length < minLen) {
+                if (value == null || value.length < maxLen) {
                     return {
                         success: false,
                         message: string.format(messageMap["maxLength"], {
