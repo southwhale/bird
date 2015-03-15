@@ -218,14 +218,14 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 });
             }
         };
-        this.beforeEnter = function() {
+        this.beforeEnter = function($arg) {
             return true;
         };
         this.enter = function(args) {
-            this.args = args;
-            if (!this.beforeEnter()) {
+            if (!this.beforeEnter(args)) {
                 return;
             }
+            this.args = args;
             var me = this;
             if (this.lifePhase < this.LifeCycle.INITED) {
                 this.init();
