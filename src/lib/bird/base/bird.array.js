@@ -179,6 +179,14 @@ define(function(require) {
 		this.complement = function(firstArr, secondArr){
 			return this.difference(this.union(firstArr, secondArr), this.intersect(firstArr, secondArr));
 		};
+
+		this.maplize = function (arr) {
+			var ret = {};
+			this.forEach(arr, function (value, index) {
+				ret[index] = value;
+			});
+			return ret;
+		};
 	}).call(_Array.prototype);
 
 	return new _Array();

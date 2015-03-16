@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-15
+ * @date: 2015-03-16
  */
 /**
  *	封装LRU cache为独立模块
@@ -1725,6 +1725,13 @@ define("bird.array", [ "./bird.lang" ], function(require) {
         //求补集
         this.complement = function(firstArr, secondArr) {
             return this.difference(this.union(firstArr, secondArr), this.intersect(firstArr, secondArr));
+        };
+        this.maplize = function(arr) {
+            var ret = {};
+            this.forEach(arr, function(value, index) {
+                ret[index] = value;
+            });
+            return ret;
         };
     }).call(_Array.prototype);
     return new _Array();
@@ -4144,6 +4151,38 @@ define("bird.observer", [ "./bird.__observer__" ], function(require) {
 
 	容器下只有一个Panel控件，其他各控件都被Panel控件包裹，成为Panel的childControl
 */
+define("bird.random", [], function(require) {
+    function Random() {}
+    (function() {
+        /**
+         * 从数字arr中随机出n个元素
+         */
+        this.randomFromArray = function(n, arr) {
+            var indexArr = [];
+            var ret = [];
+            for (var i = 0; i < arr.length; i++) {
+                indexArr[i] = i;
+            }
+            while (n--) {
+                var randomInt = this.randomIntegerBetween(0, indexArr.length - 1);
+                ret.push(arr[indexArr[randomInt]]);
+                indexArr.splice(randomInt, 1);
+            }
+            return ret;
+        };
+        /**
+         * 从[start, end]随机出一个数字, 包含start和end
+         * 如[2, 10], 是从[2,3,4,5,6,7,8,9,10]中随机出一个数字
+         */
+        this.randomIntegerBetween = function(start, end) {
+            return Math.floor((end - start + 1) * Math.random()) + start;
+        };
+        this.randomBetween = function(start, end) {
+            return (end - start) * Math.random() + start;
+        };
+    }).call(Random.prototype);
+    return new Random();
+});
 define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.string", "./bird.util", "./bird.object", "./bird.date" ], function(require) {
     var dom = require("./bird.dom");
     var lang = require("./bird.lang");
