@@ -5,7 +5,7 @@ define(function(require){
 
     (function(){
         /**
-         * 从数字arr中随机出n个元素
+         * 从数组arr中随机出n个元素
          */
         this.randomFromArray = function (n, arr) {
             var indexArr = [];
