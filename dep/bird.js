@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-16
+ * @date: 2015-03-19
  */
 /**
  *	封装LRU cache为独立模块
@@ -4155,7 +4155,7 @@ define("bird.random", [], function(require) {
     function Random() {}
     (function() {
         /**
-         * 从数字arr中随机出n个元素
+         * 从数组arr中随机出n个元素
          */
         this.randomFromArray = function(n, arr) {
             var indexArr = [];
@@ -5263,18 +5263,21 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 });
             }
         };
-        this.beforeEnter = function($arg) {
+        this._beforeEnter = function() {
+            return this.beforeEnter(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+        };
+        this.beforeEnter = function() {
             return true;
         };
         this.enter = function(args) {
-            if (!this.beforeEnter(args)) {
-                return;
-            }
             this.args = args;
-            var me = this;
             if (this.lifePhase < this.LifeCycle.INITED) {
                 this.init();
             }
+            if (!this._beforeEnter()) {
+                return;
+            }
+            var me = this;
             this._initModel();
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);

@@ -218,18 +218,21 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 });
             }
         };
-        this.beforeEnter = function($arg) {
+        this._beforeEnter = function() {
+            return this.beforeEnter(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+        };
+        this.beforeEnter = function() {
             return true;
         };
         this.enter = function(args) {
-            if (!this.beforeEnter(args)) {
-                return;
-            }
             this.args = args;
-            var me = this;
             if (this.lifePhase < this.LifeCycle.INITED) {
                 this.init();
             }
+            if (!this._beforeEnter()) {
+                return;
+            }
+            var me = this;
             this._initModel();
             this._requestData(function() {
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
