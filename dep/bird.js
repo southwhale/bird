@@ -5263,20 +5263,21 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 });
             }
         };
-        this._beforeEnter = function() {
-            return this.beforeEnter(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
-        };
-        this.beforeEnter = function() {
-            return true;
-        };
+        /*this._beforeEnter = function () {
+			return this.beforeEnter(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+		};
+
+		this.beforeEnter = function () {
+			return true;
+		};*/
         this.enter = function(args) {
             this.args = args;
             if (this.lifePhase < this.LifeCycle.INITED) {
                 this.init();
             }
-            if (!this._beforeEnter()) {
-                return;
-            }
+            /*if (!this._beforeEnter()) {
+				return;
+			}*/
             var me = this;
             this._initModel();
             this._requestData(function() {

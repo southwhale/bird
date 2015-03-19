@@ -267,13 +267,13 @@ define(function(require) {
 			}
 		};
 
-		this._beforeEnter = function () {
+		/*this._beforeEnter = function () {
 			return this.beforeEnter(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
 		};
 
 		this.beforeEnter = function () {
 			return true;
-		};
+		};*/
 
 		this.enter = function(args) {
 			this.args = args;
@@ -282,9 +282,9 @@ define(function(require) {
                 this.init();
             }
 
-            if (!this._beforeEnter()) {
+            /*if (!this._beforeEnter()) {
 				return;
-			}
+			}*/
 
 			var me = this;
 
