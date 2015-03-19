@@ -24,8 +24,6 @@ define(function(require) {
 	var event = require('bird.event');
 	var object = require('bird.object');
 	var string = require('bird.string');
-	var util = require('bird.util');
-	var browser = require('bird.browser');
 	var request = require('bird.request');
 	var lruCache = require('bird.lrucache');
 
