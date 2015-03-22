@@ -16,15 +16,13 @@
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.request", "bird.lrucache", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
     var event = require("bird.event");
     var object = require("bird.object");
     var string = require("bird.string");
-    var util = require("bird.util");
-    var browser = require("bird.browser");
     var request = require("bird.request");
     var lruCache = require("bird.lrucache");
     var TplParser = require("./bird.tplparser");

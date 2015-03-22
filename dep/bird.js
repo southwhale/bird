@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-19
+ * @date: 2015-03-23
  */
 /**
  *	封装LRU cache为独立模块
@@ -5430,15 +5430,13 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
  *     <option value="c">c</option>
  * </select>
  */
-define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.util", "bird.browser", "bird.request", "bird.lrucache", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
+define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "bird.object", "bird.string", "bird.request", "bird.lrucache", "./bird.tplparser", "./bird.filter", "./bird.validator", "./bird.handlemap" ], function(require) {
     var dom = require("bird.dom");
     var lang = require("bird.lang");
     var array = require("bird.array");
     var event = require("bird.event");
     var object = require("bird.object");
     var string = require("bird.string");
-    var util = require("bird.util");
-    var browser = require("bird.browser");
     var request = require("bird.request");
     var lruCache = require("bird.lrucache");
     var TplParser = require("./bird.tplparser");
@@ -5796,7 +5794,7 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this.valueVariable = function(node, selector, variable, filter) {
             return function(value, oldValue, ctx) {
-                if (ctx === node) {
+                if (!value || ctx === node) {
                     return;
                 }
                 value = value.replace(/,/g, "|");
@@ -6924,7 +6922,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             mobile: "手机号码格式不正确",
             date: "日期格式不正确",
             datetime: "日期和时间格式不正确",
-            birthday: "生日格式不正确",
+            birthday: "生日格式不正确, 正确格式如：2012-08-08",
             qq: "QQ号码格式不正确",
             password: '密码只能由字母、数字、"_"或"-"组成',
             idCard: "身份证号码格式不正确",

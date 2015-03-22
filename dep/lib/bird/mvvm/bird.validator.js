@@ -50,7 +50,7 @@ define("bird.validator", [ "bird.lang", "bird.string", "bird.array", "bird.objec
             mobile: "手机号码格式不正确",
             date: "日期格式不正确",
             datetime: "日期和时间格式不正确",
-            birthday: "生日格式不正确",
+            birthday: "生日格式不正确, 正确格式如：2012-08-08",
             qq: "QQ号码格式不正确",
             password: '密码只能由字母、数字、"_"或"-"组成',
             idCard: "身份证号码格式不正确",
