@@ -229,7 +229,7 @@ define(function(require) {
 		};
 
 		this.back = function() {
-			this.forward(this.args.referrer ? ('#!' + this.args.referrer) : '/');
+			this.forward('#!' + (this.args.referrer || '/'));
 		};
 
 		//子类可以覆盖该接口,自定义事件绑定逻辑

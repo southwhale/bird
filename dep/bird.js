@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-23
+ * @date: 2015-03-27
  */
 /**
  *	封装LRU cache为独立模块
@@ -5234,7 +5234,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
             router.route(url, isWhole);
         };
         this.back = function() {
-            this.forward(this.args.referrer ? "#!" + this.args.referrer : "/");
+            this.forward("#!" + (this.args.referrer || "/"));
         };
         //子类可以覆盖该接口,自定义事件绑定逻辑
         this.bindEvent = lang.noop;
