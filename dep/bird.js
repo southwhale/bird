@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-27
+ * @date: 2015-03-30
  */
 /**
  *	封装LRU cache为独立模块
@@ -4565,7 +4565,9 @@ define("bird.string", [], function(require) {
 		 ********************************************************************/
         var capitalizeRE = /^\w/;
         var duplicateCharRE = /(.)\1+/g;
-        var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)/g;
+        //var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)/g;
+        // 考虑<br/>这样的单个标签
+        var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)|(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*\/\s*>)/g;
         var spaceRE = /^[\s\xa0\u3000]+|[\u3000\xa0\s]+$/g;
         var camelizeRE = /-([a-z])/gi;
         var placeholderRE = /\{\{(.+?)\}\}/g;

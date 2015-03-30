@@ -9,7 +9,9 @@ define(function(require){
 		 ********************************************************************/
 		var capitalizeRE = /^\w/;
 		var duplicateCharRE = /(.)\1+/g;
-		var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)/g;
+		//var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)/g;
+        // 考虑<br/>这样的单个标签
+        var htmlTagsRE = /(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*>)|(?:<\/[a-zA-Z]+\d*>)|(?:<[a-zA-Z]+\d*(?:\s+[^>]+\s*)*\/\s*>)/g;
 		var spaceRE = /^[\s\xa0\u3000]+|[\u3000\xa0\s]+$/g;
 		var camelizeRE = /-([a-z])/ig;
 		var placeholderRE = /\{\{(.+?)\}\}/g;
