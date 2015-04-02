@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-03-30
+ * @date: 2015-04-02
  */
 /**
  *	封装LRU cache为独立模块
@@ -5286,6 +5286,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
                 me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+                if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
+                    me._bindEvent();
+                }
             });
             this.loadTpl(function() {
                 if (me.lifePhase >= me.LifeCycle.DESTROYED) {
@@ -5296,9 +5299,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                     document.title = me.title;
                 }
                 me._applyBind();
-                if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
-                    me._bindEvent();
-                }
                 me.promise.listen();
             });
         };

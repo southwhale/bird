@@ -239,6 +239,9 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
                 me._render();
                 me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+                if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
+                    me._bindEvent();
+                }
             });
             this.loadTpl(function() {
                 if (me.lifePhase >= me.LifeCycle.DESTROYED) {
@@ -249,9 +252,6 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                     document.title = me.title;
                 }
                 me._applyBind();
-                if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
-                    me._bindEvent();
-                }
                 me.promise.listen();
             });
         };
