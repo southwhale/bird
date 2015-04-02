@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-04-02
+ * @date: 2015-04-03
  */
 /**
  *	封装LRU cache为独立模块
@@ -2241,6 +2241,7 @@ define("bird.css3animation", [ "./bird.lang", "./bird.event" ], function(require
 });
 define("bird.date", [ "moment" ], function(require) {
     var moment = require("moment");
+    moment.locale("zh-cn");
     function _Date() {}
     (function() {
         this.dateFormats = [ "YYYYMMDDHHmmss", "YYYY-MM-DD HH:mm:ss", "YYYY/MM/DD HH:mm:ss", "YYYY-MM-DDTHH:mm:ss.SSSZ" ];

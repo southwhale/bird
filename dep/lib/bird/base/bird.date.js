@@ -1,5 +1,6 @@
 define("bird.date", [ "moment" ], function(require) {
     var moment = require("moment");
+    moment.locale("zh-cn");
     function _Date() {}
     (function() {
         this.dateFormats = [ "YYYYMMDDHHmmss", "YYYY-MM-DD HH:mm:ss", "YYYY/MM/DD HH:mm:ss", "YYYY-MM-DDTHH:mm:ss.SSSZ" ];

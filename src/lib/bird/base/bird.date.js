@@ -1,5 +1,6 @@
 define(function(require){
 	var moment = require('moment');
+    moment.locale('zh-cn');
 
 	function _Date(){
 
