@@ -326,7 +326,7 @@ define(function(require) {
 			};
 			if(el.addEventListener){
 				retObj.eventType = eventType;
-				if (eventType === 'change' && !/^(?:checkbox|radio|hidden|button)$/i.test(el.type) && !/^select$/i.test(el.tagName)) {
+				if (eventType === 'change' && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) && !/^select$/i.test(el.tagName)) {
 					retObj.eventType = eventTypeMap.level3[eventType];
 				}
 			}else if(el.attachEvent){
