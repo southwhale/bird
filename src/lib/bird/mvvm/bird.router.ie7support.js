@@ -168,6 +168,7 @@ define(function(require) {
 			}
 
 			if (this.query) {
+				this.query = decodeURIComponent(this.query);
 				var kv = this.param = {};
 				this.query.replace(/([^#~=&]+)=([^#~=&]*)/g, function(m, n, k) {
 					kv[n] = k;

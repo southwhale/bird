@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-04-03
+ * @date: 2015-04-14
  */
 /**
  *	封装LRU cache为独立模块
@@ -6166,6 +6166,7 @@ define("bird.router.hashchange", [ "bird.event", "bird.__observer__", "bird.lang
                 this.query = aq[2] || "";
             }
             if (this.query) {
+                this.query = decodeURIComponent(this.query);
                 var kv = this.param = {};
                 this.query.replace(/([^#~=&]+)=([^#~=&]*)/g, function(m, n, k) {
                     kv[n] = k;
@@ -6375,6 +6376,7 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
                 this.query = aq[2] || "";
             }
             if (this.query) {
+                this.query = decodeURIComponent(this.query);
                 var kv = this.param = {};
                 this.query.replace(/([^#~=&]+)=([^#~=&]*)/g, function(m, n, k) {
                     kv[n] = k;
@@ -6524,6 +6526,7 @@ define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang"
                 this.query = aq[2] || "";
             }
             if (this.query) {
+                this.query = decodeURIComponent(this.query);
                 var kv = this.param = {};
                 this.query.replace(/([^~=&?]+)=([^~=&?]*)/g, function(m, n, k) {
                     kv[n] = k;

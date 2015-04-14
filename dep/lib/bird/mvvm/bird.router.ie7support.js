@@ -142,6 +142,7 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
                 this.query = aq[2] || "";
             }
             if (this.query) {
+                this.query = decodeURIComponent(this.query);
                 var kv = this.param = {};
                 this.query.replace(/([^#~=&]+)=([^#~=&]*)/g, function(m, n, k) {
                     kv[n] = k;
