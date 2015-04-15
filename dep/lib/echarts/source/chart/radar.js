@@ -405,8 +405,18 @@ define('echarts/chart/radar', [
                     this.option
                 ], 'axisLabel');
                 if (axisLabel.show) {
+                    var textStyle = this.deepQuery([
+                        axisLabel,
+                        item,
+                        this.option
+                    ], 'textStyle');
+                    var formatter = this.deepQuery([
+                        axisLabel,
+                        item
+                    ], 'formatter');
                     style = {};
-                    style.textFont = this.getFont();
+                    style.textFont = this.getFont(textStyle);
+                    style.color = textStyle.color;
                     style = zrUtil.merge(style, axisLabel);
                     style.lineWidth = style.width;
                     vector = __ecIndicator[i].vector;
@@ -420,7 +430,14 @@ define('echarts/chart/radar', [
                     for (var j = 1; j <= splitNumber; j += interval + 1) {
                         newStyle = zrUtil.merge({}, style);
                         text = accMath.accAdd(value.min, accMath.accMul(value.step, j));
-                        newStyle.text = this.numAddCommas(text);
+                        if (typeof formatter === 'function') {
+                            text = formatter(text);
+                        } else if (typeof formatter === 'string') {
+                            text = formatter.replace('{a}', '{a0}').replace('{a0}', text);
+                        } else {
+                            text = this.numAddCommas(text);
+                        }
+                        newStyle.text = text;
                         newStyle.x = j * vector[0] / splitNumber + Math.cos(theta) * offset + center[0];
                         newStyle.y = j * vector[1] / splitNumber + Math.sin(theta) * offset + center[1];
                         this.shapeList.push(new TextShape({
@@ -708,11 +725,16 @@ define('echarts/chart/radar', [
             var boundaryGap = item.boundaryGap;
             var splitNumber = item.splitNumber;
             var scale = item.scale;
+            var opts;
             var smartSteps = require('../util/smartSteps');
             for (var i = 0; i < len; i++) {
                 if (typeof indicator[i].max == 'number') {
                     max = indicator[i].max;
                     min = indicator[i].min || 0;
+                    opts = {
+                        max: max,
+                        min: min
+                    };
                 } else {
                     var value = this._findValue(data, i, splitNumber, boundaryGap);
                     min = value.min;
@@ -724,7 +746,7 @@ define('echarts/chart/radar', [
                 if (!scale && min <= 0 && max <= 0) {
                     max = 0;
                 }
-                var stepOpt = smartSteps(min, max, splitNumber);
+                var stepOpt = smartSteps(min, max, splitNumber, opts);
                 __ecIndicator[i].value = {
                     min: stepOpt.min,
                     max: stepOpt.max,

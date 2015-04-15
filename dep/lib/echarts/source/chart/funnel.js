@@ -307,7 +307,7 @@ define('echarts/chart/funnel', [
             var max = serie.max;
             var minSize = number.parsePercent(serie.minSize, location.width);
             var maxSize = number.parsePercent(serie.maxSize, location.width);
-            return value * (maxSize - minSize) / (max - min);
+            return (value - min) * (maxSize - minSize) / (max - min) + minSize;
         },
         getPolygon: function (seriesIndex, dataIndex, defaultColor, xLT, y, topWidth, bottomWidth, height, align) {
             var serie = this.series[seriesIndex];
@@ -447,7 +447,15 @@ define('echarts/chart/funnel', [
             ], 'itemStyle.' + status + '.label.formatter');
             if (formatter) {
                 if (typeof formatter === 'function') {
-                    return formatter.call(this.myChart, serie.name, data.name, data.value);
+                    return formatter.call(this.myChart, {
+                        seriesIndex: seriesIndex,
+                        seriesName: serie.name || '',
+                        series: serie,
+                        dataIndex: dataIndex,
+                        data: data,
+                        name: data.name,
+                        value: data.value
+                    });
                 } else if (typeof formatter === 'string') {
                     formatter = formatter.replace('{a}', '{a0}').replace('{b}', '{b0}').replace('{c}', '{c0}').replace('{a0}', serie.name).replace('{b0}', data.name).replace('{c0}', data.value);
                     return formatter;
