@@ -6,6 +6,14 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
     function Dom() {
         this.cache = {};
         this.isOuterHTMLSupported = "outerHTML" in (document.body || document.documentElement);
+        // 这里是为了解决ie8-ie9 table相关标签无法设置innerHTML的问题，还有些innerHTML只读的标签暂不考虑
+        this.wrapMap = {
+            table: [ 1, "<table>", "</table>" ],
+            tbody: [ 2, "<table><tbody>", "</tbody></table>" ],
+            thead: [ 2, "<table><thead>", "</thead></table>" ],
+            tfoot: [ 2, "<table><tfoot>", "</tfoot></table>" ],
+            tr: [ 3, "<table><tbody><tr>", "</tr></tbody></table>" ]
+        };
     }
     (function() {
         var documentElement = document.documentElement;
@@ -846,7 +854,30 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             return element.value;
         };
         this.setHtml = function(element, htmlContent) {
-            element.innerHTML = htmlContent;
+            try {
+                element.innerHTML = htmlContent;
+            } catch (e) {
+                this.empty(element);
+                var tempDiv = document.createElement("div");
+                var wrap = this.wrapMap[element.nodeName.toLowerCase()];
+                var wrapLevel;
+                if (wrap) {
+                    htmlContent = wrap[1] + htmlContent + wrap[2];
+                    wrapLevel = wrap[0];
+                } else {
+                    htmlContent = "<div>" + htmlContent + "</div>";
+                    wrapLevel = 1;
+                }
+                tempDiv.innerHTML = htmlContent;
+                var wrapNode = tempDiv;
+                while (wrapLevel--) {
+                    wrapNode = wrapNode.firstChild;
+                }
+                while (wrapNode.childNodes.length) {
+                    element.appendChild(wrapNode.childNodes[0]);
+                }
+                tempDiv = wrapNode = null;
+            }
         };
         this.getHtml = function(element) {
             return element.innerHTML;
