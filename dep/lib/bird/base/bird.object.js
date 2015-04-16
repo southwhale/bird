@@ -91,6 +91,8 @@ define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
                 ret = [];
                 forEach = array.forEach;
                 isArray = true;
+            } else {
+                return obj;
             }
             var me = this;
             forEach(obj, function(v, k) {

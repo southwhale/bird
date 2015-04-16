@@ -103,6 +103,8 @@ define(function(require) {
 				ret = [];
 				forEach = array.forEach;
 				isArray = true;
+			} else {
+				return obj;
 			}
 
 			var me = this;
