@@ -569,8 +569,6 @@ define('echarts/chart/pie', [
             opt = _merge(_merge(opt || {}, zrUtil.clone(this.ecTheme.pie || {})), zrUtil.clone(ecConfig.pie));
             opt.itemStyle.normal.label.textStyle = this.getTextStyle(opt.itemStyle.normal.label.textStyle);
             opt.itemStyle.emphasis.label.textStyle = this.getTextStyle(opt.itemStyle.emphasis.label.textStyle);
-            this.z = opt.z;
-            this.zlevel = opt.zlevel;
             return opt;
         },
         refresh: function (newOption) {
@@ -581,18 +579,11 @@ define('echarts/chart/pie', [
             this.backupShapeList();
             this._buildShape();
         },
-        addDataAnimation: function (params, done) {
+        addDataAnimation: function (params) {
             var series = this.series;
             var aniMap = {};
             for (var i = 0, l = params.length; i < l; i++) {
                 aniMap[params[i][0]] = params[i];
-            }
-            var aniCount = 0;
-            function animationDone() {
-                aniCount--;
-                if (aniCount === 0) {
-                    done && done();
-                }
             }
             var sectorMap = {};
             var textMap = {};
@@ -655,14 +646,12 @@ define('echarts/chart/pie', [
                     }
                     if (backupShapeList[i].type === 'sector') {
                         if (targeSector != 'delete') {
-                            aniCount++;
                             this.zr.animate(backupShapeList[i].id, 'style').when(400, {
                                 startAngle: targeSector.style.startAngle,
                                 endAngle: targeSector.style.endAngle
-                            }).done(animationDone).start();
+                            }).start();
                         } else {
-                            aniCount++;
-                            this.zr.animate(backupShapeList[i].id, 'style').when(400, deltaIdxMap[seriesIndex] < 0 ? { startAngle: backupShapeList[i].style.startAngle } : { endAngle: backupShapeList[i].style.endAngle }).done(animationDone).start();
+                            this.zr.animate(backupShapeList[i].id, 'style').when(400, deltaIdxMap[seriesIndex] < 0 ? { startAngle: backupShapeList[i].style.startAngle } : { endAngle: backupShapeList[i].style.endAngle }).start();
                         }
                     } else if (backupShapeList[i].type === 'text' || backupShapeList[i].type === 'polyline') {
                         if (targeSector === 'delete') {
@@ -670,17 +659,15 @@ define('echarts/chart/pie', [
                         } else {
                             switch (backupShapeList[i].type) {
                             case 'text':
-                                aniCount++;
                                 targeSector = textMap[key];
                                 this.zr.animate(backupShapeList[i].id, 'style').when(400, {
                                     x: targeSector.style.x,
                                     y: targeSector.style.y
-                                }).done(animationDone).start();
+                                }).start();
                                 break;
                             case 'polyline':
-                                aniCount++;
                                 targeSector = lineMap[key];
-                                this.zr.animate(backupShapeList[i].id, 'style').when(400, { pointList: targeSector.style.pointList }).done(animationDone).start();
+                                this.zr.animate(backupShapeList[i].id, 'style').when(400, { pointList: targeSector.style.pointList }).start();
                                 break;
                             }
                         }
@@ -688,9 +675,6 @@ define('echarts/chart/pie', [
                 }
             }
             this.shapeList = backupShapeList;
-            if (!aniCount) {
-                animationDone();
-            }
         },
         onclick: function (param) {
             var series = this.series;

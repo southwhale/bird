@@ -32,10 +32,9 @@ define('echarts/chart/k', [
                     width: 1,
                     color: '#ff3200',
                     color0: '#00aa11'
-                },
-                label: { show: false }
+                }
             },
-            emphasis: { label: { show: false } }
+            emphasis: {}
         }
     };
     var ecData = require('../util/ecData');
@@ -215,17 +214,17 @@ define('echarts/chart/k', [
         },
         _getCandle: function (seriesIndex, dataIndex, name, x, width, y0, y1, y2, y3, nColor, nLinewidth, nLineColor, eColor, eLinewidth, eLineColor) {
             var series = this.series;
-            var serie = series[seriesIndex];
-            var data = serie.data[dataIndex];
-            var queryTarget = [
-                data,
-                serie
-            ];
             var itemShape = {
                 zlevel: this.getZlevelBase(),
                 z: this.getZBase(),
-                clickable: this.deepQuery(queryTarget, 'clickable'),
-                hoverable: this.deepQuery(queryTarget, 'hoverable'),
+                clickable: this.deepQuery([
+                    series[seriesIndex].data[dataIndex],
+                    series[seriesIndex]
+                ], 'clickable'),
+                hoverable: this.deepQuery([
+                    series[seriesIndex].data[dataIndex],
+                    series[seriesIndex]
+                ], 'hoverable'),
                 style: {
                     x: x,
                     y: [
@@ -247,8 +246,7 @@ define('echarts/chart/k', [
                 },
                 _seriesIndex: seriesIndex
             };
-            itemShape = this.addLabel(itemShape, serie, data, name);
-            ecData.pack(itemShape, serie, seriesIndex, data, dataIndex, name);
+            ecData.pack(itemShape, series[seriesIndex], seriesIndex, series[seriesIndex].data[dataIndex], dataIndex, name);
             itemShape = new CandleShape(itemShape);
             return itemShape;
         },
@@ -269,7 +267,7 @@ define('echarts/chart/k', [
             this.backupShapeList();
             this._buildShape();
         },
-        addDataAnimation: function (params, done) {
+        addDataAnimation: function (params) {
             var series = this.series;
             var aniMap = {};
             for (var i = 0, l = params.length; i < l; i++) {
@@ -281,13 +279,6 @@ define('echarts/chart/k', [
             var serie;
             var seriesIndex;
             var dataIndex;
-            var aniCount = 0;
-            function animationDone() {
-                aniCount--;
-                if (aniCount === 0) {
-                    done && done();
-                }
-            }
             for (var i = 0, l = this.shapeList.length; i < l; i++) {
                 seriesIndex = this.shapeList[i]._seriesIndex;
                 if (aniMap[seriesIndex] && !aniMap[seriesIndex][3]) {
@@ -304,18 +295,14 @@ define('echarts/chart/k', [
                         dx = this.component.xAxis.getAxis(serie.xAxisIndex || 0).getGap();
                         x = aniMap[seriesIndex][2] ? dx : -dx;
                         y = 0;
-                        aniCount++;
                         this.zr.animate(this.shapeList[i].id, '').when(this.query(this.option, 'animationDurationUpdate'), {
                             position: [
                                 x,
                                 y
                             ]
-                        }).done(animationDone).start();
+                        }).start();
                     }
                 }
-            }
-            if (!aniCount) {
-                animationDone();
             }
         }
     };
