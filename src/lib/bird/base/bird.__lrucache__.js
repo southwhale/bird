@@ -2,6 +2,7 @@
  *	封装LRU cache为独立模块
  */
 define(function(require) {
+	var object = require('./bird.object');
 	/*
 	 *
 	 *
@@ -771,7 +772,7 @@ define(function(require) {
 
 			// I usually Use jQuery Extend Function , but in this project i intended not using jQuery
 			// not overriding the record Object
-			var record = Object.create(record);
+			var record = object.create(record);
 			record.key = key;
 			record.type = type;
 			switch (type) {

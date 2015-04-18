@@ -8,7 +8,7 @@ define(function(require) {
 		/*********************************************************************
 		 *                             类型判断
 		 ********************************************************************/
-
+		var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1; 
 		/**
 		 * {*}
 		 * return {String}
@@ -52,6 +52,11 @@ define(function(require) {
 
 		this.isNumber = function(p) {
 			return this.getType(p) === 'Number';
+		};
+
+		// Is the given value `NaN`? (NaN is the only number which does not equal itself).
+		this.isNaN = function(obj) {
+			return this.isNumber(obj) && obj !== +obj;
 		};
 
 		this.isInteger = function(p) {
@@ -220,10 +225,14 @@ define(function(require) {
 			return nativeFuncRegExp.test(p.toString()) && (this.isUndefined(p.prototype) || p.prototype.constructor === p);
 		};
 
-		this.isArrayLike = function(p) {
+		/*this.isArrayLike = function(p) {
 			return (this.isObject(p) || this.isFunction(p)) && !this.isNullOrUndefined(p.length);
-		};
+		};*/
 
+		this.isArrayLike = function(collection) {
+			var length = collection && collection.length;
+			return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+		};
 
 		/**
 		 * @param {String|Array|PlainObject} p
@@ -264,7 +273,7 @@ define(function(require) {
 			for (var i = 0, len = segments.length; i < len; i++) {
 				var namespace = ctx[segments[i]];
 				if (namespace == null && i !== len - 1) {
-					console.warn('Variable: `' + segments.slice(0, i).join('.') + '` has no value.');
+					console.warn('Variable: `' + segments.slice(0, i + 1).join('.') + '` has no value.');
 					return;
 				}
 				ctx = namespace;

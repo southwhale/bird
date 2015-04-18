@@ -4,6 +4,7 @@ define("bird.lang", [], function(require) {
         /*********************************************************************
 		 *                             类型判断
 		 ********************************************************************/
+        var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
         /**
 		 * {*}
 		 * return {String}
@@ -40,6 +41,10 @@ define("bird.lang", [], function(require) {
         };
         this.isNumber = function(p) {
             return this.getType(p) === "Number";
+        };
+        // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+        this.isNaN = function(obj) {
+            return this.isNumber(obj) && obj !== +obj;
         };
         this.isInteger = function(p) {
             return this.isNumber(p) && /^-?\d+$/.test(p);
@@ -180,8 +185,12 @@ define("bird.lang", [], function(require) {
             //IE(11)就是怪啊! chrome和firefox下原生函数的prototype都为undefined;就它拽,非得要搞个prototype,并且这个prototype还是此原生函数的实例
             return nativeFuncRegExp.test(p.toString()) && (this.isUndefined(p.prototype) || p.prototype.constructor === p);
         };
-        this.isArrayLike = function(p) {
-            return (this.isObject(p) || this.isFunction(p)) && !this.isNullOrUndefined(p.length);
+        /*this.isArrayLike = function(p) {
+			return (this.isObject(p) || this.isFunction(p)) && !this.isNullOrUndefined(p.length);
+		};*/
+        this.isArrayLike = function(collection) {
+            var length = collection && collection.length;
+            return typeof length == "number" && length >= 0 && length <= MAX_ARRAY_INDEX;
         };
         /**
 		 * @param {String|Array|PlainObject} p
@@ -216,7 +225,7 @@ define("bird.lang", [], function(require) {
             for (var i = 0, len = segments.length; i < len; i++) {
                 var namespace = ctx[segments[i]];
                 if (namespace == null && i !== len - 1) {
-                    console.warn("Variable: `" + segments.slice(0, i).join(".") + "` has no value.");
+                    console.warn("Variable: `" + segments.slice(0, i + 1).join(".") + "` has no value.");
                     return;
                 }
                 ctx = namespace;

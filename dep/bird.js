@@ -2,12 +2,13 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-04-16
+ * @date: 2015-04-18
  */
 /**
  *	封装LRU cache为独立模块
  */
-define("bird.__lrucache__", [], function(require) {
+define("bird.__lrucache__", [ "./bird.object" ], function(require) {
+    var object = require("./bird.object");
     /*
 	 *
 	 *
@@ -598,7 +599,7 @@ define("bird.__lrucache__", [], function(require) {
         cpa._callbackRecord = function(type, record, key) {
             // I usually Use jQuery Extend Function , but in this project i intended not using jQuery
             // not overriding the record Object
-            var record = Object.create(record);
+            var record = object.create(record);
             record.key = key;
             record.type = type;
             switch (type) {
@@ -3693,6 +3694,7 @@ define("bird.lang", [], function(require) {
         /*********************************************************************
 		 *                             类型判断
 		 ********************************************************************/
+        var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
         /**
 		 * {*}
 		 * return {String}
@@ -3729,6 +3731,10 @@ define("bird.lang", [], function(require) {
         };
         this.isNumber = function(p) {
             return this.getType(p) === "Number";
+        };
+        // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+        this.isNaN = function(obj) {
+            return this.isNumber(obj) && obj !== +obj;
         };
         this.isInteger = function(p) {
             return this.isNumber(p) && /^-?\d+$/.test(p);
@@ -3869,8 +3875,12 @@ define("bird.lang", [], function(require) {
             //IE(11)就是怪啊! chrome和firefox下原生函数的prototype都为undefined;就它拽,非得要搞个prototype,并且这个prototype还是此原生函数的实例
             return nativeFuncRegExp.test(p.toString()) && (this.isUndefined(p.prototype) || p.prototype.constructor === p);
         };
-        this.isArrayLike = function(p) {
-            return (this.isObject(p) || this.isFunction(p)) && !this.isNullOrUndefined(p.length);
+        /*this.isArrayLike = function(p) {
+			return (this.isObject(p) || this.isFunction(p)) && !this.isNullOrUndefined(p.length);
+		};*/
+        this.isArrayLike = function(collection) {
+            var length = collection && collection.length;
+            return typeof length == "number" && length >= 0 && length <= MAX_ARRAY_INDEX;
         };
         /**
 		 * @param {String|Array|PlainObject} p
@@ -3905,7 +3915,7 @@ define("bird.lang", [], function(require) {
             for (var i = 0, len = segments.length; i < len; i++) {
                 var namespace = ctx[segments[i]];
                 if (namespace == null && i !== len - 1) {
-                    console.warn("Variable: `" + segments.slice(0, i).join(".") + "` has no value.");
+                    console.warn("Variable: `" + segments.slice(0, i + 1).join(".") + "` has no value.");
                     return;
                 }
                 ctx = namespace;
@@ -3973,6 +3983,10 @@ define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
     var array = require("./bird.array");
     function _Object() {}
     (function() {
+        // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+        var hasEnumBug = !{
+            toString: null
+        }.propertyIsEnumerable("toString");
         //each可从内部中断,当findSuper为true时把继承而来的property也一起遍历
         this.each = function(p, callback, findSuper) {
             if (lang.isPlainObject(p) && lang.isUndefined(p.length)) {
@@ -4119,6 +4133,9 @@ define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
             }
         };
         this.keys = function(obj) {
+            if (!lang.isObject(obj)) {
+                return [];
+            }
             if (Object.keys) {
                 return Object.keys(obj);
             }
@@ -4129,7 +4146,8 @@ define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
                     ret.push(key);
                 }
             }
-            if (DONT_ENUM && obj) {
+            // IE < 9
+            if (hasEnumBug && obj) {
                 for (var i = 0; key = DONT_ENUM[i++]; ) {
                     if (obj.hasOwnProperty(key)) {
                         ret.push(key);
@@ -4150,6 +4168,56 @@ define("bird.object", [ "./bird.lang", "./bird.array" ], function(require) {
                 }
             });
             return ret;
+        };
+        // subClass, superClass
+        this.create = function(prototype, props) {
+            var cleanPrototype;
+            if (!lang.isObject(prototype)) {
+                cleanPrototype = {};
+            } else if (Object.create) {
+                cleanPrototype = Object.create(prototype);
+            } else {
+                var F = new Function();
+                F.prototype = prototype;
+                cleanPrototype = new F();
+            }
+            if (lang.isPlainObject(props)) {
+                for (var i in props) {
+                    if (props.hasOwnProperty(i)) {
+                        cleanPrototype[i] = props;
+                    }
+                }
+            }
+            return cleanPrototype;
+        };
+        // Retrieve the values of an object's properties.
+        this.values = function(obj) {
+            var keys = this.keys(obj);
+            var length = keys.length;
+            var values = Array(length);
+            for (var i = 0; i < length; i++) {
+                values[i] = obj[keys[i]];
+            }
+            return values;
+        };
+        // Convert an object into a list of `[key, value]` pairs.
+        this.pairs = function(obj) {
+            var keys = this.keys(obj);
+            var length = keys.length;
+            var pairs = Array(length);
+            for (var i = 0; i < length; i++) {
+                pairs[i] = [ keys[i], obj[keys[i]] ];
+            }
+            return pairs;
+        };
+        // Invert the keys and values of an object. The values must be serializable.
+        this.invert = function(obj) {
+            var result = {};
+            var keys = this.keys(obj);
+            for (var i = 0, length = keys.length; i < length; i++) {
+                result[obj[keys[i]]] = keys[i];
+            }
+            return result;
         };
     }).call(_Object.prototype);
     return new _Object();

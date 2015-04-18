@@ -8,6 +8,10 @@ define(function(require) {
 	}
 
 	(function() {
+
+		// Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+		var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+
 		//each可从内部中断,当findSuper为true时把继承而来的property也一起遍历
 		this.each = function(p, callback, findSuper) {
 			if (lang.isPlainObject(p) && lang.isUndefined(p.length)) {
@@ -166,6 +170,10 @@ define(function(require) {
 		};
 
 		this.keys = function(obj) {
+			if (!lang.isObject(obj)) {
+				return [];
+			}
+
 			if (Object.keys) {
 				return Object.keys(obj);
 			}
@@ -176,7 +184,8 @@ define(function(require) {
 					ret.push(key);
 				}
 			}
-			if (DONT_ENUM && obj) {
+			// IE < 9
+			if (hasEnumBug && obj) {
 				for (var i = 0; key = DONT_ENUM[i++];) {
 					if (obj.hasOwnProperty(key)) {
 						ret.push(key);
@@ -199,6 +208,65 @@ define(function(require) {
 			});
 			return ret;
 		};
+
+		// subClass, superClass
+		this.create = function (prototype, props) {
+			var cleanPrototype;
+			if (!lang.isObject(prototype)) {
+				cleanPrototype = {};
+			}
+			else if (Object.create) {
+				cleanPrototype = Object.create(prototype);
+			}
+			else {
+				var F = new Function();
+        		F.prototype = prototype;
+        		cleanPrototype = new F();
+			}
+			
+			if (lang.isPlainObject(props)) {
+				for (var i in props) {
+					if (props.hasOwnProperty(i)) {
+						cleanPrototype[i] = props;
+					}
+				}
+			}
+
+			return cleanPrototype;
+		};
+
+		// Retrieve the values of an object's properties.
+		this.values = function(obj) {
+			var keys = this.keys(obj);
+			var length = keys.length;
+			var values = Array(length);
+			for (var i = 0; i < length; i++) {
+			  	values[i] = obj[keys[i]];
+			}
+			return values;
+		};
+
+		// Convert an object into a list of `[key, value]` pairs.
+		this.pairs = function(obj) {
+			var keys = this.keys(obj);
+			var length = keys.length;
+			var pairs = Array(length);
+			for (var i = 0; i < length; i++) {
+			  	pairs[i] = [keys[i], obj[keys[i]]];
+			}
+			return pairs;
+		};
+
+		// Invert the keys and values of an object. The values must be serializable.
+		this.invert = function(obj) {
+			var result = {};
+			var keys = this.keys(obj);
+			for (var i = 0, length = keys.length; i < length; i++) {
+			  	result[obj[keys[i]]] = keys[i];
+			}
+			return result;
+		};
+
 	}).call(_Object.prototype);
 
 	return new _Object();

@@ -1,7 +1,8 @@
 /**
  *	封装LRU cache为独立模块
  */
-define("bird.__lrucache__", [], function(require) {
+define("bird.__lrucache__", [ "./bird.object" ], function(require) {
+    var object = require("./bird.object");
     /*
 	 *
 	 *
@@ -592,7 +593,7 @@ define("bird.__lrucache__", [], function(require) {
         cpa._callbackRecord = function(type, record, key) {
             // I usually Use jQuery Extend Function , but in this project i intended not using jQuery
             // not overriding the record Object
-            var record = Object.create(record);
+            var record = object.create(record);
             record.key = key;
             record.type = type;
             switch (type) {
