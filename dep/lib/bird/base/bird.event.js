@@ -109,6 +109,10 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
     (function() {
         var doc = document;
         this.addListener = function(el, eventType, handle) {
+            var obj = preHandle(el, eventType, handle);
+            eventType = obj.eventType;
+            handle = obj.handle;
+            obj = null;
             var me = this;
             array.forEach(eventType.split(/\s+/), function(etype) {
                 me._addListener(el, etype, handle);
@@ -137,10 +141,6 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
             if (!el.__uid__) {
                 el.__uid__ = util.uuid("el_");
             }
-            var obj = preHandle(el, eventType, handle);
-            eventType = obj.eventType;
-            handle = obj.handle;
-            obj = null;
             var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
             var eventHandleCache = eventTypeCache[eventType] = eventTypeCache[eventType] || {};
             var eventHandleQueue;
@@ -239,6 +239,9 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
             });
         };
         var eventTypeMap = {
+            level1: {
+                change: "keyup paste cut"
+            },
             level2: {
                 change: "propertychange",
                 focus: "focusin",
@@ -248,31 +251,40 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
                 change: "input"
             }
         };
+        var testNode = document.createElement("input");
+        var isOninputSupported = "oninput" in testNode && (!("documentMode" in document) || document.documentMode > 9);
         function preHandle(el, eventType, handle) {
             var retObj = {
-                handle: handle
+                handle: handle,
+                eventType: eventType
             };
-            if (el.addEventListener) {
-                retObj.eventType = eventType;
-                if (eventType === "change" && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) && !/^select$/i.test(el.tagName)) {
+            if (eventType === "change") {
+                if (isOninputSupported && (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName))) {
                     retObj.eventType = eventTypeMap.level3[eventType];
+                } else {
+                    // IE9
+                    if (el.addEventListener) {
+                        retObj.eventType = eventTypeMap.level1[eventType];
+                    } else {
+                        retObj.eventType = eventTypeMap.level2[eventType];
+                        if (/^input$/i.test(el.tagName) && /^(?:checkbox|radio)$/i.test(el.type) || /^select$/i.test(el.tagName)) {
+                            retObj.eventType = "click";
+                        }
+                        if (retObj.eventType === "propertychange") {
+                            retObj.handle = function() {
+                                return handle.apply(this, arguments);
+                            };
+                            retObj.handle.elem = handle.elem;
+                            retObj.handle.selector = handle.selector;
+                            retObj.handle.needsContext = handle.needsContext;
+                            delete handle.elem;
+                            delete handle.selector;
+                            delete handle.needsContext;
+                        }
+                    }
                 }
-            } else if (el.attachEvent) {
-                retObj.eventType = eventTypeMap.level2[eventType] || eventType;
-                if (eventType === "change" && /^(?:checkbox|radio)$/i.test(el.type) || /^select$/i.test(el.tagName)) {
-                    retObj.eventType = "click";
-                }
-                if (retObj.eventType === "propertychange") {
-                    retObj.handle = function() {
-                        return handle.apply(this, arguments);
-                    };
-                    retObj.handle.elem = handle.elem;
-                    retObj.handle.selector = handle.selector;
-                    retObj.handle.needsContext = handle.needsContext;
-                    delete handle.elem;
-                    delete handle.selector;
-                    delete handle.needsContext;
-                }
+            } else if (el.attachEvent && eventTypeMap.level2[eventType]) {
+                retObj.eventType = eventTypeMap.level2[eventType];
             }
             return retObj;
         }

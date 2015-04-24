@@ -156,6 +156,10 @@ define(function(require) {
 		var doc = document;
 
 		this.addListener = function(el, eventType, handle) {
+			var obj = preHandle(el, eventType, handle);
+            eventType = obj.eventType;
+            handle = obj.handle;
+            obj = null;
 			var me = this;
 			array.forEach(eventType.split(/\s+/), function(etype) {
 				me._addListener(el, etype, handle);
@@ -188,12 +192,6 @@ define(function(require) {
 			if (!el.__uid__) {
 				el.__uid__ = util.uuid('el_');
 			}
-
-			var obj = preHandle(el, eventType, handle);
-			eventType = obj.eventType;
-			handle = obj.handle;
-			obj = null;
-			
 
 			var eventTypeCache = this.eventCache[el.__uid__] = this.eventCache[el.__uid__] || {};
 			var eventHandleCache = eventTypeCache[eventType] = eventTypeCache[eventType] || {};
@@ -309,46 +307,63 @@ define(function(require) {
 		};
 
 		var eventTypeMap = {
-			level2: {
-				'change': 'propertychange',
-				'focus': 'focusin',
-				'blur': 'focusout'
-			},
-			level3: {
-				'change': 'input'
-			}
-		};
+            level1: {
+                change: "keyup paste cut"
+            },
+            level2: {
+                change: "propertychange",
+                focus: "focusin",
+                blur: "focusout"
+            },
+            level3: {
+                change: "input"
+            }
+        };
 
+        var testNode = document.createElement("input");
+        var isOninputSupported = "oninput" in testNode && 
+                (!("documentMode" in document) || document.documentMode > 9);
 
-		function preHandle(el, eventType, handle){
-			var retObj = {
-				handle: handle
-			};
-			if(el.addEventListener){
-				retObj.eventType = eventType;
-				if (eventType === 'change' && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) && !/^select$/i.test(el.tagName)) {
-					retObj.eventType = eventTypeMap.level3[eventType];
-				}
-			}else if(el.attachEvent){
-				retObj.eventType = eventTypeMap.level2[eventType] || eventType;
-				if (eventType === 'change' && /^(?:checkbox|radio)$/i.test(el.type) || /^select$/i.test(el.tagName)) {
-					retObj.eventType = 'click';
-				}
+        function preHandle (el, eventType, handle) {
+            var retObj = {
+                handle: handle,
+                eventType: eventType
+            };
 
-				if(retObj.eventType === 'propertychange'){
-					retObj.handle = function(){
-						return handle.apply(this, arguments);
-					};
-					retObj.handle.elem = handle.elem;
-					retObj.handle.selector = handle.selector;
-					retObj.handle.needsContext = handle.needsContext;
-					delete handle.elem;
-					delete handle.selector;
-					delete handle.needsContext;
-				}
-			}
-			return retObj;
-		}
+            if (eventType === 'change') {
+                if (isOninputSupported && (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName))) {
+                    retObj.eventType = eventTypeMap.level3[eventType];
+                }
+                else {
+                	// IE9
+                    if (el.addEventListener) {
+                        retObj.eventType = eventTypeMap.level1[eventType];
+                    }
+                    // IE8
+                    else {
+                        retObj.eventType = eventTypeMap.level2[eventType];
+                        if ((/^input$/i.test(el.tagName) && /^(?:checkbox|radio)$/i.test(el.type)) || /^select$/i.test(el.tagName)) {
+                            retObj.eventType = "click";
+                        }
+                        if (retObj.eventType === "propertychange") {
+                            retObj.handle = function() {
+                                return handle.apply(this, arguments);
+                            };
+                            retObj.handle.elem = handle.elem;
+                            retObj.handle.selector = handle.selector;
+                            retObj.handle.needsContext = handle.needsContext;
+                            delete handle.elem;
+                            delete handle.selector;
+                            delete handle.needsContext;
+                        }
+                    }
+                }
+            }
+            else if (el.attachEvent && eventTypeMap.level2[eventType]){
+            	retObj.eventType = eventTypeMap.level2[eventType];
+            }
+            return retObj;
+        }
 
 		function dispatch(el, event, handlerQueue) {
 

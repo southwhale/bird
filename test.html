@@ -1,0 +1,143 @@
+<html>
+    <head></head>
+    <body>
+        <input type="text" value="" id="test"/>
+        <script type="text/javascript">
+        window.onload = function () {
+            var testNode = document.createElement("input");
+            var isInputSupported = "oninput" in testNode && 
+                (!("documentMode" in document) || document.documentMode > 9);
+
+            var hasInputCapabilities = function(elem) {
+                // The HTML5 spec lists many more types than `text` and `password` on
+                // which the input event is triggered but none of them exist in IE 8 or
+                // 9, so we don't check them here.
+                // TODO: <textarea> should be supported too but IE seems to reset the
+                // selection when changing textarea contents during a selectionchange
+                // event so it's not listed here for now.
+                return elem.nodeName === "INPUT" &&
+                    (elem.type === "text" || elem.type === "password");
+            };
+
+            var activeElement = null;
+            var activeElementValue = null;
+            var activeElementValueProp = null;
+
+            var targetElement = document.getElementById('test');
+
+            /**
+             * (For old IE.) Replacement getter/setter for the `value` property that
+             * gets set on the active element.
+             */
+            var newValueProp =  {
+                get: function() {
+                    return activeElementValueProp.get.call(this);
+                },
+                set: function(val) {
+                    activeElementValue = val;
+                    activeElementValueProp.set.call(this, val);
+                }
+            };
+
+            /**
+             * (For old IE.) Starts tracking propertychange events on the passed-in element
+             * and override the value property so that we can distinguish user events from
+             * value changes in JS.
+             */
+            var startWatching = function(target) {
+                activeElement = target;
+                activeElementValue = target.value;
+                activeElementValueProp = Object.getOwnPropertyDescriptor(
+                        target.constructor.prototype, "value");
+
+                Object.defineProperty(activeElement, "value", newValueProp);
+                activeElement.attachEvent("onpropertychange", handlePropertyChange);
+            };
+
+            /**
+             * (For old IE.) Removes the event listeners from the currently-tracked
+             * element, if any exists.
+             */
+            var stopWatching = function() {
+                if (!activeElement) return;
+
+                // delete restores the original property definition
+                delete activeElement.value;
+                activeElement.detachEvent("onpropertychange", handlePropertyChange);
+
+                activeElement = null;
+                activeElementValue = null;
+                activeElementValueProp = null;
+            };
+
+            /**
+             * (For old IE.) Handles a propertychange event, sending a textChange event if
+             * the value of the active element has changed.
+             */
+            var handlePropertyChange = function(nativeEvent) {
+                if (nativeEvent.propertyName !== "value") return;
+
+                var value = nativeEvent.srcElement.value;
+                if (value === activeElementValue) return;
+                activeElementValue = value;
+
+                console.log(value);
+                // $(activeElement).trigger("textchange");
+                // event.trigger(activeElement, {type: 'textchange'});
+            };
+
+
+            if (isInputSupported) {
+                document.addEventListener(targetElement, "input", function(e) {
+                    e = e || window.event;
+                    // In modern browsers (i.e., not IE 8 or 9), the input event is
+                    // exactly what we want so fall through here and trigger the
+                    // event...
+                    var t = e.target||e.srcElement;
+                    if (t.nodeName !== "TEXTAREA") {
+                        // ...unless it's a textarea, in which case we don't fire an
+                        // event (so that we have consistency with our old-IE shim).
+                        // $(e.target).trigger("textchange");
+                        // event.trigger(e.target, {type: 'textchange'});
+                    }
+                });
+            } else {
+
+                var arr = "onkeyup onpaste oncut".split(/\s+/);
+
+                for (var i=0; i < arr.length;i++) {
+                    targetElement.attachEvent(arr[i], function(e) {
+                        var target = e.srcElement;
+                        if (e.ctrlKey) {
+                            
+                            return;
+                        }
+                        setTimeout(function () {
+                            console.log(target.value)
+                        }, 0);
+                    });
+                }
+
+                /*event.on(document, "selectionchange keyup keydown", function() {
+                    // On the selectionchange event, e.target is just document which
+                    // isn't helpful for us so just check activeElement instead.
+                    //
+                    // 90% of the time, keydown and keyup aren't necessary. IE 8 fails
+                    // to fire propertychange on the first input event after setting
+                    // `value` from a script and fires only keydown, keypress, keyup.
+                    // Catching keyup usually gets it and catching keydown lets us fire
+                    // an event for the first keystroke if user does a key repeat
+                    // (it'll be a little delayed: right before the second keystroke).
+                    // Other input methods (e.g., paste) seem to fire selectionchange
+                    // normally.
+                    if (activeElement && activeElement.value !== activeElementValue) {
+                        activeElementValue = activeElement.value;
+                        // $(activeElement).trigger("textchange");
+                        // event.trigger(activeElement, {type: 'textchange'});
+                    }
+                });*/
+            }
+        }
+        </script>
+    </body>
+</html>
