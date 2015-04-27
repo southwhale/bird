@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-04-24
+ * @date: 2015-04-27
  */
 /**
  *	封装LRU cache为独立模块
@@ -3534,8 +3534,10 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
                 eventType: eventType
             };
             if (eventType === "change") {
-                if (isOninputSupported && (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName))) {
-                    retObj.eventType = eventTypeMap.level3[eventType];
+                if (isOninputSupported) {
+                    if (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName)) {
+                        retObj.eventType = eventTypeMap.level3[eventType];
+                    }
                 } else {
                     // IE9
                     if (el.addEventListener) {

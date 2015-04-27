@@ -331,8 +331,10 @@ define(function(require) {
             };
 
             if (eventType === 'change') {
-                if (isOninputSupported && (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName))) {
-                    retObj.eventType = eventTypeMap.level3[eventType];
+                if (isOninputSupported) {
+                    if (/^input$/i.test(el.tagName) && !/^(?:checkbox|radio|hidden|button|file)$/i.test(el.type) || /^textarea$/i.test(el.tagName)) {
+                        retObj.eventType = eventTypeMap.level3[eventType];
+                    }
                 }
                 else {
                 	// IE9
