@@ -25,6 +25,7 @@ a simple mvvm library
 ----
 ###示例
   参考<a href="https://github.com/iamweilee/bird-demo.git" target="_blank">demo</a>
+  使用bird实现的线上项目<a href="http://www.iguzhi.cn" target="_blank">爱股指</a>
   	
   	
 ----
