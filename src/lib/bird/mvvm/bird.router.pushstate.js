@@ -147,7 +147,12 @@ define(function(require) {
 			}
 		};
 
-		this.route = function(url, isWholeUrl) {
+		this.route = function(url, isWholeUrl, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
+            
 			if (isWholeUrl && !/^#!/.test(url)) {
 				window.location.href = url;
 			} else {

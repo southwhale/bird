@@ -224,8 +224,8 @@ define(function(require) {
 		};
 
 
-		this.forward = function(url, isWhole) {
-			router.route(url, isWhole);
+		this.forward = function(url, isWhole, replace) {
+			router.route(url, isWhole, replace);
 		};
 
 		this.back = function() {

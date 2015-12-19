@@ -214,7 +214,12 @@ define(function(require) {
 			}
 		};
 
-		this.route = function(url, isNotHash) {
+		this.route = function(url, isNotHash, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
+            
 			if (isNotHash && !/^#/.test(url)) {
 				window.location.href = url;
 			} else {
