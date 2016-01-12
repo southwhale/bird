@@ -185,8 +185,8 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
             });
             return result;
         };
-        this.forward = function(url, isWhole) {
-            router.route(url, isWhole);
+        this.forward = function(url, isWhole, replace) {
+            router.route(url, isWhole, replace);
         };
         this.back = function() {
             this.forward("#!" + (this.args.referrer || "/"));

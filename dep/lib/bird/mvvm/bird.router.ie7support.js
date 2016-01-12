@@ -184,7 +184,11 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
                 });
             }
         };
-        this.route = function(url, isNotHash) {
+        this.route = function(url, isNotHash, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
             if (isNotHash && !/^#/.test(url)) {
                 window.location.href = url;
             } else {

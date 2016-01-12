@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2015-04-27
+ * @date: 2016-01-12
  */
 /**
  *	封装LRU cache为独立模块
@@ -5348,8 +5348,8 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
             });
             return result;
         };
-        this.forward = function(url, isWhole) {
-            router.route(url, isWhole);
+        this.forward = function(url, isWhole, replace) {
+            router.route(url, isWhole, replace);
         };
         this.back = function() {
             this.forward("#!" + (this.args.referrer || "/"));
@@ -5912,7 +5912,7 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this.valueVariable = function(node, selector, variable, filter) {
             return function(value, oldValue, ctx) {
-                if (!value || ctx === node) {
+                if (ctx === node) {
                     return;
                 }
                 value = value.replace(/,/g, "|");
@@ -6324,7 +6324,11 @@ define("bird.router.hashchange", [ "bird.event", "bird.__observer__", "bird.lang
                 });
             }
         };
-        this.route = function(url, isWholeUrl) {
+        this.route = function(url, isWholeUrl, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
             if (isWholeUrl && !/^#/.test(url)) {
                 window.location.href = url;
             } else {
@@ -6533,7 +6537,11 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
                 });
             }
         };
-        this.route = function(url, isNotHash) {
+        this.route = function(url, isNotHash, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
             if (isNotHash && !/^#/.test(url)) {
                 window.location.href = url;
             } else {
@@ -6688,7 +6696,11 @@ define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang"
                 });
             }
         };
-        this.route = function(url, isWholeUrl) {
+        this.route = function(url, isWholeUrl, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
             if (isWholeUrl && !/^#!/.test(url)) {
                 window.location.href = url;
             } else {

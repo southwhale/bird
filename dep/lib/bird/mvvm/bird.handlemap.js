@@ -30,7 +30,7 @@ define("bird.handlemap", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
         };
         this.valueVariable = function(node, selector, variable, filter) {
             return function(value, oldValue, ctx) {
-                if (!value || ctx === node) {
+                if (ctx === node) {
                     return;
                 }
                 value = value.replace(/,/g, "|");

@@ -35,7 +35,7 @@ define(function(require) {
 		};
 		this.valueVariable = function(node, selector, variable, filter) {
 			return function(value, oldValue, ctx) {
-				if (!value || ctx === node) {
+				if (ctx === node) {
 					return;
 				}
 

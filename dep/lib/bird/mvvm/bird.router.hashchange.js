@@ -100,7 +100,11 @@ define("bird.router.hashchange", [ "bird.event", "bird.__observer__", "bird.lang
                 });
             }
         };
-        this.route = function(url, isWholeUrl) {
+        this.route = function(url, isWholeUrl, replace) {
+            if (replace) {
+                window.location.replace(url);
+                return;
+            }
             if (isWholeUrl && !/^#/.test(url)) {
                 window.location.href = url;
             } else {
