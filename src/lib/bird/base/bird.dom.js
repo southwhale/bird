@@ -748,7 +748,7 @@ define(function(require) {
 			head.appendChild(style);
 		};
 
-		this.loadscript = function(url, callback, removeAfterLoaded) {
+		this.loadscript = function(url, callback, charset, removeAfterLoaded) {
 			var script = document.createElement("script");
 			lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
 				if (script.readyState && script.readyState != 'loaded' && script.readyState != 'complete') {
@@ -763,16 +763,16 @@ define(function(require) {
 				}
 			});
 			//script.setAttribute('id', this.scriptId);
-			script.setAttribute('charset', "UTF-8");
+			script.setAttribute('charset', charset || "UTF-8");
 			script.type = "text/javascript";
 			script.src = url;
 			var parentNode = document.getElementsByTagName("head")[0] || document.body;
 			parentNode.appendChild(script);
 		};
 
-		this.loadScriptString = function(code) {
+		this.loadScriptString = function(code, charset) {
 			var script = document.createElement("script");
-			script.setAttribute('charset', "UTF-8");
+			script.setAttribute('charset', charset || "UTF-8");
 			script.type = "text/javascript";
 			try {
 				script.appendChild(document.createTextNode(code));
