@@ -18,6 +18,7 @@ define(function(require) {
 	var validator = require('./bird.validator');
 	var LRUCache = require('bird.__lrucache__');
 	var router = require('bird.router');
+	var globalWatcher = require('bird.observer');
 
 
 	function Action() {
@@ -132,7 +133,21 @@ define(function(require) {
 		this.initModel = lang.noop;
 
 		this._initModel = function() {
-			this.initModel(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			try {
+				this.initModel(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			}
+			catch(e) {
+				globalWatcher.notify('errorCapture', {
+					action: this.name,
+					method: 'initModel',
+					originalError: e
+				});
+
+				if (window.DEBUG) {
+					throw e;
+				}
+			}
+			
 			this.lifePhase = this.LifeCycle.MODEL_INITED;
 		};
 
@@ -236,12 +251,43 @@ define(function(require) {
 		this.bindEvent = lang.noop;
 
 		this._bindEvent = function() {
-			this.bindEvent(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			try {
+				this.bindEvent(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			}
+			catch(e) {
+				globalWatcher.notify('errorCapture', {
+					action: this.name,
+					method: 'bindEvent',
+					originalError: e
+				});
+
+				if (window.DEBUG) {
+					throw e;
+				}
+			}
+			
 			this.lifePhase = this.LifeCycle.EVENT_BOUND;
 		};
 
 		//子类可以覆盖该接口,用来修改从服务器端获取的数据的结构以满足页面控件的需求
 		this.beforeRender = lang.noop;
+
+		this._beforeRender = function() {
+			try {
+				this.beforeRender(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			}
+			catch(e) {
+				globalWatcher.notify('errorCapture', {
+					action: this.name,
+					method: 'beforeRender',
+					originalError: e
+				});
+
+				if (window.DEBUG) {
+					throw e;
+				}
+			}
+		};
 
 
 		this._render = function() {
@@ -254,6 +300,23 @@ define(function(require) {
 
 		//子类可以覆盖该接口,可能用来修改一些元素的状态等善后操作
 		this.afterRender = lang.noop;
+
+		this._afterRender = function() {
+			try {
+				this.afterRender(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			}
+			catch(e) {
+				globalWatcher.notify('errorCapture', {
+					action: this.name,
+					method: 'afterRender',
+					originalError: e
+				});
+
+				if (window.DEBUG) {
+					throw e;
+				}
+			}
+		};
 
 		this.loadTpl = function(callback) {
 			if (!this.tplUrl || this.tpl) {
@@ -291,9 +354,9 @@ define(function(require) {
 			this._initModel();
 			
 			this._requestData(function() {
-				me.beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+				me._beforeRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
 				me._render();
-				me.afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
+				me._afterRender(me.model, me.model.watcher, me.requestHelper, me.args, me.lruCache);
 				if (me.lifePhase < me.LifeCycle.EVENT_BOUND) {
 					me._bindEvent();
 				}
@@ -318,8 +381,25 @@ define(function(require) {
 		//子类可以覆盖该接口,离开Action之前释放一些内存和解绑事件等等
 		this.beforeLeave = lang.noop;
 
+		this._beforeLeave = function() {
+			try {
+				this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			}
+			catch(e) {
+				globalWatcher.notify('errorCapture', {
+					action: this.name,
+					method: 'beforeLeave',
+					originalError: e
+				});
+
+				if (window.DEBUG) {
+					throw e;
+				}
+			}
+		};
+
 		this.leave = function(nextAction) {
-			this.beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
+			this._beforeLeave(this.model, this.model.watcher, this.requestHelper, this.args, this.lruCache);
 		
 			this.args = {};
 
