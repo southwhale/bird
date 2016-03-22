@@ -748,40 +748,37 @@ define(function(require) {
 			head.appendChild(style);
 		};
 
-		this.loadscript = function(url, callback, charset, removeAfterLoaded) {
-			var script = document.createElement("script");
-			lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
-				if (script.readyState && script.readyState != 'loaded' && script.readyState != 'complete') {
-					return;
-				}
-
-				script.onreadystatechange = script.onload = null;
-
-				callback.apply(this, arguments);
-				if(removeAfterLoaded) {
-					this.parentNode.removeChild(this);
-				}
-			});
-			//script.setAttribute('id', this.scriptId);
-			script.setAttribute('charset', charset || "UTF-8");
-			script.type = "text/javascript";
-			script.src = url;
-			var parentNode = document.getElementsByTagName("head")[0] || document.body;
-			parentNode.appendChild(script);
-		};
-
-		this.loadScriptString = function(code, charset) {
-			var script = document.createElement("script");
-			script.setAttribute('charset', charset || "UTF-8");
-			script.type = "text/javascript";
-			try {
-				script.appendChild(document.createTextNode(code));
-			} catch (e) {
-				script.text = code;
-			}
-			var parentNode = document.getElementsByTagName("head")[0] || document.body;
-			parentNode.appendChild(script);
-		};
+		this.loadscript = function(url, callback, charset, removeAfterLoaded, parentNode) {
+            var script = document.createElement("script");
+            lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
+                if (script.readyState && script.readyState != "loaded" && script.readyState != "complete") {
+                    return;
+                }
+                script.onreadystatechange = script.onload = null;
+                callback.apply(this, arguments);
+                if (removeAfterLoaded) {
+                    this.parentNode.removeChild(this);
+                }
+            });
+            //script.setAttribute('id', this.scriptId);
+            script.setAttribute("charset", charset || "UTF-8");
+            script.type = "text/javascript";
+            script.src = url;
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
+            parentNode.appendChild(script);
+        };
+        this.loadScriptString = function(code, charset, parentNode) {
+            var script = document.createElement("script");
+            script.setAttribute("charset", charset || "UTF-8");
+            script.type = "text/javascript";
+            try {
+                script.appendChild(document.createTextNode(code));
+            } catch (e) {
+                script.text = code;
+            }
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
+            parentNode.appendChild(script);
+        };
 
 		this.loadImage = function(url, successCallback, errorCallback) {
 			var img = new Image();
@@ -1052,6 +1049,20 @@ define(function(require) {
 
                 tempDiv = wrapNode = null;
             }
+
+            var scriptNodes = this.getElements('script', element);
+            var me = this;
+            array.forEach(scriptNodes, function(scriptNode) {
+            	if (scriptNode.type && scriptNode.type !== 'text/javascript') {
+            		return;
+            	}
+
+            	scriptNode.src 
+            		? me.loadscript(scriptNode.src, null, 'UTF-8', false, scriptNode.parentNode)
+            		: me.loadScriptString(scriptNode.text || scriptNode.textContent || scriptNode.innerHTML || '', 'UTF-8', scriptNode.parentNode);
+
+            	me.removeNode(scriptNode);
+            });
 		};
 
 		this.getHtml = function(element) {

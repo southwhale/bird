@@ -631,7 +631,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             var head = document.getElementsByTagName("head")[0];
             head.appendChild(style);
         };
-        this.loadscript = function(url, callback, charset, removeAfterLoaded) {
+        this.loadscript = function(url, callback, charset, removeAfterLoaded, parentNode) {
             var script = document.createElement("script");
             lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
                 if (script.readyState && script.readyState != "loaded" && script.readyState != "complete") {
@@ -647,10 +647,10 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             script.setAttribute("charset", charset || "UTF-8");
             script.type = "text/javascript";
             script.src = url;
-            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
             parentNode.appendChild(script);
         };
-        this.loadScriptString = function(code, charset) {
+        this.loadScriptString = function(code, charset, parentNode) {
             var script = document.createElement("script");
             script.setAttribute("charset", charset || "UTF-8");
             script.type = "text/javascript";
@@ -659,7 +659,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             } catch (e) {
                 script.text = code;
             }
-            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
             parentNode.appendChild(script);
         };
         this.loadImage = function(url, successCallback, errorCallback) {
@@ -878,6 +878,15 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                 }
                 tempDiv = wrapNode = null;
             }
+            var scriptNodes = this.getElements("script", element);
+            var me = this;
+            array.forEach(scriptNodes, function(scriptNode) {
+                if (scriptNode.type && scriptNode.type !== "text/javascript") {
+                    return;
+                }
+                scriptNode.src ? me.loadscript(scriptNode.src, null, "UTF-8", false, scriptNode.parentNode) : me.loadScriptString(scriptNode.text || scriptNode.textContent || scriptNode.innerHTML || "", "UTF-8", scriptNode.parentNode);
+                me.removeNode(scriptNode);
+            });
         };
         this.getHtml = function(element) {
             return element.innerHTML;

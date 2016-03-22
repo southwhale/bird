@@ -133,7 +133,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 return;
             }
             this.dataBind.parseTpl(this.tpl);
-            this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
+            dom.setHtml(this.container, this.dataBind.fillTpl(this.model, this.id));
             this.dataBind.bind(this.model, this.dataBinds, this.id);
         };
         /*
@@ -154,7 +154,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
             } else if (append) {
                 dom.appendTo(html, container);
             } else {
-                container.innerHTML = html;
+                dom.setHtml(container, html);
             }
             //绑定事件处理逻辑到该Action的根容器上
             dataBind.bind(this.model, this.dataBinds, this.id);

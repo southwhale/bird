@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-01-19
+ * @date: 2016-03-22
  */
 /**
  *	封装LRU cache为独立模块
@@ -2916,7 +2916,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             var head = document.getElementsByTagName("head")[0];
             head.appendChild(style);
         };
-        this.loadscript = function(url, callback, charset, removeAfterLoaded) {
+        this.loadscript = function(url, callback, charset, removeAfterLoaded, parentNode) {
             var script = document.createElement("script");
             lang.isFunction(callback) && (script.onload = script.onreadystatechange = function() {
                 if (script.readyState && script.readyState != "loaded" && script.readyState != "complete") {
@@ -2932,10 +2932,10 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             script.setAttribute("charset", charset || "UTF-8");
             script.type = "text/javascript";
             script.src = url;
-            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
             parentNode.appendChild(script);
         };
-        this.loadScriptString = function(code, charset) {
+        this.loadScriptString = function(code, charset, parentNode) {
             var script = document.createElement("script");
             script.setAttribute("charset", charset || "UTF-8");
             script.type = "text/javascript";
@@ -2944,7 +2944,7 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
             } catch (e) {
                 script.text = code;
             }
-            var parentNode = document.getElementsByTagName("head")[0] || document.body;
+            parentNode = parentNode || document.getElementsByTagName("head")[0] || document.body;
             parentNode.appendChild(script);
         };
         this.loadImage = function(url, successCallback, errorCallback) {
@@ -3163,6 +3163,15 @@ define("bird.dom", [ "./bird.lang", "./bird.util", "./bird.string", "./bird.arra
                 }
                 tempDiv = wrapNode = null;
             }
+            var scriptNodes = this.getElements("script", element);
+            var me = this;
+            array.forEach(scriptNodes, function(scriptNode) {
+                if (scriptNode.type && scriptNode.type !== "text/javascript") {
+                    return;
+                }
+                scriptNode.src ? me.loadscript(scriptNode.src, null, "UTF-8", false, scriptNode.parentNode) : me.loadScriptString(scriptNode.text || scriptNode.textContent || scriptNode.innerHTML || "", "UTF-8", scriptNode.parentNode);
+                me.removeNode(scriptNode);
+            });
         };
         this.getHtml = function(element) {
             return element.innerHTML;
@@ -5296,7 +5305,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
                 return;
             }
             this.dataBind.parseTpl(this.tpl);
-            this.container.innerHTML = this.dataBind.fillTpl(this.model, this.id);
+            dom.setHtml(this.container, this.dataBind.fillTpl(this.model, this.id));
             this.dataBind.bind(this.model, this.dataBinds, this.id);
         };
         /*
@@ -5317,7 +5326,7 @@ define("bird.action", [ "bird.object", "bird.lang", "bird.dom", "bird.string", "
             } else if (append) {
                 dom.appendTo(html, container);
             } else {
-                container.innerHTML = html;
+                dom.setHtml(container, html);
             }
             //绑定事件处理逻辑到该Action的根容器上
             dataBind.bind(this.model, this.dataBinds, this.id);
