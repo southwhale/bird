@@ -39,7 +39,7 @@ define(function(require) {
 
 
 		this.now = function(){
-			return window.performance.now ? window.performance.now() : (Date.now ? Date.now() : new Date().getTime());
+			return Date.now ? Date.now() : new Date().getTime();
 		};
 
 	}).call(RequestAFrame.prototype);

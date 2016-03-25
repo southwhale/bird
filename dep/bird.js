@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-03-22
+ * @date: 2016-03-25
  */
 /**
  *	封装LRU cache为独立模块
@@ -4517,7 +4517,7 @@ define("bird.requestframe", [], function(require) {
             window.cancelAnimationFrame(id);
         };
         this.now = function() {
-            return window.performance.now ? window.performance.now() : Date.now ? Date.now() : new Date().getTime();
+            return Date.now ? Date.now() : new Date().getTime();
         };
     }).call(RequestAFrame.prototype);
     return new RequestAFrame();
