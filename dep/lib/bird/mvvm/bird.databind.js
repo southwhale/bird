@@ -109,7 +109,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                         if (cachedTpl) {
                             doInclude(node, cachedTpl, model, actionId, dataBinds);
                         } else {
-                            request.load(val.variable, function(data) {
+                            request.syncLoad(val.variable, function(data) {
                                 doInclude(node, data, model, actionId, dataBinds);
                                 lruCache.add(val.variable, data);
                             });

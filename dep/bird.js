@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-03-25
+ * @date: 2016-03-29
  */
 /**
  *	封装LRU cache为独立模块
@@ -5715,7 +5715,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                         if (cachedTpl) {
                             doInclude(node, cachedTpl, model, actionId, dataBinds);
                         } else {
-                            request.load(val.variable, function(data) {
+                            request.syncLoad(val.variable, function(data) {
                                 doInclude(node, data, model, actionId, dataBinds);
                                 lruCache.add(val.variable, data);
                             });
