@@ -4015,6 +4015,11 @@ define('zrender/zrender', [
             if (param.target) {
                 return;
             }
+
+            if (this.option.toolbox.feature.dataZoom.needCtrlKey && !param.event.ctrlKey) {
+                return;
+            }
+            
             this._zooming = true;
             var x = zrEvent.getX(param.event);
             var y = zrEvent.getY(param.event);
