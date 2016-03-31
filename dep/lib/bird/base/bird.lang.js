@@ -200,7 +200,7 @@ define("bird.lang", [], function(require) {
             if (this.isNullOrUndefined(p) || p === "") {
                 return false;
             }
-            if (this.isArray(p) && p.length !== 0) {
+            if (this.isArray(p) && p.length === 0) {
                 return false;
             }
             if (this.isPlainObject(p)) {
