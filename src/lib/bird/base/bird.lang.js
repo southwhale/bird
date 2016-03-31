@@ -243,7 +243,7 @@ define(function(require) {
 				return false;
 			}
 
-			if (this.isArray(p) && p.length !== 0) {
+			if (this.isArray(p) && p.length === 0) {
 				return false;
 			}
 
