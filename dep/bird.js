@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-03-31
+ * @date: 2016-04-07
  */
 /**
  *	封装LRU cache为独立模块
@@ -4430,6 +4430,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             }
             xhr.send(obj.data);
+            return xhr;
         };
         this.post = function(url, data, callback, errorCallback) {
             var arg = {
@@ -4440,7 +4441,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 complete: callback,
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
         };
         this.get = function(url, data, callback, errorCallback) {
             if (lang.isFunction(data)) {
@@ -4458,7 +4459,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 complete: callback,
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
         };
         this.load = function(url, selector, successcallback, errorCallback, async) {
             if (lang.isFunction(selector)) {
@@ -4482,10 +4483,13 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 },
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
+        };
+        this.abort = function(xhr) {
+            xhr && xhr.abort();
         };
         this.syncLoad = function(url, selector, successcallback, errorCallback) {
-            this.load(url, selector, successcallback, errorCallback, false);
+            return this.load(url, selector, successcallback, errorCallback, false);
         };
         this.jsonp = function(url, cbname, callback) {
             if (lang.isFunction(cbname)) {

@@ -121,6 +121,8 @@ define(function(require) {
             }
 
             xhr.send(obj.data);
+
+            return xhr;
         };
 
         this.post = function(url, data, callback, errorCallback) {
@@ -132,7 +134,7 @@ define(function(require) {
                 complete: callback,
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
         };
 
         this.get = function(url, data, callback, errorCallback) {
@@ -151,7 +153,7 @@ define(function(require) {
                 complete: callback,
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
         };
 
         this.load = function(url, selector, successcallback, errorCallback, async) {
@@ -177,12 +179,16 @@ define(function(require) {
                 },
                 error: errorCallback
             };
-            this.ajax(arg);
+            return this.ajax(arg);
+        };
+
+        this.abort = function(xhr) {
+            xhr && xhr.abort();
         };
 
 
         this.syncLoad = function(url, selector, successcallback, errorCallback) {
-            this.load(url, selector, successcallback, errorCallback, false);
+            return this.load(url, selector, successcallback, errorCallback, false);
         };
 
         this.jsonp = function(url, cbname, callback) {
