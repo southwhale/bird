@@ -49,16 +49,34 @@ define(function(require) {
         };
 
         this.ajax = function(arg) {
+            if (!arg.crossDomain) {
+                var rReqHost = /^(?:http|https)\:\/{2}([^/?#~!|&@=%^$*+]+)/;
+                var arr = rReqHost.exec(arg.url);
+                if (arr && arr.length) {
+                    if (window.location.host !== arr[1].toLowerCase()) {
+                        arg.crossDomain = true;
+                    }
+                }
+            }
             //init xhr
             var xhr, lnk;
             if (window.XMLHttpRequest) {
                 xhr = new XMLHttpRequest();
-            } else if (window.ActiveObject) {
-                xhr = new ActiveXObject("Microsoft.XMLHTTP");
+                if (arg.crossDomain && !("withCredentials" in xhr)) {
+                    xhr = null;
+                }
+            } else {
+                if (arg.crossDomain) {
+                    if (!lang.isUndefined(window.XDomainRequest)) {
+                        xhr = new XDomainRequest();
+                    }
+                }
+                else if (window.ActiveObject) {
+                    xhr = new ActiveXObject("Microsoft.XMLHTTP");
+                }
             }
-
             if (!xhr) {
-                console.warn('Your browser not support XmlHttpRequest!');
+                console.warn("Your browser not support" + (arg.crossDomain ? " CrossDomain " : " ") + "XmlHttpRequest!");
                 return;
             }
 
