@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-04-08
+ * @date: 2016-04-09
  */
 /**
  *	封装LRU cache为独立模块
@@ -927,7 +927,7 @@ define("bird.accmath", [], function(require) {
             m = Math.pow(10, Math.max(r1, r2));
             //last modify by deeka //动态控制精度长度
             n = r1 >= r2 ? r1 : r2;
-            return ((a * m - b * m) / m).toFixed(n);
+            return Number(((a * m - b * m) / m).toFixed(n));
         };
         this.multipe = function(a, b) {
             var m = 0, s1 = a.toString(), s2 = b.toString();
