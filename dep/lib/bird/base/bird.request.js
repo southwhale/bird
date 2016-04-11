@@ -40,10 +40,10 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
         };
         this.ajax = function(arg) {
             if (!arg.crossDomain) {
-                var rReqHost = /^(?:http|https)\:\/{2}([^\/?#~!|&@=%^$*+]+)/;
+                var rReqHost = /^((?:http|https)\:)\/{2}([^\/?#~!|&@=%^$*+]+)/i;
                 var arr = rReqHost.exec(arg.url);
                 if (arr && arr.length) {
-                    if (window.location.host !== arr[1].toLowerCase()) {
+                    if (window.location.protocol !== arr[1].toLowerCase() || window.location.host !== arr[2].toLowerCase()) {
                         arg.crossDomain = true;
                     }
                 }

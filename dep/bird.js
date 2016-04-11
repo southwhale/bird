@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-04-09
+ * @date: 2016-04-11
  */
 /**
  *	封装LRU cache为独立模块
@@ -3377,7 +3377,7 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
         this.init = function() {
             var originalEvent = this.originalEvent;
             var me = this;
-            var properties = [ "type", "altKey", "ctrlKey", "shiftKey", "metaKey", "fromElement", "toElement", "charCode", "keyCode", "clientX", "clientY", "offsetX", "offsetY", "screenX", "screenY", "defaultPrevented", "bubbles", "cancelBubble", "cancelable", "path", "clipboardData", "eventPhase", "returnValue", "changedTouches", "targetTouches", "touches", "propertyName", "state", "srcElement", "currentTarget", "timeStamp", "target", "relatedTarget", "pageX", "pageY", "which", "button" ];
+            var properties = [ "type", "altKey", "ctrlKey", "shiftKey", "metaKey", "fromElement", "toElement", "charCode", "keyCode", "clientX", "clientY", "offsetX", "offsetY", "screenX", "screenY", "defaultPrevented", "bubbles", "cancelBubble", "cancelable", "path", "clipboardData", "eventPhase", "returnValue", "changedTouches", "targetTouches", "touches", "propertyName", "state", "srcElement", "currentTarget", "timeStamp", "target", "relatedTarget", "pageX", "pageY", "which", "button", "data", "origin" ];
             array.forEach(properties, function(property) {
                 me[property] = originalEvent[property];
             });
@@ -3779,7 +3779,7 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
             "start", "finish", "bounce", //marquee
             "contextmenu", //右键
             "drag", "dragdrop", "dragend", "dragenter", "dragleave", "dragover", "dragstart", "propertychange", "readystatechange", "input", "popstate", "beforeprint", "afterprint", "help", //F1键
-            "select", "selectstart", "copy", "cut", "paste", "losecapture", "beforecopy", "beforecut", "beforeeditfocus", "beforepaste", "beforeupdate", "touchstart", "touchmove", "touchend" ], function(eventType) {
+            "select", "selectstart", "copy", "cut", "paste", "losecapture", "beforecopy", "beforecut", "beforeeditfocus", "beforepaste", "beforeupdate", "touchstart", "touchmove", "touchend", "message" ], function(eventType) {
                 eventTypeMap[eventType] = 1;
             });
             return function(eventType) {
@@ -4449,10 +4449,10 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
         };
         this.ajax = function(arg) {
             if (!arg.crossDomain) {
-                var rReqHost = /^(?:http|https)\:\/{2}([^\/?#~!|&@=%^$*+]+)/;
+                var rReqHost = /^((?:http|https)\:)\/{2}([^\/?#~!|&@=%^$*+]+)/i;
                 var arr = rReqHost.exec(arg.url);
                 if (arr && arr.length) {
-                    if (window.location.host !== arr[1].toLowerCase()) {
+                    if (window.location.protocol !== arr[1].toLowerCase() || window.location.host !== arr[2].toLowerCase()) {
                         arg.crossDomain = true;
                     }
                 }

@@ -22,7 +22,8 @@ define(function(require) {
 				'charCode', 'keyCode', 'clientX', 'clientY', 'offsetX', 'offsetY', 'screenX', 'screenY', 'defaultPrevented',
 				'bubbles', 'cancelBubble', 'cancelable', 'path', 'clipboardData', 'eventPhase', 'returnValue',
 				'changedTouches', 'targetTouches', 'touches', 'propertyName', 'state',
-				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button'
+				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button',
+				'data', 'origin'
 			];
 			array.forEach(properties, function(property) {
 				me[property] = originalEvent[property];
@@ -546,7 +547,8 @@ define(function(require) {
 				'help', //F1键
 				'select', 'selectstart',
 				'copy', 'cut', 'paste', 'losecapture', 'beforecopy', 'beforecut', 'beforeeditfocus', 'beforepaste', 'beforeupdate',
-				'touchstart', 'touchmove', 'touchend'
+				'touchstart', 'touchmove', 'touchend',
+				'message'
 			], function(eventType) {
 				eventTypeMap[eventType] = 1;
 			});
