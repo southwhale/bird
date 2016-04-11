@@ -23,7 +23,7 @@ define(function(require) {
 				'bubbles', 'cancelBubble', 'cancelable', 'path', 'clipboardData', 'eventPhase', 'returnValue',
 				'changedTouches', 'targetTouches', 'touches', 'propertyName', 'state',
 				'srcElement', 'currentTarget', 'timeStamp', 'target', 'relatedTarget', 'pageX', 'pageY', 'which', 'button',
-				'data', 'origin'
+				'data', 'origin', 'source'
 			];
 			array.forEach(properties, function(property) {
 				me[property] = originalEvent[property];

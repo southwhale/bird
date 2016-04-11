@@ -3377,7 +3377,7 @@ define("bird.event", [ "./bird.lang", "./bird.object", "./bird.util", "./bird.ar
         this.init = function() {
             var originalEvent = this.originalEvent;
             var me = this;
-            var properties = [ "type", "altKey", "ctrlKey", "shiftKey", "metaKey", "fromElement", "toElement", "charCode", "keyCode", "clientX", "clientY", "offsetX", "offsetY", "screenX", "screenY", "defaultPrevented", "bubbles", "cancelBubble", "cancelable", "path", "clipboardData", "eventPhase", "returnValue", "changedTouches", "targetTouches", "touches", "propertyName", "state", "srcElement", "currentTarget", "timeStamp", "target", "relatedTarget", "pageX", "pageY", "which", "button", "data", "origin" ];
+            var properties = [ "type", "altKey", "ctrlKey", "shiftKey", "metaKey", "fromElement", "toElement", "charCode", "keyCode", "clientX", "clientY", "offsetX", "offsetY", "screenX", "screenY", "defaultPrevented", "bubbles", "cancelBubble", "cancelable", "path", "clipboardData", "eventPhase", "returnValue", "changedTouches", "targetTouches", "touches", "propertyName", "state", "srcElement", "currentTarget", "timeStamp", "target", "relatedTarget", "pageX", "pageY", "which", "button", "data", "origin", "source" ];
             array.forEach(properties, function(property) {
                 me[property] = originalEvent[property];
             });
