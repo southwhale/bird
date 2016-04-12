@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-04-11
+ * @date: 2016-04-12
  */
 /**
  *	封装LRU cache为独立模块
@@ -5943,7 +5943,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 if (/^textarea$/i.test(node.tagName)) {
                     type = "value";
                 }
-                watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" ? variableInfo.key : type));
+                watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" || type === "style" ? variableInfo.key : type));
             }
         };
         this.getParsedValidators = function(id) {
@@ -7165,7 +7165,7 @@ define("bird.tplparser", [ "bird.dom", "bird.lang", "bird.array", "bird.event", 
             var arr;
             while (arr = keyValueVariableNameRE.exec(str)) {
                 ret.push({
-                    key: arr[1],
+                    key: string.camelize(arr[1]),
                     //stylePropertyName
                     variable: arr[2]
                 });

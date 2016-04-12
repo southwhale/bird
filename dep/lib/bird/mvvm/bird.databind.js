@@ -216,7 +216,7 @@ define("bird.databind", [ "bird.dom", "bird.lang", "bird.array", "bird.event", "
                 if (/^textarea$/i.test(node.tagName)) {
                     type = "value";
                 }
-                watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" ? variableInfo.key : type));
+                watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap["default"]).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === "event" || type === "style" ? variableInfo.key : type));
             }
         };
         this.getParsedValidators = function(id) {
