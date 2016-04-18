@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.0
- * @date: 2016-04-12
+ * @date: 2016-04-18
  */
 /**
  *	封装LRU cache为独立模块
@@ -1647,7 +1647,7 @@ define("bird.array", [ "./bird.lang" ], function(require) {
     var lang = require("./bird.lang");
     function _Array() {}
     (function() {
-        //each在执行时可以从内部被中断
+        //each在执行时可以从内部被中断, 且数组长度可变
         this.each = function(p, callback) {
             for (var i = 0; i < p.length; i++) {
                 if (callback.call(this, p[i], i, p) === false) {
@@ -1656,12 +1656,13 @@ define("bird.array", [ "./bird.lang" ], function(require) {
             }
             return true;
         };
-        //forEach不可被中断
+        //forEach不可被中断, 且数组长度不变, 若要在遍历中改变数组长度请使用each方法
         this.forEach = function(p, callback) {
             if (p.forEach) {
                 return p.forEach(callback);
             }
-            for (var i = 0; i < p.length; i++) {
+            var len = p.length;
+            for (var i = 0; i < len; i++) {
                 callback.call(this, p[i], i, p);
             }
         };
