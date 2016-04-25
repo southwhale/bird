@@ -246,7 +246,7 @@ define(function(require) {
             var arr;
             while (arr = keyValueVariableNameRE.exec(str)) {
                 ret.push({
-                    key: arr[1],
+                    key: string.camelize(arr[1]),
                     //stylePropertyName
                     variable: arr[2]
                 });

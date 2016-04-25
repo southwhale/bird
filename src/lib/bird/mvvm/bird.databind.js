@@ -255,7 +255,7 @@ define(function(require) {
 				if (/^textarea$/i.test(node.tagName)) {
 					type = 'value';
 				}
-				watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap['default']).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === 'event' ? variableInfo.key : type));
+				watcher.subscribe(variable, (typeHandleMap[type] || typeHandleMap['default']).call(typeHandleMap, node, selector, variable, variableInfo.filter, type === 'event' || type === 'style' ? variableInfo.key : type));
 			}
 		};
 
