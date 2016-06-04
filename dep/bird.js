@@ -1,8 +1,8 @@
 /**
  * @file: bird.js
  * @author: liwei47@baidu.com
- * @version: 1.0.0
- * @date: 2016-05-22
+ * @version: 1.0.1
+ * @date: 2016-06-05
  */
 /**
  *	封装LRU cache为独立模块
@@ -4819,7 +4819,7 @@ define("bird.string", [], function(require) {
         var camelizeRE = /-([a-z])/gi;
         var placeholderRE = /\{\{(.+?)\}\}/g;
         var spaceBetweenTagsRE = /(<[a-zA-Z]+\d*\s*[^>]*\/?>)[\s\xa0\u3000]+|(<\/[a-zA-Z]+\d*>)[\s\xa0\u3000]+|[\s\xa0\u3000]+(<[a-zA-Z]+\d*\s*[^>]*\/?>)|[\s\xa0\u3000]+(<\/[a-zA-Z]+\d*>)/g;
-        var bothEndQuotesRE = /(['"])([^'"])\1/;
+        var bothEndQuotesRE = /(['"])(.*)\1/;
         var htmlCommentsRE = /<!--(?:.|\r|\n)*?-->/g;
         this.capitalize = function(str) {
             return str.replace(capitalizeRE, function(s) {
