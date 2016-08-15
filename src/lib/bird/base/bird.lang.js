@@ -367,7 +367,7 @@ define(function(require) {
 			setTimeout(callback, 0) //IE10-11 or W3C
 		};
 
-		this.bind = Function.prototype.bind || function bind(fn, ctx) {
+		this.bind = function bind(fn, ctx) {
 	    return function (a) {
 	      var l = arguments.length;
 	      return l ? l > 1 ? fn.apply(ctx, arguments) : fn.call(ctx, a) : fn.call(ctx);
