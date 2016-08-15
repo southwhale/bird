@@ -30,11 +30,11 @@
 
         var img = editor.selection.getRange().getClosedNode();
 	// 禁用上传功能，这里使得初始化插入图片功能时显示插入图片的tab
-        //if (img && img.tagName && img.tagName.toLowerCase() == 'img') {
+        if (img && img.tagName && img.tagName.toLowerCase() == 'img') {
             setTabFocus('remote');
-        //} else {
-        //    setTabFocus('upload');
-        //}
+        } else {
+            setTabFocus('upload');
+        }
     }
 
     /* 初始化tabbody */
@@ -702,6 +702,18 @@
             uploader.on('uploadBeforeSend', function (file, data, header) {
                 //这里可以通过data对象添加POST参数
                 header['X_Requested_With'] = 'XMLHttpRequest';
+
+                $.ajax({
+                    'url': '/api/common/upload/token',
+                    'type': 'get',
+                    'dataType': 'json',
+                    'async': false,
+                    success: function (ret) {
+                        data.token = ret.token;
+                        data.key = 'images/' + UE.utils.uuid() + '.' + file.file.ext;
+                    }
+                });
+
             });
 
             uploader.on('uploadProgress', function (file, percentage) {
@@ -718,6 +730,12 @@
                 try {
                     var responseText = (ret._raw || ret),
                         json = utils.str2json(responseText);
+                    if (json.key) {
+                        json.url = '/' + json.key;
+                        json.title = file.name;
+                        json.original = file.name;
+                        json.state = 'SUCCESS';
+                    }
                     if (json.state == 'SUCCESS') {
                         _this.imageList.push(json);
                         $file.append('<span class="success"></span>');

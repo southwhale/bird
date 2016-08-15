@@ -486,6 +486,17 @@
             uploader.on('uploadBeforeSend', function (file, data, header) {
                 //这里可以通过data对象添加POST参数
                 header['X_Requested_With'] = 'XMLHttpRequest';
+
+                $.ajax({
+                    'url': '/api/common/upload/token',
+                    'type': 'get',
+                    'dataType': 'json',
+                    'async': false,
+                    success: function (ret) {
+                        data.token = ret.token;
+                        data.key = 'attachments/' + UE.utils.uuid() + '.' + file.file.ext;
+                    }
+                });
             });
 
             uploader.on('uploadProgress', function (file, percentage) {
@@ -502,6 +513,13 @@
                 try {
                     var responseText = (ret._raw || ret),
                         json = utils.str2json(responseText);
+
+                    if (json.key) {
+                        json.url = '/' + json.key;
+                        json.title = file.name;
+                        json.original = file.name;
+                        json.state = 'SUCCESS';
+                    }
                     if (json.state == 'SUCCESS') {
                         _this.fileList.push(json);
                         $file.append('<span class="success"></span>');
