@@ -1433,8 +1433,13 @@ var utils = UE.utils = {
             };
         }
 
-    })()
-
+    })(),
+    uuid: function() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == "x" ? r : r & 3 | 8;
+            return v.toString(16);
+        });
+    }
 };
 /**
  * 判断给定的对象是否是字符串
@@ -23709,13 +23714,13 @@ UE.plugin.register('autoupload', function (){
                 me.options.themePath + me.options.theme +
                 '/images/spacer.gif" title="' + (me.getLang('autoupload.loading') || '') + '" >';
             successHandler = function(data) {
-                var link = urlPrefix + data.url,
+                var link = urlPrefix + '/' + data.url,
                     loader = me.document.getElementById(loadingId);
                 if (loader) {
                     loader.setAttribute('src', link);
                     loader.setAttribute('_src', link);
-                    loader.setAttribute('title', data.title || '');
-                    loader.setAttribute('alt', data.original || '');
+                    //loader.setAttribute('title', data.title || '');
+                    //loader.setAttribute('alt', data.original || '');
                     loader.removeAttribute('id');
                     domUtils.removeClasses(loader, 'loadingclass');
                 }
@@ -23727,7 +23732,7 @@ UE.plugin.register('autoupload', function (){
                 '/images/spacer.gif" title="' + (me.getLang('autoupload.loading') || '') + '" >' +
                 '</p>';
             successHandler = function(data) {
-                var link = urlPrefix + data.url,
+                var link = urlPrefix + '/' + data.url,
                     loader = me.document.getElementById(loadingId);
 
                 var rng = me.selection.getRange(),
@@ -23758,29 +23763,47 @@ UE.plugin.register('autoupload', function (){
             return;
         }
 
-        /* 创建Ajax并提交 */
-        var xhr = new XMLHttpRequest(),
-            fd = new FormData(),
-            params = utils.serializeParam(me.queryCommandValue('serverparam')) || '',
-            url = utils.formatUrl(actionUrl + (actionUrl.indexOf('?') == -1 ? '?':'&') + params);
+        $.ajax({
+            'url': '/api/common/upload/token',
+            'type': 'get',
+            'dataType': 'json',
+            'success': function (ret) {
 
-        fd.append(fieldName, file, file.name || ('blob.' + file.type.substr('image/'.length)));
-        fd.append('type', 'ajax');
-        xhr.open("post", url, true);
-        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-        xhr.addEventListener('load', function (e) {
-            try{
-                var json = (new Function("return " + utils.trim(e.target.response)))();
-                if (json.state == 'SUCCESS' && json.url) {
-                    successHandler(json);
-                } else {
-                    errorHandler(json.state);
-                }
-            }catch(er){
-                errorHandler(me.getLang('autoupload.loadError'));
+                var xhr = new XMLHttpRequest(),
+                    fd = new FormData(),
+                    params = utils.serializeParam(me.queryCommandValue('serverparam')) || '',
+                    url = utils.formatUrl(actionUrl + (actionUrl.indexOf('?') == -1 ? '?':'&') + params);
+
+                fd.append(fieldName, file);
+                fd.append('type', 'ajax');
+                fd.append('token', ret.token);
+                fd.append('key', 'images/' + UE.utils.uuid() + '.' + file.type.substr('image/'.length));
+                xhr.open("post", url, true);
+                xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+                xhr.addEventListener('load', function (e) {
+                    try{
+                        var json = (new Function("return " + utils.trim(e.target.response)))();
+
+                        if (json.key) {
+                            json.state = 'SUCCESS';
+                            json.url = json.key;
+                        }
+
+                        if (json.state == 'SUCCESS' && json.url) {
+                            successHandler(json);
+                        } else {
+                            errorHandler(json.state);
+                        }
+                    }catch(er){
+                        errorHandler(me.getLang('autoupload.loadError'));
+                    }
+                });
+                xhr.send(fd);
+                
             }
         });
-        xhr.send(fd);
+
+        
     }
 
     function getPasteImage(e){
@@ -24430,8 +24453,9 @@ UE.plugin.register('simpleupload', function (){
             'style="' + btnStyle + '">' +
             '<input id="edui_input_' + timestrap + '" type="file" accept="image/*" name="' + me.options.imageFieldName + '" ' +
             'style="' + btnStyle + '">' +
-            '</form>' +
-            '<iframe id="edui_iframe_' + timestrap + '" name="edui_iframe_' + timestrap + '" style="display:none;width:0;height:0;border:0;margin:0;padding:0;position:absolute;"></iframe>';
+            '<input type="hidden" name="token"><input type="hidden" name="key">' +
+            '</form>';/* +
+            '<iframe id="edui_iframe_' + timestrap + '" name="edui_iframe_' + timestrap + '" style="display:none;width:0;height:0;border:0;margin:0;padding:0;position:absolute;"></iframe>';*/
 
             wrapper.className = 'edui-' + me.options.theme;
             wrapper.id = me.ui.id + '_iframeupload';
@@ -24447,8 +24471,7 @@ UE.plugin.register('simpleupload', function (){
 
             var form = btnIframeDoc.getElementById('edui_form_' + timestrap);
             var input = btnIframeDoc.getElementById('edui_input_' + timestrap);
-            var iframe = btnIframeDoc.getElementById('edui_iframe_' + timestrap);
-
+            // var iframe = btnIframeDoc.getElementById('edui_iframe_' + timestrap);
             domUtils.on(input, 'change', function(){
                 if(!input.value) return;
                 var loadingId = 'loading_' + (+new Date()).toString(36);
@@ -24460,30 +24483,30 @@ UE.plugin.register('simpleupload', function (){
                 me.focus();
                 me.execCommand('inserthtml', '<img class="loadingclass" id="' + loadingId + '" src="' + me.options.themePath + me.options.theme +'/images/spacer.gif" title="' + (me.getLang('simpleupload.loading') || '') + '" >');
 
-                function callback(){
-                    try{
-                        var link, json, loader,
-                            body = (iframe.contentDocument || iframe.contentWindow.document).body,
-                            result = body.innerText || body.textContent || '';
-                        json = (new Function("return " + result))();
-                        link = me.options.imageUrlPrefix + json.url;
-                        if(json.state == 'SUCCESS' && json.url) {
-                            loader = me.document.getElementById(loadingId);
-                            loader.setAttribute('src', link);
-                            loader.setAttribute('_src', link);
-                            loader.setAttribute('title', json.title || '');
-                            loader.setAttribute('alt', json.original || '');
-                            loader.removeAttribute('id');
-                            domUtils.removeClasses(loader, 'loadingclass');
-                        } else {
-                            showErrorLoader && showErrorLoader(json.state);
-                        }
-                    }catch(er){
-                        showErrorLoader && showErrorLoader(me.getLang('simpleupload.loadError'));
-                    }
-                    form.reset();
-                    domUtils.un(iframe, 'load', callback);
-                }
+                // function callback(){
+                //     try{
+                //         var link, json, loader,
+                //             body = (iframe.contentDocument || iframe.contentWindow.document).body,
+                //             result = body.innerText || body.textContent || '';
+                //         json = (new Function("return " + result))();
+                //         link = me.options.imageUrlPrefix + json.url;
+                //         if(json.state == 'SUCCESS' && json.url) {
+                //             loader = me.document.getElementById(loadingId);
+                //             loader.setAttribute('src', link);
+                //             loader.setAttribute('_src', link);
+                //             loader.setAttribute('title', json.title || '');
+                //             loader.setAttribute('alt', json.original || '');
+                //             loader.removeAttribute('id');
+                //             domUtils.removeClasses(loader, 'loadingclass');
+                //         } else {
+                //             showErrorLoader && showErrorLoader(json.state);
+                //         }
+                //     }catch(er){
+                //         showErrorLoader && showErrorLoader(me.getLang('simpleupload.loadError'));
+                //     }
+                //     form.reset();
+                //     // domUtils.un(iframe, 'load', callback);
+                // }
                 function showErrorLoader(title){
                     if(loadingId) {
                         var loader = me.document.getElementById(loadingId);
@@ -24510,9 +24533,41 @@ UE.plugin.register('simpleupload', function (){
                     return;
                 }
 
-                domUtils.on(iframe, 'load', callback);
+                $.ajax({
+                    'url': '/api/common/upload/token',
+                    'type': 'get',
+                    'dataType': 'json',
+                    'success': function (ret) {
+                        form.token.value = ret.token;
+                        form.key.value = 'images/' + UE.utils.uuid() + fileext;
+
+                        $.ajax({
+                            'url': imageActionUrl,
+                            'type': 'post',
+                            'dataType': 'json',
+                            'data': new FormData(form),
+                            'processData' : false,  
+                            'contentType' : false, 
+                            'success': function (ret) {
+                                var loader = me.document.getElementById(loadingId);
+                                link = me.options.imageUrlPrefix + '/'+ ret.key;
+                                loader.setAttribute('src', link);
+                                loader.setAttribute('_src', link);
+                                loader.setAttribute('title', '');
+                                loader.setAttribute('alt', '');
+                                loader.removeAttribute('id');
+                                domUtils.removeClasses(loader, 'loadingclass');
+                            }
+                        });
+                        
+                    }
+                });
+
+                
+
+                /* domUtils.on(iframe, 'load', callback);
                 form.action = utils.formatUrl(imageActionUrl + (imageActionUrl.indexOf('?') == -1 ? '?':'&') + params);
-                form.submit();
+                form.submit();*/
             });
 
             var stateTimer;
@@ -24689,9 +24744,9 @@ UE.plugin.register('insertfile', function (){
 
     var me = this;
 
-    function getFileIcon(url){
-        var ext = url.substr(url.lastIndexOf('.') + 1).toLowerCase(),
-            maps = {
+    function getFileIcon(ext){
+        
+            var maps = {
                 "rar":"icon_rar.gif",
                 "zip":"icon_rar.gif",
                 "tar":"icon_rar.gif",
@@ -24724,23 +24779,29 @@ UE.plugin.register('insertfile', function (){
         return maps[ext] ? maps[ext]:maps['txt'];
     }
 
+    function getExt(url) {
+        var ext = url.substr(url.lastIndexOf('.') + 1).toLowerCase();
+        return ext;
+    }
+
     return {
         commands:{
             'insertfile': {
                 execCommand: function (command, filelist){
                     filelist = utils.isArray(filelist) ? filelist : [filelist];
 
-                    var i, item, icon, title,
+                    var i, item, icon, title, ext,
                         html = '',
                         URL = me.getOpt('UEDITOR_HOME_URL'),
                         iconDir = URL + (URL.substr(URL.length - 1) == '/' ? '':'/') + 'dialogs/attachment/fileTypeImages/';
                     for (i = 0; i < filelist.length; i++) {
                         item = filelist[i];
-                        icon = iconDir + getFileIcon(item.url);
+                        ext = getExt(item.url);
+                        icon = iconDir + getFileIcon(ext);
                         title = item.title || item.url.substr(item.url.lastIndexOf('/') + 1);
                         html += '<p style="line-height: 16px;">' +
                             '<img style="vertical-align: middle; margin-right: 2px;" src="'+ icon + '" _src="' + icon + '" />' +
-                            '<a style="font-size:12px; color:#0066cc;" href="' + item.url +'" title="' + title + '">' + title + '</a>' +
+                            '<a style="font-size:12px; color:#0066cc;" target="_blank" href="' + (ext === 'pdf' ? me.options.pdfReaderUrl : '') + item.url +'" title="' + title + '">' + title + '</a>' +
                             '</p>';
                     }
                     me.execCommand('insertHtml', html);
