@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.1
- * @date: 2016-06-05
+ * @date: 2016-08-16
  */
 /**
  *	封装LRU cache为独立模块
@@ -4092,6 +4092,12 @@ define("bird.lang", [], function(require) {
         this.noop = noop;
         this.nextTick = window.setImmediate ? setImmediate.bind(window) : function(callback) {
             setTimeout(callback, 0);
+        };
+        this.bind = Function.prototype.bind || function bind(fn, ctx) {
+            return function(a) {
+                var l = arguments.length;
+                return l ? l > 1 ? fn.apply(ctx, arguments) : fn.call(ctx, a) : fn.call(ctx);
+            };
         };
         function noop() {}
     }).call(Lang.prototype);

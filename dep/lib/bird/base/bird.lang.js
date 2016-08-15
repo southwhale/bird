@@ -301,6 +301,12 @@ define("bird.lang", [], function(require) {
         this.nextTick = window.setImmediate ? setImmediate.bind(window) : function(callback) {
             setTimeout(callback, 0);
         };
+        this.bind = Function.prototype.bind || function bind(fn, ctx) {
+            return function(a) {
+                var l = arguments.length;
+                return l ? l > 1 ? fn.apply(ctx, arguments) : fn.call(ctx, a) : fn.call(ctx);
+            };
+        };
         function noop() {}
     }).call(Lang.prototype);
     return new Lang();
