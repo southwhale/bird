@@ -1,4 +1,4 @@
-define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang", "bird.object" ], function(require) {
+define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang", "bird.object", "bird.logger" ], function(require) {
     function Router() {
         this.notFoundActionMap = null;
         this.locationMap = {};
@@ -8,6 +8,7 @@ define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang"
         var Observer = require("bird.__observer__");
         var lang = require("bird.lang");
         var object = require("bird.object");
+        var logger = require("bird.logger");
         this.actionObserver = new Observer();
         /*********************************************************************
 		 *                             控制器
@@ -15,7 +16,7 @@ define("bird.router.pushstate", [ "bird.event", "bird.__observer__", "bird.lang"
         this.start = function() {
             this.watchLocation();
             this.bootFirstUrl();
-            console.log("bird.router[use pushState] started!");
+            logger.log("bird.router[use pushState] started!");
         };
         this.changeLocation = function(loc) {
             loc = loc.replace(/^#!/, "");

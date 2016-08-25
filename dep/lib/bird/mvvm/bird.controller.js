@@ -2,10 +2,11 @@
  * 负责查找具体Action的调用
  *
  */
-define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.action" ], function(require) {
+define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "bird.logger", "./bird.action" ], function(require) {
     var router = require("./bird.router");
     var lang = require("bird.lang");
     var array = require("bird.array");
+    var logger = require("bird.logger");
     var Action = require("./bird.action");
     function Controller() {
         this.actionInstanceCache = {};
@@ -14,7 +15,7 @@ define("bird.controller", [ "./bird.router", "bird.lang", "bird.array", "./bird.
         this.start = function() {
             router.start();
             this.initActionListener();
-            console.log("bird.controller started!");
+            logger.log("bird.controller started!");
         };
         //调度指定的Action并启动Action
         this.dispatch = function(name, data) {

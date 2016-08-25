@@ -1,4 +1,4 @@
-define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.string", "./bird.util", "./bird.object", "./bird.date" ], function(require) {
+define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.string", "./bird.util", "./bird.object", "./bird.date", "./bird.logger" ], function(require) {
     var dom = require("./bird.dom");
     var lang = require("./bird.lang");
     var array = require("./bird.array");
@@ -6,6 +6,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
     var util = require("./bird.util");
     var object = require("./bird.object");
     var date = require("./bird.date");
+    var logger = require("./bird.logger");
     /*********************************************************************
      *                             ajax/jsonp
      ********************************************************************/
@@ -65,7 +66,7 @@ define("bird.request", [ "./bird.dom", "./bird.lang", "./bird.array", "./bird.st
                 }
             }
             if (!xhr) {
-                console.warn("Your browser not support" + (arg.crossDomain ? " CrossDomain " : " ") + "XmlHttpRequest!");
+                logger.warn("Your browser not support" + (arg.crossDomain ? " CrossDomain " : " ") + "XmlHttpRequest!");
                 return;
             }
             //define default arguments

@@ -7,6 +7,7 @@ define(function(require) {
 	var array = require('bird.array');
 	var request = require('bird.request');
 	var string = require('bird.string');
+	var logger = require('bird.logger');
 
 	function RequestHelper() {
 
@@ -67,12 +68,12 @@ define(function(require) {
 				var url = arr && arr[1];
 
 				if (!reqType) {
-					console.warn('模块: `' + modName + '`, 数据请求方法: `' + key + '` 缺少请求类型!');
+					logger.warn('模块: `' + modName + '`, 数据请求方法: `' + key + '` 缺少请求类型!');
 					return;
 				}
 
 				if (!url) {
-					console.warn('模块: `' + modName + '`, 数据请求方法: `' + key + '` 缺少请求URL!');
+					logger.warn('模块: `' + modName + '`, 数据请求方法: `' + key + '` 缺少请求URL!');
 					return;
 				}
 

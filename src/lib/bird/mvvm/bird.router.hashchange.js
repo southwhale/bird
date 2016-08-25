@@ -11,6 +11,7 @@ define(function(require) {
 		var Observer = require('bird.__observer__');
 		var lang = require('bird.lang');
 		var object = require('bird.object');
+		var logger = require('bird.logger');
 
 		this.actionObserver = new Observer();
 
@@ -22,7 +23,7 @@ define(function(require) {
 		this.start = function() {
 			this.watchHash();
 			this.bootFirstUrl();
-			console.log('bird.router[use hashChange] started!');
+			logger.log('bird.router[use hashChange] started!');
 		};
 
 		this.changeHash = function(hash) {

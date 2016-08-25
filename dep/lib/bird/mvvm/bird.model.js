@@ -1,7 +1,8 @@
-define("bird.model", [ "bird.lang", "bird.array", "bird.object", "bird.__observer__" ], function(require) {
+define("bird.model", [ "bird.lang", "bird.array", "bird.object", "bird.logger", "bird.__observer__" ], function(require) {
     var lang = require("bird.lang");
     var array = require("bird.array");
     var object = require("bird.object");
+    var logger = require("bird.logger");
     var Observer = require("bird.__observer__");
     function Model() {
         this.watcher = new Observer();
@@ -65,7 +66,7 @@ define("bird.model", [ "bird.lang", "bird.array", "bird.object", "bird.__observe
                 var lastDotIndex = v.lastIndexOf(".");
                 if (lastDotIndex !== -1) {
                     if (lastDotIndex !== v.indexOf(".")) {
-                        console.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!');
+                        logger.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!');
                         return;
                     }
                     var arr = v.split(".");

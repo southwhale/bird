@@ -6,6 +6,7 @@ define(function(require) {
 	var browser = require('bird.browser');
 	var array = require('bird.array');
 	var request = require('bird.request');
+	var logger = require('bird.logger');
 
 	var clickPathList = [];
 	var lastClickData;
@@ -42,7 +43,7 @@ define(function(require) {
 				me.send(me.getErrorInfo(e));
 				me.clear();
 			});
-			console.log("ErrorTrack Module Inited!");
+			logger.log("ErrorTrack Module Inited!");
 		},
 		clear: function() {
 			clickPathList = [];

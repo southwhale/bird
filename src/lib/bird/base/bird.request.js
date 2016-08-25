@@ -6,6 +6,7 @@ define(function(require) {
     var util = require('./bird.util');
     var object = require('./bird.object');
     var date = require('./bird.date');
+    var logger = require('./bird.logger');
     /*********************************************************************
      *                             ajax/jsonp
      ********************************************************************/
@@ -77,7 +78,7 @@ define(function(require) {
                 }
             }
             if (!xhr) {
-                console.warn("Your browser not support" + (arg.crossDomain ? " CrossDomain " : " ") + "XmlHttpRequest!");
+                logger.warn("Your browser not support" + (arg.crossDomain ? " CrossDomain " : " ") + "XmlHttpRequest!");
                 return;
             }
 

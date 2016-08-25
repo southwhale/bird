@@ -2,11 +2,12 @@
  * 后台数据请求助手, 服务于bird.action
  * restful style
  */
-define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bird.string" ], function(require) {
+define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bird.string", "bird.logger" ], function(require) {
     var object = require("bird.object");
     var array = require("bird.array");
     var request = require("bird.request");
     var string = require("bird.string");
+    var logger = require("bird.logger");
     function RequestHelper() {}
     (function() {
         /**
@@ -61,11 +62,11 @@ define("bird.requesthelper", [ "bird.object", "bird.array", "bird.request", "bir
                 var reqType = arr && arr[0];
                 var url = arr && arr[1];
                 if (!reqType) {
-                    console.warn("模块: `" + modName + "`, 数据请求方法: `" + key + "` 缺少请求类型!");
+                    logger.warn("模块: `" + modName + "`, 数据请求方法: `" + key + "` 缺少请求类型!");
                     return;
                 }
                 if (!url) {
-                    console.warn("模块: `" + modName + "`, 数据请求方法: `" + key + "` 缺少请求URL!");
+                    logger.warn("模块: `" + modName + "`, 数据请求方法: `" + key + "` 缺少请求URL!");
                     return;
                 }
                 me[methodName] = function(data, completeCallback, errorCallback) {

@@ -2,6 +2,7 @@ define(function(require) {
 	var lang = require('bird.lang');
 	var array = require('bird.array');
 	var object = require('bird.object');
+	var logger = require('bird.logger');
 	var Observer = require('bird.__observer__');
 
 	function Model() {
@@ -71,7 +72,7 @@ define(function(require) {
 				var lastDotIndex = v.lastIndexOf('.');
 				if (lastDotIndex !== -1) {
 					if (lastDotIndex !== v.indexOf('.')) {
-						console.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!')
+						logger.warn('Only support filter key like "a" or "a.b", and "a.b.c" which dot number more than 1 is not supported!')
 						return;
 					}
 					var arr = v.split('.');

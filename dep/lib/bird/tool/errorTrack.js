@@ -1,10 +1,11 @@
-define("errorTrack", [ "bird.event", "bird.object", "bird.dom", "bird.browser", "bird.array", "bird.request" ], function(require) {
+define("errorTrack", [ "bird.event", "bird.object", "bird.dom", "bird.browser", "bird.array", "bird.request", "bird.logger" ], function(require) {
     var event = require("bird.event");
     var object = require("bird.object");
     var dom = require("bird.dom");
     var browser = require("bird.browser");
     var array = require("bird.array");
     var request = require("bird.request");
+    var logger = require("bird.logger");
     var clickPathList = [];
     var lastClickData;
     var config = {
@@ -37,7 +38,7 @@ define("errorTrack", [ "bird.event", "bird.object", "bird.dom", "bird.browser", 
                 me.send(me.getErrorInfo(e));
                 me.clear();
             });
-            console.log("ErrorTrack Module Inited!");
+            logger.log("ErrorTrack Module Inited!");
         },
         clear: function() {
             clickPathList = [];

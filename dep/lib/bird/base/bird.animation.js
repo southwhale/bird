@@ -1,6 +1,7 @@
-define("bird.animation", [ "./bird.lang", "./bird.dom", "./bird.requestframe", "./bird.tween" ], function(require) {
+define("bird.animation", [ "./bird.lang", "./bird.dom", "./bird.logger", "./bird.requestframe", "./bird.tween" ], function(require) {
     var lang = require("./bird.lang");
     var dom = require("./bird.dom");
+    var logger = require("./bird.logger");
     var reqFrame = require("./bird.requestframe");
     /**
 	 *       elem:   element will animate
@@ -121,7 +122,7 @@ define("bird.animation", [ "./bird.lang", "./bird.dom", "./bird.requestframe", "
                                 self.cprop[i] = self.$cprop[i] + (self.$props[i] - self.$cprop[i]) * self.pos + self.units[i];
                                 //self.cssText = css(self.cssText, self.cprop, i);
                                 self.elem.style[i] = self.cprop[i];
-                                console.log(self.elem.style[i]);
+                                logger.log(self.elem.style[i]);
                             }
                         }
                         if (self.hasTransform) {

@@ -1,4 +1,4 @@
-define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "bird.__observer__", "bird.object" ], function(require) {
+define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "bird.__observer__", "bird.object", "bird.logger" ], function(require) {
     function Router() {
         this.notFoundActionMap = null;
         this.locationMap = {};
@@ -9,6 +9,7 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
         var lang = require("bird.lang");
         var Observer = require("bird.__observer__");
         var object = require("bird.object");
+        var logger = require("bird.logger");
         this.actionObserver = new Observer();
         /*********************************************************************
 		 *                             控制器
@@ -17,7 +18,7 @@ define("bird.router.ie7support", [ "bird.event", "bird.browser", "bird.lang", "b
             this.init();
             this.watchHash();
             this.bootFirstUrl();
-            console.log("bird.router[ie7support] started!");
+            logger.log("bird.router[ie7support] started!");
         };
         this.init = function() {
             var ieVersion = /ie\s*(\d+)/.exec(browser.browser);

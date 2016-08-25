@@ -7,6 +7,7 @@ define(function(require) {
 	var router = require('./bird.router');
 	var lang = require('bird.lang');
 	var array = require('bird.array');
+	var logger = require('bird.logger');
 	var Action = require('./bird.action');
 
 	function Controller() {
@@ -18,7 +19,7 @@ define(function(require) {
 		this.start = function() {
 			router.start();
 			this.initActionListener();
-			console.log('bird.controller started!');
+			logger.log('bird.controller started!');
 		};
 
 

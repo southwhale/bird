@@ -12,6 +12,7 @@ define(function(require) {
 		var lang = require('bird.lang');
 		var Observer = require('bird.__observer__');
 		var object = require('bird.object');
+		var logger = require('bird.logger');
 
 		this.actionObserver = new Observer();
 
@@ -24,7 +25,7 @@ define(function(require) {
 			this.init();
 			this.watchHash();
 			this.bootFirstUrl();
-			console.log('bird.router[ie7support] started!');
+			logger.log('bird.router[ie7support] started!');
 		};
 
 		this.init = function() {
