@@ -51,7 +51,7 @@ define("bird.accmath", [], function(require) {
             n = r1 >= r2 ? r1 : r2;
             return Number(((a * m - b * m) / m).toFixed(n));
         };
-        this.multipe = function(a, b) {
+        this.multiple = function(a, b) {
             var m = 0, s1 = a.toString(), s2 = b.toString();
             try {
                 m += s1.split(".")[1].length;

@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.1
- * @date: 2016-08-16
+ * @date: 2016-08-25
  */
 /**
  *	封装LRU cache为独立模块
@@ -929,7 +929,7 @@ define("bird.accmath", [], function(require) {
             n = r1 >= r2 ? r1 : r2;
             return Number(((a * m - b * m) / m).toFixed(n));
         };
-        this.multipe = function(a, b) {
+        this.multiple = function(a, b) {
             var m = 0, s1 = a.toString(), s2 = b.toString();
             try {
                 m += s1.split(".")[1].length;
