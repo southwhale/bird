@@ -4180,23 +4180,23 @@ define("bird.logger", [], function(require) {
             this.level = "INFO";
         };
         this.info = function() {
-            if (levelMap[this.level] === 1) {
+            if (levelMap[this.level] < 2) {
                 console.log.apply(console, arguments);
             }
         };
         this.log = this.info;
         this.warn = function() {
-            if (levelMap[this.level] > 1) {
+            if (levelMap[this.level] < 3) {
                 console.warn.apply(console, arguments);
             }
         };
         this.error = function() {
-            if (levelMap[this.level] > 2) {
+            if (levelMap[this.level] < 4) {
                 console.error.apply(console, arguments);
             }
         };
         this.dir = function() {
-            if (levelMap[this.level] === 1) {
+            if (levelMap[this.level] < 2) {
                 console.dir.apply(console, arguments);
             }
         };
