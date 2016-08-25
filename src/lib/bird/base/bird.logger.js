@@ -1,5 +1,4 @@
 define(function(require) {
-	var lang = require('./bird.lang');
 
 	if (typeof window.console === 'undefined') {
 		function DivConsole() {
@@ -20,7 +19,7 @@ define(function(require) {
 		(function() {
 			this.log = function(s, color) {
 				var rs;
-				if (!lang.isPlainObject(s) && !lang.isArray(s)) {
+				if (!isPlainObject(s) && !isArray(s)) {
 					var strarr = s.split('%c');
 					var ret = [];
 					var _arguments = arguments;
@@ -46,6 +45,25 @@ define(function(require) {
 		}).call(DivConsole.prototype);
 
 		window.console = new DivConsole();
+	}
+
+
+	function getType(p) {
+		if (typeof p === 'undefined') {
+			return 'Undefined';
+		}
+		if (p === null) {
+			return 'Null';
+		}
+		return Object.prototype.toString.call(p).slice(8, -1);
+	};
+
+	function isArray(p) {
+		return Array.isArray ? Array.isArray(p) : getType(p) === 'Array';
+	}
+
+	function isPlainObject(p) {
+		return getType(p) === 'Object';
 	}
 
 	var levelMap = {

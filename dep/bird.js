@@ -4105,8 +4105,7 @@ define("bird.lang", [ "./bird.logger" ], function(require) {
     }).call(Lang.prototype);
     return new Lang();
 });
-define("bird.logger", [ "./bird.lang" ], function(require) {
-    var lang = require("./bird.lang");
+define("bird.logger", [], function(require) {
     if (typeof window.console === "undefined") {
         function DivConsole() {
             var div = document.createElement("div");
@@ -4125,7 +4124,7 @@ define("bird.logger", [ "./bird.lang" ], function(require) {
         (function() {
             this.log = function(s, color) {
                 var rs;
-                if (!lang.isPlainObject(s) && !lang.isArray(s)) {
+                if (!isPlainObject(s) && !isArray(s)) {
                     var strarr = s.split("%c");
                     var ret = [];
                     var _arguments = arguments;
@@ -4148,6 +4147,21 @@ define("bird.logger", [ "./bird.lang" ], function(require) {
             this.dir = this.info = this.warn = this.error = this.log;
         }).call(DivConsole.prototype);
         window.console = new DivConsole();
+    }
+    function getType(p) {
+        if (typeof p === "undefined") {
+            return "Undefined";
+        }
+        if (p === null) {
+            return "Null";
+        }
+        return Object.prototype.toString.call(p).slice(8, -1);
+    }
+    function isArray(p) {
+        return Array.isArray ? Array.isArray(p) : getType(p) === "Array";
+    }
+    function isPlainObject(p) {
+        return getType(p) === "Object";
     }
     var levelMap = {
         INFO: 1,
