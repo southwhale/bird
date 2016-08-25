@@ -2,7 +2,7 @@
  * @file: bird.js
  * @author: liwei47@baidu.com
  * @version: 1.0.1
- * @date: 2016-08-25
+ * @date: 2016-08-26
  */
 /**
  *	封装LRU cache为独立模块
@@ -4103,6 +4103,90 @@ define("bird.lang", [], function(require) {
     }).call(Lang.prototype);
     return new Lang();
 });
+define("bird.logger", [ "./bird.lang" ], function(require) {
+    var lang = require("./bird.lang");
+    if (typeof window.console === "undefined") {
+        function DivConsole() {
+            var div = document.createElement("div");
+            div.style.position = "absolute";
+            div.style.top = "0px";
+            div.style.padding = "10px";
+            div.style.backgroundColor = "#eee";
+            div.style.filter = "alpha(opacity=80)";
+            div.style.border = "dotted 2px red";
+            div.style.color = "black";
+            div.zIndex = 999999999;
+            document.body.appendChild(div);
+            this.contentDiv = div;
+            div = null;
+        }
+        (function() {
+            this.log = function(s, color) {
+                var rs;
+                if (!lang.isPlainObject(s) && !lang.isArray(s)) {
+                    var strarr = s.split("%c");
+                    var ret = [];
+                    var _arguments = arguments;
+                    util.forEach(strarr, function(str, index, strarr) {
+                        if (!index && str) {
+                            ret.push(str);
+                        } else {
+                            ret.push('<span style="' + _arguments[index] + '">', str, "</span>");
+                        }
+                    });
+                    rs = ret.join("");
+                } else {
+                    rs = JSON.stringify(s);
+                }
+                var div = document.createElement("div");
+                div.innerHTML = rs;
+                this.contentDiv.appendChild(div);
+                div = _arguments = null;
+            };
+            this.dir = this.info = this.warn = this.error = this.log;
+        }).call(DivConsole.prototype);
+        window.console = new DivConsole();
+    }
+    var levelMap = {
+        INFO: 1,
+        WARN: 2,
+        ERROR: 3,
+        FATAL: 4
+    };
+    function Logger() {
+        this.level = "INFO";
+    }
+    (function() {
+        this.setLevel = function(level) {
+            this.level = level;
+        };
+        this.setDefaultLevel = function() {
+            this.level = "INFO";
+        };
+        this.info = function() {
+            if (levelMap[this.level] === 1) {
+                console.log.apply(console, arguments);
+            }
+        };
+        this.log = this.info;
+        this.warn = function() {
+            if (levelMap[this.level] > 1) {
+                console.warn.apply(console, arguments);
+            }
+        };
+        this.error = function() {
+            if (levelMap[this.level] > 2) {
+                console.error.apply(console, arguments);
+            }
+        };
+        this.dir = function() {
+            if (levelMap[this.level] === 1) {
+                console.dir.apply(console, arguments);
+            }
+        };
+    }).call(Logger.prototype);
+    return new Logger();
+});
 define("bird.lrucache", [ "./bird.__lrucache__" ], function(require) {
     var LRUCache = require("./bird.__lrucache__");
     return new LRUCache();
@@ -4957,9 +5041,8 @@ define("bird.string", [], function(require) {
     }).call(_String.prototype);
     return new _String();
 });
-define("bird.syspatch", [ "./bird.util", "./bird.lang" ], function(require) {
+define("bird.syspatch", [ "./bird.util" ], function(require) {
     var util = require("./bird.util");
-    var lang = require("./bird.lang");
     /*********************************************************************
 	 *                             系统函数补丁
 	 ********************************************************************/
@@ -4990,59 +5073,6 @@ define("bird.syspatch", [ "./bird.util", "./bird.lang" ], function(require) {
         fBound.prototype = new fNOP();
         return fBound;
     });
-    /**
-	 * 保证console在语法上可行
-	 */
-    if (ctx.DEBUG && typeof ctx.console === "undefined") {
-        var Console = function() {
-            var div = document.createElement("div");
-            div.style.position = "absolute";
-            div.style.top = "0px";
-            div.style.padding = "10px";
-            div.style.backgroundColor = "#eee";
-            div.style.filter = "alpha(opacity=80)";
-            div.style.border = "dotted 2px red";
-            div.style.color = "black";
-            div.zIndex = 999999999;
-            document.body.appendChild(div);
-            this.contentDiv = div;
-            div = null;
-        };
-        (function() {
-            this.log = function(s, color) {
-                var rs;
-                if (!lang.isPlainObject(s) && !lang.isArray(s)) {
-                    var strarr = s.split("%c");
-                    var ret = [];
-                    var _arguments = arguments;
-                    util.forEach(strarr, function(str, index, strarr) {
-                        if (!index && str) {
-                            ret.push(str);
-                        } else {
-                            ret.push('<span style="' + _arguments[index] + '">', str, "</span>");
-                        }
-                    });
-                    rs = ret.join("");
-                } else {
-                    rs = JSON.stringify(s);
-                }
-                var div = document.createElement("div");
-                div.innerHTML = rs;
-                this.contentDiv.appendChild(div);
-                div = _arguments = null;
-            };
-            this.info = this.warn = this.error = this.log;
-        }).call(Console.prototype);
-        ctx.console = new Console();
-    }
-    if (!ctx.DEBUG) {
-        ctx.console = {
-            log: lang.noop,
-            warn: lang.noop,
-            info: lang.noop,
-            error: lang.noop
-        };
-    }
 });
 define("bird.template", [ "./bird.dom" ], function(require) {
     /*********************************************************************
