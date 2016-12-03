@@ -58,6 +58,11 @@ module.exports = function(grunt) {
           src: ['dep/<%= pkg.name %>.js'],
           dest: 'dep/<%= pkg.name %>.min.js'
         }]
+      },
+      echarts: {
+        files: {
+          'dep/lib/echarts/dist/echarts-all.js': 'dep/lib/echarts/source/echarts-all.js'
+        }
       }
     },
     copy: {

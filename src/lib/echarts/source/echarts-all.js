@@ -3449,6 +3449,7 @@ define('zrender/zrender', [
         _show: function (position, x, y, specialCssText) {
             var domHeight = this._tDom.offsetHeight;
             var domWidth = this._tDom.offsetWidth;
+            var useCustomY;
             if (position) {
                 if (typeof position === 'function') {
                     position = position([
@@ -3459,6 +3460,7 @@ define('zrender/zrender', [
                 if (position instanceof Array) {
                     x = position[0];
                     y = position[1];
+                    useCustomY = position[2];
                 }
             }
             if (x + domWidth > this._zrWidth) {
@@ -3467,7 +3469,7 @@ define('zrender/zrender', [
             if (y + domHeight > this._zrHeight) {
                 y -= domHeight - 20;
             }
-            if (y < 20) {
+            if (y < 20 && !useCustomY) {
                 y = 0;
             }
             this._tDom.style.cssText = this._gCssText + this._defaultCssText + (specialCssText ? specialCssText : '') + 'left:' + x + 'px;top:' + y + 'px;';
